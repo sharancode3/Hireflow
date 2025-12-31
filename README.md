@@ -2,40 +2,86 @@
 
 Talvion — Where Talent Meets Vision.
 
-Talvion is a modern hiring platform that connects job seekers and recruiters through intelligent profiles, automated resume generation, and streamlined hiring tools.
+Talvion is a full‑stack hiring platform that connects job seekers and recruiters through role‑based dashboards, streamlined applications, hiring tools, and a built‑in resume builder.
 
-## Run Guide
+![CI](https://github.com/sharancode3/Talvion/actions/workflows/ci.yml/badge.svg)
 
-## Easiest (Windows)
-1. Install Node.js LTS (18 or 20)
-2. Open this folder in VS Code
-3. Double-click `start-windows.bat`
+## What you can do
 
-## Dev from repo root
-- `npm install`
-- `npm run dev`
+**Job Seeker**
+- Browse jobs and view details
+- Apply and track applications
+- Build a resume and export/share it
+- See notifications and updates
 
-It will:
+**Recruiter**
+- Post and manage jobs
+- Review applicants and shortlist candidates
+- Track applications and hiring progress
+- See notifications and overview stats
+
+**Insights**
+- View hiring trends / charts
+
+## Tech stack
+
+- **Frontend:** React + Vite + TypeScript
+- **Backend:** Node.js + Express + TypeScript
+- **Database:** Prisma ORM + SQLite (local dev)
+
+## Quick start (Windows)
+
+1. Install **Node.js LTS (18 or 20)**
+2. Open this folder in **VS Code**
+3. Double‑click `start-windows.bat`
+
+The starter script will:
 - create `backend/.env` if missing
 - install backend + frontend dependencies
-- run Prisma migration (SQLite)
+- run Prisma migrations (SQLite)
 - start backend + frontend in two terminal windows
 
-## Manual (if needed)
-Backend:
-- `cd backend`
-- copy `.env.example` to `.env` (or create `.env`)
-- `npm install`
-- `npm run prisma:migrate`
-- `npm run dev`
+Frontend usually runs at: `http://localhost:5173`
 
-Frontend:
-- `cd frontend`
-- `npm install`
-- `npm run dev`
+## Run in dev (manual)
+
+### Backend
+
+```bash
+cd backend
+npm install
+npm run prisma:migrate
+npm run dev
+```
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+## Useful scripts (repo root)
+
+- `npm run dev` — start backend + frontend together
+- `npm run typecheck` — TypeScript checks (backend + frontend)
+- `npm run lint` — ESLint (frontend)
+- `npm run build` — production build (backend + frontend)
+- `npm run check` — typecheck + lint + build (used by CI)
+
+## Configuration
+
+The backend uses `backend/.env`.
+
+Default values created by the Windows starter:
+- `DATABASE_URL="file:./dev.db"`
+- `JWT_SECRET="..."` (change this for anything beyond local dev)
+- `CORS_ORIGIN="http://localhost:5173"`
 
 ## Branding asset
-The UI expects the HireHub logo image at `frontend/public/hirehub-logo.png`.
 
-If the file is missing, the app still runs, but the header logo and auth-page watermark will not render and the production build will warn about `/hirehub-logo.png` being resolved at runtime.
+The UI expects a logo at `frontend/public/hirehub-logo.png`.
+
+If it’s missing, the app still runs, but the header logo and auth-page watermark won’t render and the production build will warn about `/hirehub-logo.png` being resolved at runtime.
 
