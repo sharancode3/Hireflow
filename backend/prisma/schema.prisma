@@ -1,0 +1,145 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  JOB_SEEKER
+  RECRUITER
+}
+
+enum ProfileVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum ApplicationStatus {
+  APPLIED
+  SHORTLISTED
+  REJECTED
+  INTERVIEW_SCHEDULED
+  OFFERED
+  HIRED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         UserRole
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  jobSeekerProfile JobSeekerProfile?
+  recruiterProfile RecruiterProfile?
+  notifications    Notification[]
+}
+
+model JobSeekerProfile {
+  id          String            @id @default(cuid())
+  userId      String            @unique
+  fullName    String
+  phone       String?
+  location    String?
+  experienceYears Int           @default(0)
+  skillsCsv   String            @default("")
+  desiredRole String?
+  isFresher   Boolean           @default(false)
+  visibility  ProfileVisibility @default(PUBLIC)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resumes      Resume[]
+  applications Application[]
+  savedJobs    SavedJob[]
+}
+
+model Resume {
+  id           String   @id @default(cuid())
+  jobSeekerId  String
+  originalName String
+  storedName   String
+  mimeType     String
+  sizeBytes    Int
+  createdAt    DateTime @default(now())
+
+  jobSeeker JobSeekerProfile @relation(fields: [jobSeekerId], references: [id], onDelete: Cascade)
+}
+
+model RecruiterProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  companyName String
+  website     String?
+  location    String?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobs Job[]
+}
+
+model Job {
+  id                String   @id @default(cuid())
+  recruiterId       String
+  title             String
+  companyName       String
+  location          String
+  role              String
+  requiredSkillsCsv String
+  description       String
+  openToFreshers    Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  recruiter    RecruiterProfile @relation(fields: [recruiterId], references: [id], onDelete: Cascade)
+  applications Application[]
+  savedBy      SavedJob[]
+}
+
+model Application {
+  id          String            @id @default(cuid())
+  jobId       String
+  jobSeekerId String
+  status      ApplicationStatus @default(APPLIED)
+  interviewAt DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  job       Job              @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  jobSeeker JobSeekerProfile @relation(fields: [jobSeekerId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, jobSeekerId])
+}
+
+model SavedJob {
+  id          String   @id @default(cuid())
+  jobId       String
+  jobSeekerId String
+  createdAt   DateTime @default(now())
+
+  job       Job              @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  jobSeeker JobSeekerProfile @relation(fields: [jobSeekerId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, jobSeekerId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
