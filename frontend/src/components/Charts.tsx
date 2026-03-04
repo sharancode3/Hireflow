@@ -203,3 +203,63 @@ export function MiniSparkline(props: { labels: string[]; values: number[] }) {
     </div>
   );
 }
+
+export function DualLineChart(props: {
+  title?: string;
+  labels: string[];
+  dataset1: { label: string; values: number[]; color: string };
+  dataset2: { label: string; values: number[]; color: string };
+  height?: number;
+}) {
+  const colors = useThemeColors();
+  const height = props.height ?? 280;
+
+  return (
+    <div className="chart" style={{ height }} aria-label={props.title ?? "Dual line chart"}>
+      <Line
+        options={{
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: true,
+              position: "top",
+              labels: { color: colors.muted, usePointStyle: true, pointStyle: "circle", padding: 16, font: { size: 11 } },
+            },
+            tooltip: { enabled: true, mode: "index", intersect: false },
+          },
+          scales: {
+            x: { ticks: { color: colors.muted, font: { size: 11 } }, grid: { color: withAlpha(colors.border, 0.4) } },
+            y: { ticks: { color: colors.muted, font: { size: 11 } }, grid: { color: withAlpha(colors.border, 0.4) }, beginAtZero: true },
+          },
+          interaction: { mode: "index", intersect: false },
+        }}
+        data={{
+          labels: props.labels,
+          datasets: [
+            {
+              label: props.dataset1.label,
+              data: props.dataset1.values,
+              borderColor: props.dataset1.color,
+              backgroundColor: withAlpha(props.dataset1.color, 0.1),
+              fill: true,
+              tension: 0.35,
+              pointRadius: 3,
+              pointHoverRadius: 5,
+            },
+            {
+              label: props.dataset2.label,
+              data: props.dataset2.values,
+              borderColor: props.dataset2.color,
+              backgroundColor: withAlpha(props.dataset2.color, 0.1),
+              fill: true,
+              tension: 0.35,
+              pointRadius: 3,
+              pointHoverRadius: 5,
+            },
+          ],
+        }}
+      />
+    </div>
+  );
+}

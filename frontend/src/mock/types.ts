@@ -165,7 +165,15 @@ export type Resume = {
   createdAt: string;
 };
 
-export type ResumeTemplate = "MODERN" | "CLASSIC" | "MINIMAL";
+export type ResumeTemplate =
+  | "ATS_PLAIN"
+  | "TECH_FOCUSED"
+  | "EXECUTIVE"
+  | "STARTUP"
+  | "ACADEMIC"
+  | "MODERN"
+  | "CLASSIC"
+  | "MINIMAL";
 
 export type ResumeSnapshot = {
   photoDataUrl?: string | null;
@@ -197,6 +205,12 @@ export type GeneratedResume = {
   createdAt: string;
   snapshot: ResumeSnapshot;
   settings?: ResumeSettings;
+  tags?: string[];
+  performance?: {
+    views: number;
+    callbacks: number;
+    lastViewedAt?: string | null;
+  };
 };
 
 export type Notification = {

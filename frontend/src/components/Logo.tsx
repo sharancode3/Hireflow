@@ -13,14 +13,14 @@ export function Logo({
   return (
     <NavLink
       to={to}
-      className="brand"
+      className="flex items-center gap-2"
       aria-label="Talvion Home"
       data-has-image={hasImage ? "true" : "false"}
       data-variant={variant}
     >
       {hasImage ? (
         <img
-          className="brand-logo"
+          className="h-9 w-9 rounded-xl border border-border bg-surface"
           src="/hirehub-logo.png"
           alt="Talvion"
           loading="eager"
@@ -28,9 +28,9 @@ export function Logo({
           onError={() => setHasImage(false)}
         />
       ) : (
-        <span className="brand-mark" aria-hidden="true" />
+        <span className="h-9 w-9 rounded-xl border border-border bg-surface" aria-hidden="true" />
       )}
-      {variant === "full" ? <span className="brand-name">Talvion</span> : null}
+      {variant === "full" ? <span className="text-base font-semibold tracking-tight">Talvion</span> : null}
     </NavLink>
   );
 }

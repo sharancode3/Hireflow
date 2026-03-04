@@ -2,8 +2,24 @@ import type { JobSeekerProfile, ResumeSettings, ResumeTemplate } from "../types"
 import { AtsModernTemplate } from "./templates/AtsModernTemplate";
 import { ProfessionalTemplate } from "./templates/ProfessionalTemplate";
 import { TechnicalTemplate } from "./templates/TechnicalTemplate";
+import { SingleColumnTemplate } from "./templates/SingleColumnTemplate";
 
 export function ResumePreview(props: { profile: JobSeekerProfile; template: ResumeTemplate; settings: ResumeSettings }) {
+  if (props.template === "ATS_PLAIN") {
+    return <SingleColumnTemplate profile={props.profile} settings={props.settings} variant="ATS_PLAIN" />;
+  }
+  if (props.template === "TECH_FOCUSED") {
+    return <SingleColumnTemplate profile={props.profile} settings={props.settings} variant="TECH_FOCUSED" />;
+  }
+  if (props.template === "EXECUTIVE") {
+    return <SingleColumnTemplate profile={props.profile} settings={props.settings} variant="EXECUTIVE" />;
+  }
+  if (props.template === "STARTUP") {
+    return <SingleColumnTemplate profile={props.profile} settings={props.settings} variant="STARTUP" />;
+  }
+  if (props.template === "ACADEMIC") {
+    return <SingleColumnTemplate profile={props.profile} settings={props.settings} variant="ACADEMIC" />;
+  }
   if (props.template === "CLASSIC") {
     return <ProfessionalTemplate profile={props.profile} settings={props.settings} />;
   }

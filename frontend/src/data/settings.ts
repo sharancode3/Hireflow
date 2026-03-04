@@ -1,6 +1,14 @@
 import type { UserRole } from "../types";
 
-export type ResumeTemplate = "modern" | "classic" | "minimal";
+export type ResumeTemplate =
+  | "ats-plain"
+  | "tech-focused"
+  | "executive"
+  | "startup"
+  | "academic"
+  | "modern"
+  | "classic"
+  | "minimal";
 
 export type UserSettings = {
   theme: "light" | "soft-dark" | "high-contrast";
@@ -19,7 +27,7 @@ export type UserSettings = {
 const DEFAULT_SETTINGS: UserSettings = {
   theme: "light",
   notifications: { productUpdates: true, applicationUpdates: true },
-  resume: { defaultTemplate: "modern" },
+  resume: { defaultTemplate: "ats-plain" },
   account: { rememberFilters: true },
 };
 

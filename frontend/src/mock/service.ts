@@ -230,7 +230,7 @@ export const mockApi = {
       },
       create(
         token: string,
-        input: { template: ResumeTemplate; title: string; snapshot: ResumeSnapshot; settings?: ResumeSettings }
+        input: { template: ResumeTemplate; title: string; snapshot: ResumeSnapshot; settings?: ResumeSettings; tags?: string[] }
       ) {
         const db = loadDb();
         const user = assertUser(token, db);
@@ -238,7 +238,16 @@ export const mockApi = {
 
         const title = (input.title ?? "").trim() || `Resume (${input.template})`;
         const template = input.template;
-        if (template !== "MODERN" && template !== "CLASSIC" && template !== "MINIMAL") {
+        if (
+          template !== "ATS_PLAIN" &&
+          template !== "TECH_FOCUSED" &&
+          template !== "EXECUTIVE" &&
+          template !== "STARTUP" &&
+          template !== "ACADEMIC" &&
+          template !== "MODERN" &&
+          template !== "CLASSIC" &&
+          template !== "MINIMAL"
+        ) {
           throw new Error("Invalid template");
         }
 
@@ -250,6 +259,12 @@ export const mockApi = {
           createdAt: nowIso(),
           snapshot: input.snapshot,
           settings: input.settings,
+          tags: Array.isArray(input.tags) ? input.tags : [],
+          performance: {
+            views: 0,
+            callbacks: 0,
+            lastViewedAt: null,
+          },
         };
 
         db.generatedResumes.unshift(resume);
@@ -614,13 +629,63 @@ export const mockApi = {
       const jobIds = new Set(recruiterJobs.map((j) => j.id));
       const apps = db.applications.filter((a) => jobIds.has(a.jobId));
 
+      const shortlisted = apps.filter((a) => a.status === "SHORTLISTED").length;
+      const rejected = apps.filter((a) => a.status === "REJECTED").length;
+      const interviewCount = apps.filter((a) => a.status === "INTERVIEW_SCHEDULED").length;
+      const offered = apps.filter((a) => a.status === "OFFERED").length;
+      const hired = apps.filter((a) => a.status === "HIRED").length;
+      const total = apps.length;
+
+      // Generate deterministic 7-day views & applications data
+      const dayLabels: string[] = [];
+      const viewsData: number[] = [];
+      const appsData: number[] = [];
+      const today = new Date();
+      const seed = recruiter.id.charCodeAt(0) + recruiter.id.length;
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        dayLabels.push(d.toLocaleDateString("en-IN", { weekday: "short" }));
+        const base = ((seed * (7 - i) + i * 37) % 40) + 20;
+        viewsData.push(base + Math.floor(total * 0.8));
+        appsData.push(Math.floor(base * 0.3) + Math.floor(total * 0.15));
+      }
+
+      // Top performing job
+      const jobAppCounts = recruiterJobs.map((j) => ({
+        job: j,
+        count: apps.filter((a) => a.jobId === j.id).length,
+      }));
+      jobAppCounts.sort((a, b) => b.count - a.count);
+      const topJob = jobAppCounts[0] ?? null;
+
+      // Avg time-to-hire (mock: 8-22 days deterministic)
+      const avgTimeToHire = total > 0 ? 8 + (seed % 15) : 0;
+
+      // Candidate quality score based on shortlisted ratio
+      const qualityScore = total > 0 ? Math.round(((shortlisted + interviewCount + offered + hired) / total) * 100) : 0;
+
       return {
         overview: {
           jobsCount: recruiterJobs.length,
-          applicationsTotal: apps.length,
-          shortlisted: apps.filter((a) => a.status === "SHORTLISTED").length,
-          rejected: apps.filter((a) => a.status === "REJECTED").length,
-          interviews: apps.filter((a) => a.status === "INTERVIEW_SCHEDULED").length,
+          applicationsTotal: total,
+          shortlisted,
+          rejected,
+          interviews: interviewCount,
+          offered,
+          hired,
+          // Analytics extensions
+          funnel: {
+            applied: total,
+            shortlisted,
+            interview: interviewCount,
+            offered,
+            hired,
+          },
+          weekly: { labels: dayLabels, views: viewsData, applications: appsData },
+          topJob: topJob ? { title: topJob.job.title, company: topJob.job.companyName, applicants: topJob.count } : null,
+          avgTimeToHire,
+          qualityScore,
         },
       };
     },

@@ -16,6 +16,10 @@ import type {
 } from "../../types";
 import { openResumePreview } from "../../utils/resumePreview";
 import { downloadGeneratedResumePdf } from "../../utils/generatedResumePdf";
+import { Badge } from "../../components/ui/Badge";
+import { Button } from "../../components/ui/Button";
+import { Card } from "../../components/ui/Card";
+import { Modal } from "../../components/ui/Modal";
 
 function clampNumber(n: number, min: number, max: number) {
   if (!Number.isFinite(n)) return min;
@@ -116,13 +120,12 @@ function ProgressBar({ value }: { value: number }) {
 
 function Chip({ label, onRemove }: { label: string; onRemove?: () => void }) {
   return (
-    <span className="badge" style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-      <span>{label}</span>
+    <span className="inline-flex items-center gap-2">
+      <Badge>{label}</Badge>
       {onRemove ? (
         <button
           type="button"
-          className="btn"
-          style={{ padding: "2px 8px", lineHeight: 1.2 }}
+          className="rounded-full border border-border px-2 py-0.5 text-xs text-text-secondary hover:border-border-active hover:text-text"
           onClick={onRemove}
           aria-label={`Remove ${label}`}
           title="Remove"
@@ -147,6 +150,46 @@ function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }
   );
 }
 
+function ProfilePreviewCard({
+  profile,
+  completion,
+  hasResume,
+  onOpen,
+}: {
+  profile: JobSeekerProfile;
+  completion: number;
+  hasResume: boolean;
+  onOpen: () => void;
+}) {
+  const topSkills = (profile.skills ?? []).slice(0, 6);
+  return (
+    <Card className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="text-sm font-semibold">Live preview</div>
+        <Badge variant={hasResume ? "teal" : "amber"}>{hasResume ? "Resume ready" : "Resume missing"}</Badge>
+      </div>
+      <div className="rounded-2xl border border-border bg-surface-raised p-4">
+        <div className="text-lg font-semibold">{profile.fullName}</div>
+        <div className="text-sm text-text-secondary">{profile.headline || "Add a headline"}</div>
+        <div className="mt-2 text-xs text-text-muted">
+          {(profile.location || "Location") + " · " + (profile.desiredRole || "Desired role")}
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {topSkills.length === 0 ? (
+            <span className="text-xs text-text-muted">Add skills to show here.</span>
+          ) : (
+            topSkills.map((skill) => <Badge key={skill} variant="blue">{skill}</Badge>)
+          )}
+        </div>
+        <div className="mt-4 text-xs text-text-muted">Completion: {completion}%</div>
+      </div>
+      <Button variant="secondary" onClick={onOpen}>
+        Full preview
+      </Button>
+    </Card>
+  );
+}
+
 export function JobSeekerProfilePage() {
   const { token } = useAuth();
   const [profile, setProfile] = useState<JobSeekerProfile | null>(null);
@@ -157,17 +200,19 @@ export function JobSeekerProfilePage() {
   const saveTimer = useRef<number | null>(null);
   const lastSavedSnapshot = useRef<string>("");
 
-  type ProfileStep = "BASICS" | "SKILLS" | "EXPERIENCE" | "PROJECTS" | "RESUME";
+  type ProfileStep = "BASICS" | "SKILLS" | "EXPERIENCE" | "PROJECTS" | "EDUCATION" | "RESUME";
   const steps: Array<{ key: ProfileStep; label: string; subtitle: string }> = [
     { key: "BASICS", label: "Basics", subtitle: "Identity, goals, about" },
     { key: "SKILLS", label: "Skills", subtitle: "Skills + interests" },
-    { key: "EXPERIENCE", label: "Experience", subtitle: "Education + roles" },
+    { key: "EXPERIENCE", label: "Experience", subtitle: "Roles and impact" },
     { key: "PROJECTS", label: "Projects", subtitle: "Projects + proofs" },
+    { key: "EDUCATION", label: "Education", subtitle: "Degrees + institutions" },
     { key: "RESUME", label: "Resume", subtitle: "Upload or generate" },
   ];
   const [step, setStep] = useState<ProfileStep>("BASICS");
-  const [resumeTemplate, setResumeTemplate] = useState<ResumeTemplate>("MODERN");
+  const [resumeTemplate, setResumeTemplate] = useState<ResumeTemplate>("ATS_PLAIN");
   const [resumeTitle, setResumeTitle] = useState<string>("");
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const hasResume = resumes.length > 0 || generatedResumes.length > 0;
   const completion = useMemo(() => {
@@ -319,7 +364,28 @@ export function JobSeekerProfilePage() {
   const languages = profile.languages ?? [];
   const interests = profile.interests ?? [];
 
-  const saveLabel = saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : saveState === "error" ? "Save failed" : "All changes saved";
+  const stepDone: Record<ProfileStep, boolean> = {
+    BASICS:
+      profile.fullName.trim().length >= 2 &&
+      Boolean(profile.headline?.trim()) &&
+      Boolean(profile.location?.trim()) &&
+      Boolean(profile.desiredRole?.trim()) &&
+      Boolean(profile.about?.trim() && profile.about.trim().length >= 50),
+    SKILLS: profile.skills.length >= 3,
+    EXPERIENCE: experience.length >= 1 || profile.isFresher,
+    PROJECTS: projects.length >= 1,
+    EDUCATION: education.length >= 1,
+    RESUME: hasResume,
+  };
+
+  const saveLabel =
+    saveState === "saving"
+      ? "Saving…"
+      : saveState === "saved"
+        ? "Saved"
+        : saveState === "error"
+          ? "Save failed"
+          : "All changes saved";
 
   const stepIndex = steps.findIndex((s) => s.key === step);
   const canBack = stepIndex > 0;
@@ -336,543 +402,628 @@ export function JobSeekerProfilePage() {
   }
 
   return (
-    <div className="grid">
-      <div className="card">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: 16, flexWrap: "wrap" }}>
-          <div style={{ display: "grid", gap: 6 }}>
-            <h2 style={{ marginTop: 0, marginBottom: 0 }}>Profile Builder</h2>
-            <p className="muted" style={{ margin: 0 }}>
-              Inline editing + instant saving. Your visibility controls what recruiters can view.
-            </p>
-          </div>
-          <div className="muted" style={{ fontSize: 13 }}>
-            {saveLabel}
-          </div>
+    <div className="space-y-6">
+      <Card className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h2 className="text-2xl font-semibold">Profile Builder</h2>
+          <p className="text-sm text-text-secondary">
+            Inline editing + instant saving. Your visibility controls what recruiters can view.
+          </p>
         </div>
-      </div>
+        <div className="text-xs text-text-muted">{saveLabel}</div>
+      </Card>
 
-      {error ? <div className="card">{error}</div> : null}
+      {error ? <Card className="border-danger/60 bg-danger/10 text-danger">{error}</Card> : null}
 
-      <div className="card" style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {steps.map((s) => (
-            <button
-              key={s.key}
-              type="button"
-              className={s.key === step ? "btn btn-primary" : "btn"}
-              onClick={() => setStep(s.key)}
-              aria-current={s.key === step ? "step" : undefined}
-              title={s.subtitle}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
-        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-          <span className="muted" style={{ fontSize: 13 }}>
-            {completion}% complete
-          </span>
-          <button type="button" className="btn" onClick={back} disabled={!canBack}>
-            Back
-          </button>
-          <button type="button" className="btn btn-primary" onClick={next} disabled={!canNext}>
-            Next
-          </button>
-        </div>
-      </div>
-
-      {step === "BASICS" ? (
-      <div className="card grid" style={{ gap: 16 }}>
-        <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
-          <div
-            style={{
-              width: 72,
-              height: 72,
-              borderRadius: 16,
-              background: "var(--surface)",
-              border: "1px solid var(--border)",
-              overflow: "hidden",
-              display: "grid",
-              placeItems: "center",
-            }}
-          >
-            {profile.photoDataUrl ? (
-              <img src={profile.photoDataUrl} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-            ) : (
-              <div className="muted" style={{ fontWeight: 800 }}>
-                {profile.fullName
-                  .split(" ")
-                  .filter(Boolean)
-                  .slice(0, 2)
-                  .map((x) => x[0]?.toUpperCase())
-                  .join("") || "U"}
-              </div>
-            )}
-          </div>
-
-          <div style={{ flex: 1, minWidth: 240, display: "grid", gap: 10 }}>
-            <div className="grid grid-2">
-              <div className="field">
-                <label className="label">Full name</label>
-                <input
-                  className="input"
-                  value={profile.fullName}
-                  onChange={(e) => {
-                    const next = { ...profile, fullName: e.target.value };
-                    setProfile(next);
-                    scheduleSave(next);
-                  }}
-                  onBlur={() => scheduleSave(profile)}
-                  required
-                />
-              </div>
-
-              <div className="field">
-                <label className="label">Headline</label>
-                <input
-                  className="input"
-                  value={profile.headline ?? ""}
-                  onChange={(e) => {
-                    const next = { ...profile, headline: e.target.value || null };
-                    setProfile(next);
-                    scheduleSave(next);
-                  }}
-                  placeholder="e.g., Frontend Developer | React | TypeScript"
-                />
+      <div className="grid gap-6 lg:grid-cols-[3fr_2fr]">
+        <div className="space-y-6">
+          <Card className="space-y-4">
+            <div className="flex flex-wrap gap-2">
+              {steps.map((s) => (
+                <button
+                  key={s.key}
+                  type="button"
+                  className={
+                    "flex flex-col items-center gap-1 rounded-full border px-4 py-2 text-xs font-medium transition " +
+                    (s.key === step
+                      ? "border-accent/70 bg-surface-raised text-text"
+                      : "border-border bg-surface text-text-secondary hover:border-border-active hover:text-text")
+                  }
+                  onClick={() => setStep(s.key)}
+                  aria-current={s.key === step ? "step" : undefined}
+                  title={s.subtitle}
+                >
+                  <span>{s.label}</span>
+                  <span
+                    className={
+                      "h-1 w-6 rounded-full " + (stepDone[s.key] ? "bg-accent-teal" : "bg-border")
+                    }
+                  />
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <span className="text-xs text-text-muted">{completion}% complete</span>
+              <div className="flex gap-2">
+                <Button variant="secondary" onClick={back} disabled={!canBack}>
+                  Back
+                </Button>
+                <Button variant="primary" onClick={next} disabled={!canNext}>
+                  Next
+                </Button>
               </div>
             </div>
+          </Card>
 
-            <div className="grid grid-2">
-              <div className="field">
-                <label className="label">Location</label>
-                <input
-                  className="input"
-                  value={profile.location ?? ""}
-                  onChange={(e) => {
-                    const next = { ...profile, location: e.target.value || null };
-                    setProfile(next);
-                    scheduleSave(next);
+          {step === "BASICS" ? (
+            <div className="card grid" style={{ gap: 16 }}>
+              <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
+                <div
+                  style={{
+                    width: 96,
+                    height: 96,
+                    borderRadius: 999,
+                    background: "var(--surface-raised)",
+                    border: "1px solid var(--border)",
+                    overflow: "hidden",
+                    display: "grid",
+                    placeItems: "center",
                   }}
-                  placeholder="City, State"
-                />
+                >
+                  {profile.photoDataUrl ? (
+                    <img src={profile.photoDataUrl} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  ) : (
+                    <div className="muted" style={{ fontWeight: 800 }}>
+                      {profile.fullName
+                        .split(" ")
+                        .filter(Boolean)
+                        .slice(0, 2)
+                        .map((x) => x[0]?.toUpperCase())
+                        .join("") || "U"}
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ flex: 1, minWidth: 240, display: "grid", gap: 10 }}>
+                  <div className="grid grid-2">
+                    <div className="field">
+                      <label className="label">Full name</label>
+                      <input
+                        className="input"
+                        value={profile.fullName}
+                        onChange={(e) => {
+                          const next = { ...profile, fullName: e.target.value };
+                          setProfile(next);
+                          scheduleSave(next);
+                        }}
+                        onBlur={() => scheduleSave(profile)}
+                        required
+                      />
+                    </div>
+
+                    <div className="field">
+                      <label className="label">Headline</label>
+                      <input
+                        className="input"
+                        value={profile.headline ?? ""}
+                        onChange={(e) => {
+                          const next = { ...profile, headline: e.target.value || null };
+                          setProfile(next);
+                          scheduleSave(next);
+                        }}
+                        placeholder="e.g., Frontend Developer | React | TypeScript"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-2">
+                    <div className="field">
+                      <label className="label">Location</label>
+                      <input
+                        className="input"
+                        value={profile.location ?? ""}
+                        onChange={(e) => {
+                          const next = { ...profile, location: e.target.value || null };
+                          setProfile(next);
+                          scheduleSave(next);
+                        }}
+                        placeholder="City, State"
+                      />
+                    </div>
+
+                    <div className="field">
+                      <label className="label">Desired role</label>
+                      <input
+                        className="input"
+                        value={profile.desiredRole ?? ""}
+                        onChange={(e) => {
+                          const next = { ...profile, desiredRole: e.target.value || null };
+                          setProfile(next);
+                          scheduleSave(next);
+                        }}
+                        placeholder="e.g., Software Engineer"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ minWidth: 220, display: "grid", gap: 12 }}>
+                  <ProgressBar value={completion} />
+                  <div className="field" style={{ margin: 0 }}>
+                    <label className="label">Profile photo</label>
+                    <input
+                      className="input"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) void uploadPhoto(file);
+                        e.currentTarget.value = "";
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-2">
+                <div className="field">
+                  <label className="label">Phone</label>
+                  <input
+                    className="input"
+                    value={profile.phone ?? ""}
+                    onChange={(e) => {
+                      const next = { ...profile, phone: e.target.value || null };
+                      setProfile(next);
+                      scheduleSave(next);
+                    }}
+                    placeholder="Optional"
+                  />
+                </div>
+
+                <div className="field">
+                  <label className="label">Visibility</label>
+                  <select
+                    className="select"
+                    value={profile.visibility}
+                    onChange={(e) => {
+                      const next = { ...profile, visibility: e.target.value as any };
+                      setProfile(next);
+                      scheduleSave(next);
+                    }}
+                  >
+                    <option value="PUBLIC">Public</option>
+                    <option value="PRIVATE">Private</option>
+                  </select>
+                  <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+                    Private profiles are hidden from recruiter browsing.
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-2">
+                <div className="field">
+                  <label className="label">Experience (years)</label>
+                  <input
+                    className="input"
+                    type="number"
+                    min={0}
+                    max={60}
+                    value={profile.experienceYears}
+                    onChange={(e) => {
+                      const next = { ...profile, experienceYears: clampNumber(Number(e.target.value), 0, 60) };
+                      setProfile(next);
+                      scheduleSave(next);
+                    }}
+                  />
+                </div>
+
+                <div className="field">
+                  <label className="label">Fresher</label>
+                  <label className="badge badge-accent" style={{ width: "fit-content" }}>
+                    <input
+                      type="checkbox"
+                      checked={profile.isFresher}
+                      onChange={(e) => {
+                        const next = { ...profile, isFresher: e.target.checked };
+                        setProfile(next);
+                        scheduleSave(next);
+                      }}
+                    />
+                    Mark as fresher
+                  </label>
+                </div>
               </div>
 
               <div className="field">
-                <label className="label">Desired role</label>
-                <input
+                <div className="flex items-center justify-between">
+                  <label className="label">About</label>
+                  <button
+                    type="button"
+                    className="text-xs text-accent hover:text-text"
+                    onClick={() => setError("AI assist will be available soon.")}
+                  >
+                    ✨ Improve with AI
+                  </button>
+                </div>
+                <textarea
                   className="input"
-                  value={profile.desiredRole ?? ""}
+                  style={{ minHeight: 110, resize: "vertical" }}
+                  value={profile.about ?? ""}
                   onChange={(e) => {
-                    const next = { ...profile, desiredRole: e.target.value || null };
+                    const next = { ...profile, about: e.target.value || null };
                     setProfile(next);
                     scheduleSave(next);
                   }}
-                  placeholder="e.g., Software Engineer"
+                  placeholder="Write a concise professional summary (goals, strengths, what you are looking for)."
                 />
+                <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+                  {profile.about?.length ?? 0}/500
+                </div>
               </div>
             </div>
-          </div>
+          ) : null}
 
-          <div style={{ minWidth: 220, display: "grid", gap: 12 }}>
-            <ProgressBar value={completion} />
-            <div className="field" style={{ margin: 0 }}>
-              <label className="label">Profile photo</label>
-              <input
-                className="input"
-                type="file"
-                accept="image/*"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) void uploadPhoto(file);
-                  e.currentTarget.value = "";
+          {step === "SKILLS" ? (
+            <>
+              <div className="card grid" style={{ gap: 12 }}>
+                <SectionHeader title="Skills" subtitle="Add skills as chips. These are used for job matching." />
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {profile.skills.length === 0 ? <div className="muted">No skills added yet.</div> : null}
+                  {profile.skills.map((s) => (
+                    <Chip
+                      key={s.toLowerCase()}
+                      label={s}
+                      onRemove={() => {
+                        const nextSkills = removeCaseInsensitive(profile.skills, s);
+                        const nextLevels = { ...(profile.skillLevels ?? {}) };
+                        delete nextLevels[s];
+                        const next = { ...profile, skills: nextSkills, skillLevels: nextLevels };
+                        setProfile(next);
+                        scheduleSave(next);
+                      }}
+                    />
+                  ))}
+                </div>
+                <SkillAdder
+                  onAdd={(skill) => {
+                    const nextSkills = addUniqueCaseInsensitive(profile.skills, skill);
+                    const nextLevels = { ...(profile.skillLevels ?? {}) };
+                    const normalized = skill.trim().replace(/\s+/g, " ");
+                    if (normalized && !nextLevels[normalized]) nextLevels[normalized] = 3 as SkillProficiency;
+                    const next = { ...profile, skills: nextSkills, skillLevels: nextLevels };
+                    setProfile(next);
+                    scheduleSave(next);
+                  }}
+                />
+
+                <div className="card" style={{ padding: 12, display: "grid", gap: 10 }}>
+                  <div style={{ fontWeight: 800 }}>Skill proficiency</div>
+                  <div className="muted" style={{ fontSize: 13 }}>
+                    Used for resume skill bars and charts. Set 1–5.
+                  </div>
+
+                  {profile.skills.length ? (
+                    <div style={{ display: "grid", gap: 8 }}>
+                      {profile.skills.slice(0, 24).map((sk) => (
+                        <div key={sk.toLowerCase()} style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+                          <div style={{ fontWeight: 700 }}>{sk}</div>
+                          <select
+                            className="select"
+                            value={String(profile.skillLevels?.[sk] ?? 3)}
+                            onChange={(e) => {
+                              const v = Number(e.target.value) as SkillProficiency;
+                              const next = { ...profile, skillLevels: { ...(profile.skillLevels ?? {}), [sk]: v } };
+                              setProfile(next);
+                              scheduleSave(next);
+                            }}
+                            style={{ width: 110 }}
+                          >
+                            <option value="1">1 / 5</option>
+                            <option value="2">2 / 5</option>
+                            <option value="3">3 / 5</option>
+                            <option value="4">4 / 5</option>
+                            <option value="5">5 / 5</option>
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="muted">Add skills to set proficiency.</div>
+                  )}
+                </div>
+              </div>
+
+              <LanguagesSection
+                items={languages}
+                onChange={(nextItems) => {
+                  const nextProfile = { ...profile, languages: nextItems };
+                  setProfile(nextProfile);
+                  scheduleSave(nextProfile);
                 }}
               />
-            </div>
-          </div>
-        </div>
 
-        <div className="grid grid-2">
-          <div className="field">
-            <label className="label">Phone</label>
-            <input
-              className="input"
-              value={profile.phone ?? ""}
-              onChange={(e) => {
-                const next = { ...profile, phone: e.target.value || null };
-                setProfile(next);
-                scheduleSave(next);
-              }}
-              placeholder="Optional"
-            />
-          </div>
+              <div className="card grid" style={{ gap: 12 }}>
+                <SectionHeader title="Interests" subtitle="Optional topics you care about." />
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {interests.length === 0 ? <div className="muted">No interests added.</div> : null}
+                  {interests.map((s) => (
+                    <Chip
+                      key={s.toLowerCase()}
+                      label={s}
+                      onRemove={() => {
+                        const nextProfile = { ...profile, interests: removeCaseInsensitive(interests, s) };
+                        setProfile(nextProfile);
+                        scheduleSave(nextProfile);
+                      }}
+                    />
+                  ))}
+                </div>
+                <SkillAdder
+                  placeholder="Add an interest (e.g., FinTech, Accessibility)"
+                  onAdd={(value) => {
+                    const nextProfile = { ...profile, interests: addUniqueCaseInsensitive(interests, value) };
+                    setProfile(nextProfile);
+                    scheduleSave(nextProfile);
+                  }}
+                />
+              </div>
+            </>
+          ) : null}
 
-          <div className="field">
-            <label className="label">Visibility</label>
-            <select
-              className="select"
-              value={profile.visibility}
-              onChange={(e) => {
-                const next = { ...profile, visibility: e.target.value as any };
-                setProfile(next);
-                scheduleSave(next);
-              }}
-            >
-              <option value="PUBLIC">Public</option>
-              <option value="PRIVATE">Private</option>
-            </select>
-            <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
-              Private profiles are hidden from recruiter browsing.
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-2">
-          <div className="field">
-            <label className="label">Experience (years)</label>
-            <input
-              className="input"
-              type="number"
-              min={0}
-              max={60}
-              value={profile.experienceYears}
-              onChange={(e) => {
-                const next = { ...profile, experienceYears: clampNumber(Number(e.target.value), 0, 60) };
+          {step === "EXPERIENCE" ? (
+            <ExperienceSection
+              items={experience}
+              onChange={(nextItems) => {
+                const next = { ...profile, experience: nextItems };
                 setProfile(next);
                 scheduleSave(next);
               }}
             />
-          </div>
+          ) : null}
 
-          <div className="field">
-            <label className="label">Fresher</label>
-            <label className="badge badge-accent" style={{ width: "fit-content" }}>
-              <input
-                type="checkbox"
-                checked={profile.isFresher}
-                onChange={(e) => {
-                  const next = { ...profile, isFresher: e.target.checked };
+          {step === "PROJECTS" ? (
+            <>
+              <ProjectsSection
+                items={projects}
+                onChange={(nextItems) => {
+                  const next = { ...profile, projects: nextItems };
                   setProfile(next);
                   scheduleSave(next);
                 }}
               />
-              Mark as fresher
-            </label>
-          </div>
-        </div>
 
-        <div className="field">
-          <label className="label">About</label>
-          <textarea
-            className="input"
-            style={{ minHeight: 110, resize: "vertical" }}
-            value={profile.about ?? ""}
-            onChange={(e) => {
-              const next = { ...profile, about: e.target.value || null };
-              setProfile(next);
-              scheduleSave(next);
-            }}
-            placeholder="Write a concise professional summary (goals, strengths, what you’re looking for)."
-          />
-        </div>
-      </div>
+              <CertificationsSection
+                items={certifications}
+                onChange={(nextItems) => {
+                  const next = { ...profile, certifications: nextItems };
+                  setProfile(next);
+                  scheduleSave(next);
+                }}
+              />
 
-      ) : null}
+              <AchievementsSection
+                items={achievements}
+                onChange={(nextItems) => {
+                  const next = { ...profile, achievements: nextItems };
+                  setProfile(next);
+                  scheduleSave(next);
+                }}
+              />
+            </>
+          ) : null}
 
-      {step === "SKILLS" ? (
-      <>
-      <div className="card grid" style={{ gap: 12 }}>
-        <SectionHeader title="Skills" subtitle="Add skills as chips. These are used for job matching." />
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {profile.skills.length === 0 ? <div className="muted">No skills added yet.</div> : null}
-          {profile.skills.map((s) => (
-            <Chip
-              key={s.toLowerCase()}
-              label={s}
-              onRemove={() => {
-                const nextSkills = removeCaseInsensitive(profile.skills, s);
-                const nextLevels = { ...(profile.skillLevels ?? {}) };
-                delete nextLevels[s];
-                const next = { ...profile, skills: nextSkills, skillLevels: nextLevels };
+          {step === "EDUCATION" ? (
+            <EducationSection
+              items={education}
+              onChange={(nextItems) => {
+                const next = { ...profile, education: nextItems };
                 setProfile(next);
                 scheduleSave(next);
               }}
             />
-          ))}
-        </div>
-        <SkillAdder
-          onAdd={(skill) => {
-            const nextSkills = addUniqueCaseInsensitive(profile.skills, skill);
-            const nextLevels = { ...(profile.skillLevels ?? {}) };
-            // default proficiency for new skills
-            const normalized = skill.trim().replace(/\s+/g, " ");
-            if (normalized && !nextLevels[normalized]) nextLevels[normalized] = 3 as SkillProficiency;
-            const next = { ...profile, skills: nextSkills, skillLevels: nextLevels };
-            setProfile(next);
-            scheduleSave(next);
-          }}
-        />
+          ) : null}
 
-        <div className="card" style={{ padding: 12, display: "grid", gap: 10 }}>
-          <div style={{ fontWeight: 800 }}>Skill proficiency</div>
-          <div className="muted" style={{ fontSize: 13 }}>
-            Used for resume skill bars and charts. Set 1–5.
-          </div>
-
-          {profile.skills.length ? (
-            <div style={{ display: "grid", gap: 8 }}>
-              {profile.skills.slice(0, 24).map((sk) => (
-                <div key={sk.toLowerCase()} style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
-                  <div style={{ fontWeight: 700 }}>{sk}</div>
-                  <select
-                    className="select"
-                    value={String(profile.skillLevels?.[sk] ?? 3)}
-                    onChange={(e) => {
-                      const v = Number(e.target.value) as SkillProficiency;
-                      const next = { ...profile, skillLevels: { ...(profile.skillLevels ?? {}), [sk]: v } };
-                      setProfile(next);
-                      scheduleSave(next);
-                    }}
-                    style={{ width: 110 }}
-                  >
-                    <option value="1">1 / 5</option>
-                    <option value="2">2 / 5</option>
-                    <option value="3">3 / 5</option>
-                    <option value="4">4 / 5</option>
-                    <option value="5">5 / 5</option>
-                  </select>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="muted">Add skills to set proficiency.</div>
-          )}
-        </div>
-      </div>
-
-      <LanguagesSection
-        items={languages}
-        onChange={(nextItems) => {
-          const nextProfile = { ...profile, languages: nextItems };
-          setProfile(nextProfile);
-          scheduleSave(nextProfile);
-        }}
-      />
-
-      <div className="card grid" style={{ gap: 12 }}>
-        <SectionHeader title="Interests" subtitle="Optional topics you care about." />
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {interests.length === 0 ? <div className="muted">No interests added.</div> : null}
-          {interests.map((s) => (
-            <Chip
-              key={s.toLowerCase()}
-              label={s}
-              onRemove={() => {
-                const nextProfile = { ...profile, interests: removeCaseInsensitive(interests, s) };
-                setProfile(nextProfile);
-                scheduleSave(nextProfile);
-              }}
-            />
-          ))}
-        </div>
-        <SkillAdder
-          placeholder="Add an interest (e.g., FinTech, Accessibility)"
-          onAdd={(value) => {
-            const nextProfile = { ...profile, interests: addUniqueCaseInsensitive(interests, value) };
-            setProfile(nextProfile);
-            scheduleSave(nextProfile);
-          }}
-        />
-      </div>
-      </>
-      ) : null}
-
-      {step === "EXPERIENCE" ? (
-      <>
-      <EducationSection
-        items={education}
-        onChange={(nextItems) => {
-          const next = { ...profile, education: nextItems };
-          setProfile(next);
-          scheduleSave(next);
-        }}
-      />
-
-      <ExperienceSection
-        items={experience}
-        onChange={(nextItems) => {
-          const next = { ...profile, experience: nextItems };
-          setProfile(next);
-          scheduleSave(next);
-        }}
-      />
-
-      </>
-      ) : null}
-
-      {step === "PROJECTS" ? (
-      <>
-      <ProjectsSection
-        items={projects}
-        onChange={(nextItems) => {
-          const next = { ...profile, projects: nextItems };
-          setProfile(next);
-          scheduleSave(next);
-        }}
-      />
-
-      <CertificationsSection
-        items={certifications}
-        onChange={(nextItems) => {
-          const next = { ...profile, certifications: nextItems };
-          setProfile(next);
-          scheduleSave(next);
-        }}
-      />
-
-      <AchievementsSection
-        items={achievements}
-        onChange={(nextItems) => {
-          const next = { ...profile, achievements: nextItems };
-          setProfile(next);
-          scheduleSave(next);
-        }}
-      />
-
-      </>
-      ) : null}
-
-      {step === "RESUME" ? (
-      <div className="card grid" style={{ gap: 14 }}>
-        <div>
-          <h3 style={{ marginTop: 0 }}>Resume</h3>
-          <p className="muted" style={{ margin: 0 }}>
-            Upload a PDF/DOC, or generate a resume from your profile. Recruiters can only access your resume if you apply.
-          </p>
-        </div>
-
-        <div className="field">
-          <label className="label">Upload resume (max 5MB)</label>
-          <input
-            className="input"
-            type="file"
-            accept="application/pdf,.pdf,.doc,.docx"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) void uploadResume(file);
-              e.currentTarget.value = "";
-            }}
-          />
-        </div>
-
-        {resumes.length === 0 ? (
-          <div className="muted">No resumes uploaded yet.</div>
-        ) : (
-          <div className="grid">
-            {resumes.map((r) => (
-              <div key={r.id} className="card" style={{ padding: 12, display: "grid", gap: 8 }}>
-                <div style={{ fontWeight: 800 }}>{r.originalName}</div>
-                <div className="muted" style={{ fontSize: 13 }}>
-                  Uploaded: {new Date(r.createdAt).toLocaleString()}
-                </div>
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => void openResumePreview(r.id, token!)}
-                >
-                  Preview
-                </button>
+          {step === "RESUME" ? (
+            <div className="card grid" style={{ gap: 14 }}>
+              <div>
+                <h3 style={{ marginTop: 0 }}>Resume</h3>
+                <p className="muted" style={{ margin: 0 }}>
+                  Upload a PDF/DOC, or generate a resume from your profile. Recruiters can only access your resume if you apply.
+                </p>
               </div>
-            ))}
-          </div>
-        )}
 
-        <div style={{ height: 1, background: "var(--border)", margin: "6px 0" }} />
+              <div className="field">
+                <label className="label">Upload resume (max 5MB)</label>
+                <input
+                  className="input"
+                  type="file"
+                  accept="application/pdf,.pdf,.doc,.docx"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) void uploadResume(file);
+                    e.currentTarget.value = "";
+                  }}
+                />
+              </div>
 
-        <div className="grid" style={{ gap: 10 }}>
-          <div>
-            <div style={{ fontWeight: 900 }}>Generate from profile</div>
-            <div className="muted" style={{ fontSize: 13 }}>
-              Creates a version you can download as PDF. You can keep multiple versions.
-            </div>
-          </div>
-
-          <div className="grid grid-2">
-            <div className="field">
-              <label className="label">Template</label>
-              <select className="select" value={resumeTemplate} onChange={(e) => setResumeTemplate(e.target.value as ResumeTemplate)}>
-                <option value="MODERN">Modern</option>
-                <option value="CLASSIC">Classic</option>
-                <option value="MINIMAL">Minimal</option>
-              </select>
-            </div>
-            <div className="field">
-              <label className="label">Title</label>
-              <input
-                className="input"
-                value={resumeTitle}
-                onChange={(e) => setResumeTitle(e.target.value)}
-                placeholder="Optional (e.g., SDE Intern Resume)"
-              />
-            </div>
-          </div>
-
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button type="button" className="btn btn-primary" onClick={() => void generateResumeVersion()}>
-              Generate resume
-            </button>
-            <div className="muted" style={{ fontSize: 12, alignSelf: "center" }}>
-              Tip: add a strong About + 5+ skills for best output.
-            </div>
-          </div>
-
-          {generatedResumes.length === 0 ? (
-            <div className="muted">No generated resumes yet.</div>
-          ) : (
-            <div className="grid" style={{ gap: 10 }}>
-              {generatedResumes.map((gr) => {
-                const isPrimary = (profile.activeGeneratedResumeId ?? null) === gr.id;
-                return (
-                  <div key={gr.id} className="card" style={{ padding: 12, display: "grid", gap: 8 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "start" }}>
-                      <div>
-                        <div style={{ fontWeight: 900 }}>{gr.title}</div>
-                        <div className="muted" style={{ fontSize: 13 }}>
-                          Template: {gr.template} • Created: {new Date(gr.createdAt).toLocaleString()}
-                        </div>
+              {resumes.length === 0 ? (
+                <div className="muted">No resumes uploaded yet.</div>
+              ) : (
+                <div className="grid">
+                  {resumes.map((r) => (
+                    <div key={r.id} className="card" style={{ padding: 12, display: "grid", gap: 8 }}>
+                      <div style={{ fontWeight: 800 }}>{r.originalName}</div>
+                      <div className="muted" style={{ fontSize: 13 }}>
+                        Uploaded: {new Date(r.createdAt).toLocaleString()}
                       </div>
-                      {isPrimary ? <span className="badge badge-accent">Primary</span> : <span className="badge">Version</span>}
-                    </div>
-
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      <button type="button" className="btn" onClick={() => void downloadGeneratedResumePdf(gr)}>
-                        Download PDF
-                      </button>
                       <button
                         type="button"
                         className="btn"
-                        onClick={() => void setPrimaryGeneratedResume(gr.id)}
-                        disabled={isPrimary}
+                        onClick={() => void openResumePreview(r.id, token!)}
                       >
-                        Set primary
-                      </button>
-                      <button type="button" className="btn" onClick={() => void deleteGeneratedResume(gr.id)}>
-                        Delete
+                        Preview
                       </button>
                     </div>
-                  </div>
-                );
-              })}
+                  ))}
+                </div>
+              )}
 
-              {profile.activeGeneratedResumeId ? (
-                <button type="button" className="btn" onClick={() => void setPrimaryGeneratedResume(null)}>
-                  Clear primary
-                </button>
-              ) : null}
+              <div style={{ height: 1, background: "var(--border)", margin: "6px 0" }} />
+
+              <div className="grid" style={{ gap: 10 }}>
+                <div>
+                  <div style={{ fontWeight: 900 }}>Generate from profile</div>
+                  <div className="muted" style={{ fontSize: 13 }}>
+                    Creates a version you can download as PDF. You can keep multiple versions.
+                  </div>
+                </div>
+
+                <div className="grid grid-2">
+                  <div className="field">
+                    <label className="label">Template</label>
+                    <select className="select" value={resumeTemplate} onChange={(e) => setResumeTemplate(e.target.value as ResumeTemplate)}>
+                      <option value="ATS_PLAIN">ATS Optimized (Plain)</option>
+                      <option value="TECH_FOCUSED">Tech-Focused</option>
+                      <option value="EXECUTIVE">Executive</option>
+                      <option value="STARTUP">Startup / Product</option>
+                      <option value="ACADEMIC">Academic</option>
+                      <option value="MODERN">ATS Modern (legacy)</option>
+                      <option value="CLASSIC">Professional (legacy)</option>
+                      <option value="MINIMAL">Technical (legacy)</option>
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label className="label">Title</label>
+                    <input
+                      className="input"
+                      value={resumeTitle}
+                      onChange={(e) => setResumeTitle(e.target.value)}
+                      placeholder="Optional (e.g., SDE Intern Resume)"
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  <button type="button" className="btn btn-primary" onClick={() => void generateResumeVersion()}>
+                    Generate resume
+                  </button>
+                  <div className="muted" style={{ fontSize: 12, alignSelf: "center" }}>
+                    Tip: add a strong About + 5+ skills for best output.
+                  </div>
+                </div>
+
+                {generatedResumes.length === 0 ? (
+                  <div className="muted">No generated resumes yet.</div>
+                ) : (
+                  <div className="grid" style={{ gap: 10 }}>
+                    {generatedResumes.map((gr) => {
+                      const isPrimary = (profile.activeGeneratedResumeId ?? null) === gr.id;
+                      return (
+                        <div key={gr.id} className="card" style={{ padding: 12, display: "grid", gap: 8 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "start" }}>
+                            <div>
+                              <div style={{ fontWeight: 900 }}>{gr.title}</div>
+                              <div className="muted" style={{ fontSize: 13 }}>
+                                Template: {gr.template} • Created: {new Date(gr.createdAt).toLocaleString()}
+                              </div>
+                            </div>
+                            {isPrimary ? <span className="badge badge-accent">Primary</span> : <span className="badge">Version</span>}
+                          </div>
+
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                            <button type="button" className="btn" onClick={() => void downloadGeneratedResumePdf(gr)}>
+                              Download PDF
+                            </button>
+                            <button
+                              type="button"
+                              className="btn"
+                              onClick={() => void setPrimaryGeneratedResume(gr.id)}
+                              disabled={isPrimary}
+                            >
+                              Set primary
+                            </button>
+                            <button type="button" className="btn" onClick={() => void deleteGeneratedResume(gr.id)}>
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {profile.activeGeneratedResumeId ? (
+                      <button type="button" className="btn" onClick={() => void setPrimaryGeneratedResume(null)}>
+                        Clear primary
+                      </button>
+                    ) : null}
+                  </div>
+                )}
+              </div>
             </div>
-          )}
+          ) : null}
+        </div>
+
+        <div className="space-y-6">
+          <ProfilePreviewCard profile={profile} completion={completion} hasResume={hasResume} onOpen={() => setPreviewOpen(true)} />
+
+          <Card className="space-y-3">
+            <div className="text-sm font-semibold">Profile readiness</div>
+            <ProgressBar value={completion} />
+            <div className="text-xs text-text-muted">
+              Complete the tabs to unlock stronger job matches.
+            </div>
+          </Card>
         </div>
       </div>
-      ) : null}
+
+      <Modal open={previewOpen} onClose={() => setPreviewOpen(false)}>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-text">Full preview</h3>
+            <Button variant="secondary" onClick={() => setPreviewOpen(false)}>
+              Close
+            </Button>
+          </div>
+          <div className="mx-auto w-full max-w-[560px] rounded-2xl bg-white p-6 text-[#0F172A]">
+            <div className="text-2xl font-semibold">{profile.fullName}</div>
+            <div className="text-sm text-[#475569]">{profile.headline || "Add a headline"}</div>
+            <div className="mt-2 text-xs text-[#64748B]">
+              {(profile.location || "Location") + " · " + (profile.desiredRole || "Desired role")}
+            </div>
+            <div className="mt-4">
+              <div className="text-xs font-semibold uppercase tracking-[0.2em] text-[#334155]">Summary</div>
+              <div className="mt-2 text-sm text-[#1F2937]">{profile.about || "Add a summary."}</div>
+            </div>
+            <div className="mt-4">
+              <div className="text-xs font-semibold uppercase tracking-[0.2em] text-[#334155]">Skills</div>
+              <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                {(profile.skills ?? []).slice(0, 10).map((skill) => (
+                  <span key={skill} className="rounded-full bg-[#E2E8F0] px-2 py-1">
+                    {skill}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="text-xs font-semibold uppercase tracking-[0.2em] text-[#334155]">Experience</div>
+              <div className="mt-2 text-sm text-[#1F2937]">
+                {experience.length === 0 ? "Add experience items." : `${experience.length} role(s)`}
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="text-xs font-semibold uppercase tracking-[0.2em] text-[#334155]">Education</div>
+              <div className="mt-2 text-sm text-[#1F2937]">
+                {education.length === 0 ? "Add education items." : `${education.length} record(s)`}
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="text-xs font-semibold uppercase tracking-[0.2em] text-[#334155]">Projects</div>
+              <div className="mt-2 text-sm text-[#1F2937]">
+                {projects.length === 0 ? "Add projects to highlight work." : `${projects.length} project(s)`}
+              </div>
+            </div>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

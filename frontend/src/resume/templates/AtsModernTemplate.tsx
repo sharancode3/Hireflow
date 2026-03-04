@@ -95,27 +95,20 @@ export function AtsModernTemplate(props: { profile: JobSeekerProfile; settings: 
         {sections.includes("PROJECTS") && p.projects?.length ? (
           <section className="resumeSection">
             <h3 className="resumeH3">Projects</h3>
-            <table className="resumeTable">
-              <thead>
-                <tr>
-                  <th>Project</th>
-                  <th>Stack</th>
-                  <th>Outcome</th>
-                </tr>
-              </thead>
-              <tbody>
-                {p.projects.slice(0, 5).map((pr) => (
-                  <tr key={pr.id}>
-                    <td>
-                      <div className="resumeStrong">{pr.name}</div>
-                      {pr.link ? <div className="resumeMuted">{pr.link}</div> : null}
-                    </td>
-                    <td className="resumeMuted">{(pr.skills ?? []).slice(0, 6).join(", ")}</td>
-                    <td>{pr.summary}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="resumeStack">
+              {p.projects.slice(0, 6).map((pr) => (
+                <div key={pr.id} className="resumeItem">
+                  <div className="resumeRow">
+                    <div className="resumeStrong">{pr.name}</div>
+                    {pr.link ? <div className="resumeMuted">{pr.link}</div> : null}
+                  </div>
+                  {(pr.skills ?? []).length ? (
+                    <div className="resumeMuted">Stack: {(pr.skills ?? []).slice(0, 8).join(", ")}</div>
+                  ) : null}
+                  {pr.summary ? <div className="resumeP">{pr.summary}</div> : null}
+                </div>
+              ))}
+            </div>
           </section>
         ) : null}
 

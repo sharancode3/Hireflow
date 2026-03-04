@@ -2,6 +2,11 @@ import { useEffect, useState } from "react";
 import { apiJson } from "../../api/client";
 import { useAuth } from "../../auth/AuthContext";
 import { openResumePreview } from "../../utils/resumePreview";
+import { Card } from "../../components/ui/Card";
+import { Button } from "../../components/ui/Button";
+import { Badge } from "../../components/ui/Badge";
+import { EmptyState } from "../../components/ui/EmptyState";
+import { TableSkeleton } from "../../components/ui/PageSkeleton";
 
 type Row = {
   applicationId: string;
@@ -18,7 +23,7 @@ type Row = {
 
 export function RecruiterShortlistedPage() {
   const { token } = useAuth();
-  const [rows, setRows] = useState<Row[]>([]);
+  const [rows, setRows] = useState<Row[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -29,62 +34,51 @@ export function RecruiterShortlistedPage() {
         const data = await apiJson<{ applications: Row[] }>("/recruiter/applications?status=SHORTLISTED", { token });
         setRows(data.applications);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to load shortlisted" );
+        setError(e instanceof Error ? e.message : "Failed to load shortlisted");
       }
     })();
   }, [token]);
 
+  if (rows === null && !error) return <TableSkeleton cols={4} rows={4} />;
+
   return (
-    <div className="grid">
-      <div className="card">
-        <h2 style={{ marginTop: 0 }}>Shortlisted</h2>
-        <p className="muted" style={{ margin: 0 }}>
-          Candidates you shortlisted.
-        </p>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight text-[var(--text)]">Shortlisted</h1>
+        <p className="mt-1 text-sm text-[var(--muted)]">Candidates you've shortlisted across all jobs.</p>
       </div>
 
-      {error ? <div className="card">{error}</div> : null}
+      {error && <Card className="border-[var(--danger)]/30 p-4 text-sm text-[var(--danger)]">{error}</Card>}
 
-      {rows.length === 0 ? (
-        <div className="card">No shortlisted candidates yet.</div>
+      {rows && rows.length === 0 ? (
+        <EmptyState
+          title="No shortlisted candidates"
+          description="Shortlist candidates from the Applicants page to see them here."
+        />
       ) : (
-        <div className="card" style={{ padding: 0 }}>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Candidate Name</th>
-                <th>Skills</th>
-                <th>Experience</th>
-                <th>Resume</th>
-                <th>Job</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.applicationId}>
-                  <td style={{ fontWeight: 800 }}>{r.candidate.fullName}</td>
-                  <td className="muted">{r.candidate.skills.join(", ")}</td>
-                  <td className="muted">{r.candidate.experienceYears} yrs</td>
-                  <td>
-                    {r.candidate.latestResume ? (
-                      <button
-                        type="button"
-                        className="btn"
-                        onClick={() => void openResumePreview(r.candidate.latestResume!.id, token!)}
-                      >
-                        View
-                      </button>
-                    ) : (
-                      <span className="muted">No resume</span>
-                    )}
-                  </td>
-                  <td className="muted">
-                    {r.job.title} • {r.job.location}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="space-y-3 stagger-list">
+          {rows?.map((r) => (
+            <Card key={r.applicationId} className="p-5">
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="h-9 w-9 rounded-full bg-[var(--accent-teal)]/10 flex items-center justify-center text-xs font-bold text-[var(--accent-teal)]">
+                    {r.candidate.fullName.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold text-[var(--text)]">{r.candidate.fullName}</div>
+                    <div className="text-xs text-[var(--muted)]">{r.candidate.experienceYears} yrs &middot; {r.candidate.skills.slice(0, 3).join(", ")}</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="teal">Shortlisted</Badge>
+                  <span className="text-xs text-[var(--muted)]">{r.job.title}</span>
+                  {r.candidate.latestResume ? (
+                    <Button variant="ghost" className="text-xs" onClick={() => void openResumePreview(r.candidate.latestResume!.id, token!)}>Resume</Button>
+                  ) : null}
+                </div>
+              </div>
+            </Card>
+          ))}
         </div>
       )}
     </div>

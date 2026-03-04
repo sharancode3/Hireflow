@@ -9,7 +9,7 @@ export function isThemeName(v: unknown): v is ThemeName {
 export function loadTheme(): ThemeName {
   const raw = localStorage.getItem(THEME_STORAGE_KEY);
   if (isThemeName(raw)) return raw;
-  return "light";
+  return "soft-dark";
 }
 
 export function saveTheme(theme: ThemeName) {

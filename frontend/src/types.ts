@@ -79,17 +79,45 @@ export type ResumeDensity = "COMPACT" | "NORMAL" | "SPACIOUS";
 
 export type ResumeAccent = "ACCENT" | "NEUTRAL" | "MUTED";
 
+export type ResumeFont = "Inter" | "Roboto" | "Georgia" | "Merriweather" | "Calibri";
+
+export type ResumePageMargin = "NARROW" | "NORMAL" | "WIDE";
+
+export type ResumeDateFormat = "MM/YYYY" | "MONTH_YYYY" | "YYYY";
+
+export type ResumeSectionKey =
+  | "SUMMARY"
+  | "SKILLS"
+  | "EXPERIENCE"
+  | "PROJECTS"
+  | "EDUCATION"
+  | "CERTIFICATIONS"
+  | "ACHIEVEMENTS"
+  | "LANGUAGES"
+  | "VOLUNTEER"
+  | "PUBLICATIONS"
+  | "CUSTOM";
+
 export type ResumeSettings = {
-  sectionOrder: Array<
-    "SUMMARY" | "SKILLS" | "EXPERIENCE" | "PROJECTS" | "EDUCATION" | "CERTIFICATIONS" | "ACHIEVEMENTS" | "LANGUAGES"
-  >;
-  hiddenSections: Partial<Record<ResumeSettings["sectionOrder"][number], boolean>>;
+  sectionOrder: ResumeSectionKey[];
+  hiddenSections: Partial<Record<ResumeSectionKey, boolean>>;
 
   density: ResumeDensity;
   accent: ResumeAccent;
   showSkillBars: boolean;
   showCharts: boolean;
   showTimeline: boolean;
+
+  /* Extended settings (Phase 3) */
+  fontFamily?: ResumeFont;
+  fontSize?: 10 | 11 | 12;
+  pageMargin?: ResumePageMargin;
+  accentColor?: string;
+  dateFormat?: ResumeDateFormat;
+  showPhoto?: boolean;
+  groupSkillsByCategory?: boolean;
+  customSectionTitle?: string;
+  customSectionContent?: string;
 };
 
 export type JobSeekerProfile = {
@@ -158,7 +186,15 @@ export type Resume = {
   createdAt: string;
 };
 
-export type ResumeTemplate = "MODERN" | "CLASSIC" | "MINIMAL";
+export type ResumeTemplate =
+  | "ATS_PLAIN"
+  | "TECH_FOCUSED"
+  | "EXECUTIVE"
+  | "STARTUP"
+  | "ACADEMIC"
+  | "MODERN"
+  | "CLASSIC"
+  | "MINIMAL";
 
 export type ResumeSnapshot = {
   photoDataUrl?: string | null;
@@ -190,4 +226,10 @@ export type GeneratedResume = {
   createdAt: string;
   snapshot: ResumeSnapshot;
   settings?: ResumeSettings;
+  tags?: string[];
+  performance?: {
+    views: number;
+    callbacks: number;
+    lastViewedAt?: string | null;
+  };
 };
