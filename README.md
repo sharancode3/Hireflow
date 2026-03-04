@@ -1,162 +1,47 @@
 # Talvion
 
-Talvion — Where Talent Meets Vision.
+Talvion is a role-based hiring platform for job seekers and recruiters with mock-first workflows, analytics dashboards, and an ATS-focused resume builder.
 
-Talvion is a full‑stack hiring platform that connects job seekers and recruiters through role‑based dashboards, streamlined applications, hiring tools, and a built‑in resume builder.
+## Tech Stack
 
-![CI](https://github.com/sharancode3/Talvion/actions/workflows/ci.yml/badge.svg)
+![React](https://img.shields.io/badge/React-19.2.0-61DAFB?logo=react&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.9.3-3178C6?logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-7.2.4-646CFF?logo=vite&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.2.1-06B6D4?logo=tailwindcss&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-20.x-339933?logo=nodedotjs&logoColor=white)
+![Express](https://img.shields.io/badge/Express-5.2.1-000000?logo=express&logoColor=white)
+![Prisma](https://img.shields.io/badge/Prisma-6.19.1-2D3748?logo=prisma&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-3-003B57?logo=sqlite&logoColor=white)
 
-## What you can do
+## Live Deployment
 
-**Job Seeker**
-- Browse jobs and view details
-- Apply and track applications
-- Build a resume and export/share it
-- See notifications and updates
+- Frontend (GitHub Pages): https://sharancode3.github.io/Talvion/
 
-**Recruiter**
-- Post and manage jobs
-- Review applicants and shortlist candidates
-- Track applications and hiring progress
-- See notifications and overview stats
+## Demo Credentials
 
-**Insights**
-- View hiring trends / charts
+- Job seeker: `seeker1@talvion.demo` / `Password123!`
+- Recruiter: `recruiter1@talvion.demo` / `Password123!`
 
-## Resume intelligence (ATS-first)
+## Major Features
 
-Talvion’s resume builder is designed as a data product:
+- Role-separated auth and dashboards (Job Seeker / Recruiter)
+- Job browsing, applying, saved jobs, and application pipeline tracking
+- Recruiter posting, applicant review, interviews, and analytics
+- Talent trends visualizations and command palette (`Ctrl+K`)
+- Resume Builder with multiple templates and ATS scoring
+- Interview Prep and Skill Gap analysis modules
 
-**Resume Builder = Data Engine + Intelligence Layer + Presentation Layer**
+## Run Locally
 
-### Data intelligence highlights
+### Quick Start (Windows)
 
-- Uses profile + behavioral signals (searches, clicks, bookmarks, projects, courses)
-- Computes a User Intent Score
-- Personalizes tone, verbosity, and keyword density
+1. Install Node.js LTS
+2. Open the repo in VS Code
+3. Run `start-windows.bat`
 
-```
-UserIntentScore =
-	(skill_match * 0.4) +
-	(job_clicks * 0.3) +
-	(search_keywords * 0.2) +
-	(profile_completeness * 0.1)
-```
+### Manual Start
 
-### ATS optimization
-
-- Single-column templates (no tables, icons, or images)
-- Semantic headings and clean sectioning
-- Keyword extraction + gap analysis
-
-### Recruiter-grade output
-
-- Bullet improvement suggestions (STAR/XYZ guidance)
-- Role-based action verb library
-- ATS score, readability, and red-flag checks
-
-### Templates
-
-- ATS Optimized (Plain)
-- Tech-Focused
-- Executive
-- Startup / Product
-- Academic
-
-Templates are JSON-driven and style-separated from content.
-
-### Fonts (ATS approved)
-
-Recommended stack:
-
-```
-font-family: "Inter", "Source Sans 3", "Roboto", system-ui, sans-serif;
-```
-
-### Security & compliance
-
-- Resumes are not publicly indexed
-- Optional PDF watermarking (future extension)
-- GDPR-style delete option (future extension)
-- Encryption at rest (backend roadmap)
-
-### Master prompt (production-ready)
-
-```
-You are an expert resume writer, ATS optimization specialist, and senior technical recruiter.
-
-Generate a highly professional, ATS-friendly resume using the following user data.
-
-Rules:
-- Use a single-column structure
-- No tables, icons, or graphics
-- Use strong action verbs
-- Optimize for Applicant Tracking Systems
-- Tailor content for the target role
-- Use measurable impact wherever possible
-- Maintain natural human language (no AI tone)
-- Prioritize relevance over length
-- Keep resume to 1 page unless experience > 10 years
-
-User Data:
-{{USER_PROFILE_JSON}}
-
-Target Role:
-{{JOB_TITLE}}
-
-Job Description:
-{{JOB_DESCRIPTION}}
-
-Experience Level:
-{{FRESHER | MID | SENIOR}}
-
-Resume Style:
-{{ATS_PLAIN | TECH_FOCUSED | EXECUTIVE | STARTUP}}
-
-Font:
-Inter
-
-Output Format:
-- Plain structured text (no markdown)
-- Section order:
-	Header
-	Professional Summary
-	Skills
-	Experience
-	Projects
-	Education
-	Certifications (if applicable)
-
-Additionally:
-- Improve weak bullet points
-- Inject missing keywords naturally
-- Avoid repetition
-- Ensure recruiter readability within 6 seconds
-```
-
-## Tech stack
-
-- **Frontend:** React + Vite + TypeScript + TailwindCSS
-- **Backend:** Node.js + Express + TypeScript
-- **Database:** Prisma ORM + SQLite (local dev)
-
-## Quick start (Windows)
-
-1. Install **Node.js LTS (18 or 20)**
-2. Open this folder in **VS Code**
-3. Double‑click `start-windows.bat`
-
-The starter script will:
-- create `backend/.env` if missing
-- install backend + frontend dependencies
-- run Prisma migrations (SQLite)
-- start backend + frontend in two terminal windows
-
-Frontend usually runs at: `http://localhost:5173`
-
-## Run in dev (manual)
-
-### Backend
+Backend:
 
 ```bash
 cd backend
@@ -165,7 +50,7 @@ npm run prisma:migrate
 npm run dev
 ```
 
-### Frontend
+Frontend:
 
 ```bash
 cd frontend
@@ -173,26 +58,20 @@ npm install
 npm run dev
 ```
 
-## Useful scripts (repo root)
+## Scripts (Root)
 
-- `npm run dev` — start backend + frontend together
-- `npm run typecheck` — TypeScript checks (backend + frontend)
-- `npm run lint` — ESLint (frontend)
-- `npm run build` — production build (backend + frontend)
-- `npm run check` — typecheck + lint + build (used by CI)
+- `npm run dev` — start frontend + backend concurrently
+- `npm run typecheck` — type-check frontend + backend
+- `npm run lint` — lint frontend
+- `npm run build` — production build frontend + backend
+- `npm run check` — typecheck + lint + build
 
-## Configuration
+## Environment Setup
 
-The backend uses `backend/.env`.
+Use the included examples:
 
-Default values created by the Windows starter:
-- `DATABASE_URL="file:./dev.db"`
-- `JWT_SECRET="..."` (change this for anything beyond local dev)
-- `CORS_ORIGIN="http://localhost:5173"`
+- `.env.example`
+- `frontend/.env.example`
 
-## Branding asset
-
-The UI expects a logo at `frontend/public/hirehub-logo.png`.
-
-If it’s missing, the app still runs, but the header logo and auth-page watermark won’t render and the production build will warn about `/hirehub-logo.png` being resolved at runtime.
+Copy them to actual `.env` files and fill values for your environment.
 

@@ -84,8 +84,8 @@ function rand8() {
 
   const notifications = await j("/notifications", { method: "GET", token: seeker.token });
 
-  console.log(
-    JSON.stringify(
+  process.stdout.write(
+    `${JSON.stringify(
       {
         ok: true,
         seekerEmail,
@@ -97,9 +97,9 @@ function rand8() {
       },
       null,
       2,
-    ),
+    )}\n`,
   );
 })().catch((e) => {
-  console.error(e.stack || String(e));
+  process.stderr.write(`${e.stack || String(e)}\n`);
   process.exit(1);
 });

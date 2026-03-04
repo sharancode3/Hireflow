@@ -9,6 +9,8 @@ const SEEKER_ROUTES = [
   { path: "/job-seeker/applied", label: "Applied Jobs", group: "Navigate", keywords: "applications tracker" },
   { path: "/job-seeker/profile", label: "Profile Builder", group: "Navigate", keywords: "edit" },
   { path: "/job-seeker/resume-builder", label: "Resume Builder", group: "Navigate", keywords: "cv document pdf" },
+  { path: "/job-seeker/interview-prep", label: "Interview Prep", group: "Navigate", keywords: "practice questions mock session" },
+  { path: "/job-seeker/skill-gap", label: "Skill Gap", group: "Navigate", keywords: "skills roadmap learning" },
   { path: "/job-seeker/saved", label: "Saved Jobs", group: "Navigate", keywords: "bookmarks" },
   { path: "/job-seeker/freshers", label: "Fresher Jobs", group: "Navigate", keywords: "entry level" },
   { path: "/job-seeker/notifications", label: "Notifications", group: "Navigate", keywords: "alerts" },

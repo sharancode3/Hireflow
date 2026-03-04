@@ -13,6 +13,18 @@ const HireTrendsPageLazy = lazy(async () => {
   const m = await import("./pages/HireTrendsPage");
   return { default: m.HireTrendsPage };
 });
+const ResumeBuilderPageLazy = lazy(async () => {
+  const m = await import("./pages/jobSeeker/ResumeBuilderPage");
+  return { default: m.ResumeBuilderPage };
+});
+const InterviewPrepPageLazy = lazy(async () => {
+  const m = await import("./pages/jobSeeker/InterviewPrepPage");
+  return { default: m.InterviewPrepPage };
+});
+const SkillGapPageLazy = lazy(async () => {
+  const m = await import("./pages/jobSeeker/SkillGapPage");
+  return { default: m.SkillGapPage };
+});
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
@@ -23,7 +35,6 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { JobSeekerLayout } from "./pages/jobSeeker/JobSeekerLayout";
 import { JobSeekerDashboardPage } from "./pages/jobSeeker/DashboardPage";
 import { JobSeekerProfilePage } from "./pages/jobSeeker/ProfilePage";
-import { ResumeBuilderPage } from "./pages/jobSeeker/ResumeBuilderPage";
 import { JobSeekerJobsPage } from "./pages/jobSeeker/JobsPage";
 import { JobDetailsPage } from "./pages/jobSeeker/JobDetailsPage";
 import { AppliedJobsPage } from "./pages/jobSeeker/AppliedJobsPage";
@@ -93,13 +104,36 @@ export default function App() {
               <Route index element={<Navigate to="/job-seeker/dashboard" replace />} />
               <Route path="dashboard" element={<JobSeekerDashboardPage />} />
               <Route path="profile" element={<JobSeekerProfilePage />} />
-              <Route path="resume-builder" element={<ResumeBuilderPage />} />
+              <Route
+                path="resume-builder"
+                element={
+                  <Suspense fallback={<div className="card">Loading resume builder…</div>}>
+                    <ResumeBuilderPageLazy />
+                  </Suspense>
+                }
+              />
               <Route path="jobs" element={<JobSeekerJobsPage />} />
               <Route path="jobs/:jobId" element={<JobDetailsPage />} />
               <Route path="freshers" element={<JobSeekerJobsPage freshersOnly />} />
               <Route path="applied" element={<AppliedJobsPage />} />
               <Route path="saved" element={<SavedJobsPage />} />
               <Route path="notifications" element={<JobSeekerNotificationsPage />} />
+              <Route
+                path="interview-prep"
+                element={
+                  <Suspense fallback={<div className="card">Loading interview prep…</div>}>
+                    <InterviewPrepPageLazy />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="skill-gap"
+                element={
+                  <Suspense fallback={<div className="card">Loading skill gap analyzer…</div>}>
+                    <SkillGapPageLazy />
+                  </Suspense>
+                }
+              />
 
               <Route
                 path="insights"

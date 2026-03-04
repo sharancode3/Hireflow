@@ -58,7 +58,4 @@ app.use(recruiterApplicationsRouter);
 app.use(notFound);
 app.use(errorHandler);
 
-app.listen(env.PORT, () => {
-  // eslint-disable-next-line no-console
-  console.log(`HireHub backend listening on http://localhost:${env.PORT}`);
-});
+app.listen(env.PORT);

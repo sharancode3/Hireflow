@@ -359,7 +359,7 @@ export function ResumeBuilderPage() {
       }
       setLoading(false);
     }).catch(() => setLoading(false));
-  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [token]);
 
   /* ─── Helpers ──────────────────────────────────────── */
   function activateVersion(v: GeneratedResume) {

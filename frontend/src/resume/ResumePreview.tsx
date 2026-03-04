@@ -1,10 +1,11 @@
+import { memo } from "react";
 import type { JobSeekerProfile, ResumeSettings, ResumeTemplate } from "../types";
 import { AtsModernTemplate } from "./templates/AtsModernTemplate";
 import { ProfessionalTemplate } from "./templates/ProfessionalTemplate";
 import { TechnicalTemplate } from "./templates/TechnicalTemplate";
 import { SingleColumnTemplate } from "./templates/SingleColumnTemplate";
 
-export function ResumePreview(props: { profile: JobSeekerProfile; template: ResumeTemplate; settings: ResumeSettings }) {
+export const ResumePreview = memo(function ResumePreview(props: { profile: JobSeekerProfile; template: ResumeTemplate; settings: ResumeSettings }) {
   if (props.template === "ATS_PLAIN") {
     return <SingleColumnTemplate profile={props.profile} settings={props.settings} variant="ATS_PLAIN" />;
   }
@@ -27,4 +28,4 @@ export function ResumePreview(props: { profile: JobSeekerProfile; template: Resu
     return <TechnicalTemplate profile={props.profile} settings={props.settings} />;
   }
   return <AtsModernTemplate profile={props.profile} settings={props.settings} />;
-}
+});

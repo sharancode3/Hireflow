@@ -100,17 +100,25 @@ function DonutChart({ items, size = 200 }: { items: { label: string; value: numb
   const colors = ["#4F8EF7", "#2DD4BF", "#8B5CF6", "#F59E0B", "#EF4444", "#EC4899", "#10B981", "#6366F1"];
   const r = 70;
   const c = 2 * Math.PI * r;
-  let offset = 0;
   const [hovered, setHovered] = useState<number | null>(null);
+  const segments = useMemo(() => {
+    return items.reduce(
+      (acc, item) => {
+        const pct = item.value / total;
+        const dash = pct * c;
+        return {
+          offset: acc.offset + dash,
+          segments: [...acc.segments, { item, dash, currentOffset: acc.offset }],
+        };
+      },
+      { offset: 0, segments: [] as Array<{ item: { label: string; value: number }; dash: number; currentOffset: number }> },
+    ).segments;
+  }, [c, items, total]);
 
   return (
     <div className="flex items-center gap-6">
       <svg width={size} height={size} viewBox="0 0 200 200" className="shrink-0">
-        {items.map((item, idx) => {
-          const pct = item.value / total;
-          const dash = pct * c;
-          const currentOffset = offset;
-          offset += dash;
+        {segments.map(({ item, dash, currentOffset }, idx) => {
           return (
             <circle
               key={item.label}

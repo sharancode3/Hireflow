@@ -21,7 +21,7 @@ export function Logo({
       {hasImage ? (
         <img
           className="h-9 w-9 rounded-xl border border-border bg-surface"
-          src="/hirehub-logo.png"
+          src="/vite.svg"
           alt="Talvion"
           loading="eager"
           decoding="async"

@@ -11,6 +11,8 @@ const jobSeekerNav = [
   { group: "WORKSPACE", items: [
     { to: "/job-seeker/profile", label: "Profile Builder" },
     { to: "/job-seeker/resume-builder", label: "Resume Builder" },
+    { to: "/job-seeker/interview-prep", label: "Interview Prep" },
+    { to: "/job-seeker/skill-gap", label: "Skill Gap" },
     { to: "/job-seeker/saved", label: "Saved Jobs" },
     { to: "/job-seeker/notifications", label: "Notifications" },
   ] },

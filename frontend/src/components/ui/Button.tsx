@@ -11,7 +11,7 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    "relative overflow-hidden bg-gradient-to-r from-[#4F8EF7] to-[#6366F1] text-white shadow-soft hover:shadow-lift before:absolute before:inset-y-0 before:left-0 before:w-1/3 before:-translate-x-full before:bg-white/20 before:blur-md before:transition-transform before:duration-300 hover:before:translate-x-[320%]",
+    "relative overflow-hidden bg-gradient-to-r from-[#22D3EE] to-[#6366F1] text-[#0B1530] shadow-soft hover:shadow-lift before:absolute before:inset-y-0 before:left-0 before:w-1/3 before:-translate-x-full before:bg-white/20 before:blur-md before:transition-transform before:duration-300 hover:before:translate-x-[320%]",
   secondary:
     "border border-border bg-transparent text-text hover:bg-surface-raised",
   ghost: "bg-transparent text-text hover:bg-surface-raised",
@@ -30,7 +30,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       disabled={isDisabled}
       {...props}
     >
-      {loading ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/50 border-t-white" /> : null}
+      {loading ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#0B1530]/35 border-t-[#0B1530]" /> : null}
       {children}
     </button>
   );

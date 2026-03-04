@@ -11,10 +11,13 @@ frontend/dist-ssr/
 # Environment files
 .env
 .env.*
+!.env.example
 backend/.env
 backend/.env.*
+!backend/.env.example
 frontend/.env
 frontend/.env.*
+!frontend/.env.example
 
 # Prisma / SQLite dev db
 backend/*.db

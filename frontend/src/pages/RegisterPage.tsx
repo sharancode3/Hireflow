@@ -6,6 +6,7 @@ import { useAuth } from "../auth/AuthContext";
 import type { User, UserRole } from "../types";
 import { Logo } from "../components/Logo";
 import { Button } from "../components/ui/Button";
+import { FloatingInput } from "../components/ui/FloatingInput";
 
 export function RegisterPage() {
   const navigate = useNavigate();
@@ -151,45 +152,37 @@ export function RegisterPage() {
             <form onSubmit={onSubmit} className="space-y-4">
               {step === 1 ? (
                 <>
-                  <label className="relative block">
-                    <input
-                      id="email"
-                      className="input-base peer h-12"
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      autoComplete="email"
-                      placeholder=" "
-                    />
-                    <span className="pointer-events-none absolute left-3 top-3 text-sm text-text-muted transition-all peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-sm peer-focus:top-1 peer-focus:text-xs">
-                      Email address
-                    </span>
-                  </label>
+                  <FloatingInput
+                    id="email"
+                    className="h-12"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    autoComplete="email"
+                    label="Email address"
+                  />
 
-                  <label className="relative block">
-                    <input
-                      id="password"
-                      className="input-base peer h-12 pr-12"
-                      type={showPassword ? "text" : "password"}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      minLength={8}
-                      autoComplete="new-password"
-                      placeholder=" "
-                    />
-                    <span className="pointer-events-none absolute left-3 top-3 text-sm text-text-muted transition-all peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-sm peer-focus:top-1 peer-focus:text-xs">
-                      Password (min 8 chars)
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((v) => !v)}
-                      className="absolute right-3 top-3 text-xs text-text-secondary"
-                    >
-                      {showPassword ? "Hide" : "Show"}
-                    </button>
-                  </label>
+                  <FloatingInput
+                    id="password"
+                    className="h-12"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    minLength={8}
+                    autoComplete="new-password"
+                    label="Password (min 8 chars)"
+                    rightSlot={
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((v) => !v)}
+                        className="text-xs text-text-secondary hover:text-text"
+                      >
+                        {showPassword ? "Hide" : "Show"}
+                      </button>
+                    }
+                  />
 
                   <Button type="button" variant="primary" className="w-full" onClick={goToStep2}>
                     Continue
@@ -199,83 +192,53 @@ export function RegisterPage() {
                 <>
                   {role === "JOB_SEEKER" ? (
                     <>
-                      <label className="relative block">
-                        <input
-                          id="fullName"
-                          className="input-base peer h-12"
-                          value={fullName}
-                          onChange={(e) => setFullName(e.target.value)}
-                          required
-                          placeholder=" "
-                        />
-                        <span className="pointer-events-none absolute left-3 top-3 text-sm text-text-muted transition-all peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-sm peer-focus:top-1 peer-focus:text-xs">
-                          Full name
-                        </span>
-                      </label>
-                      <label className="relative block">
-                        <input
-                          id="currentStatus"
-                          className="input-base peer h-12"
-                          value={currentStatus}
-                          onChange={(e) => setCurrentStatus(e.target.value)}
-                          placeholder=" "
-                        />
-                        <span className="pointer-events-none absolute left-3 top-3 text-sm text-text-muted transition-all peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-sm peer-focus:top-1 peer-focus:text-xs">
-                          Current status (Student/Working/Fresher)
-                        </span>
-                      </label>
-                      <label className="relative block">
-                        <input
-                          id="desiredRole"
-                          className="input-base peer h-12"
-                          value={desiredRole}
-                          onChange={(e) => setDesiredRole(e.target.value)}
-                          placeholder=" "
-                        />
-                        <span className="pointer-events-none absolute left-3 top-3 text-sm text-text-muted transition-all peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-sm peer-focus:top-1 peer-focus:text-xs">
-                          Desired role
-                        </span>
-                      </label>
+                      <FloatingInput
+                        id="fullName"
+                        className="h-12"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        required
+                        label="Full name"
+                      />
+                      <FloatingInput
+                        id="currentStatus"
+                        className="h-12"
+                        value={currentStatus}
+                        onChange={(e) => setCurrentStatus(e.target.value)}
+                        label="Current status (Student/Working/Fresher)"
+                      />
+                      <FloatingInput
+                        id="desiredRole"
+                        className="h-12"
+                        value={desiredRole}
+                        onChange={(e) => setDesiredRole(e.target.value)}
+                        label="Desired role"
+                      />
                     </>
                   ) : (
                     <>
-                      <label className="relative block">
-                        <input
-                          id="companyName"
-                          className="input-base peer h-12"
-                          value={companyName}
-                          onChange={(e) => setCompanyName(e.target.value)}
-                          required
-                          placeholder=" "
-                        />
-                        <span className="pointer-events-none absolute left-3 top-3 text-sm text-text-muted transition-all peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-sm peer-focus:top-1 peer-focus:text-xs">
-                          Company name
-                        </span>
-                      </label>
-                      <label className="relative block">
-                        <input
-                          id="companySize"
-                          className="input-base peer h-12"
-                          value={companySize}
-                          onChange={(e) => setCompanySize(e.target.value)}
-                          placeholder=" "
-                        />
-                        <span className="pointer-events-none absolute left-3 top-3 text-sm text-text-muted transition-all peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-sm peer-focus:top-1 peer-focus:text-xs">
-                          Company size
-                        </span>
-                      </label>
-                      <label className="relative block">
-                        <input
-                          id="industry"
-                          className="input-base peer h-12"
-                          value={industry}
-                          onChange={(e) => setIndustry(e.target.value)}
-                          placeholder=" "
-                        />
-                        <span className="pointer-events-none absolute left-3 top-3 text-sm text-text-muted transition-all peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-sm peer-focus:top-1 peer-focus:text-xs">
-                          Industry
-                        </span>
-                      </label>
+                      <FloatingInput
+                        id="companyName"
+                        className="h-12"
+                        value={companyName}
+                        onChange={(e) => setCompanyName(e.target.value)}
+                        required
+                        label="Company name"
+                      />
+                      <FloatingInput
+                        id="companySize"
+                        className="h-12"
+                        value={companySize}
+                        onChange={(e) => setCompanySize(e.target.value)}
+                        label="Company size"
+                      />
+                      <FloatingInput
+                        id="industry"
+                        className="h-12"
+                        value={industry}
+                        onChange={(e) => setIndustry(e.target.value)}
+                        label="Industry"
+                      />
                     </>
                   )}
 

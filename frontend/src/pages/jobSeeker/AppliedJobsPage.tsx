@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { apiJson } from "../../api/client";
 import { useAuth } from "../../auth/AuthContext";
 import type { ApplicationStatus, ApplicationWithJob } from "../../types";
@@ -15,6 +15,45 @@ const columns: Array<{ key: ApplicationStatus; label: string; variant: "blue" | 
   { key: "REJECTED", label: "Rejected", variant: "red" },
   { key: "HIRED", label: "Hired", variant: "teal" },
 ];
+
+const KanbanBoard = memo(function KanbanBoard({
+  grouped,
+  onSelect,
+}: {
+  grouped: Record<string, ApplicationWithJob[]>;
+  onSelect: (item: ApplicationWithJob) => void;
+}) {
+  return (
+    <div className="grid gap-4 lg:grid-cols-5">
+      {columns.map((col) => (
+        <div key={col.key} className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-semibold text-text-secondary">{col.label}</div>
+            <Badge variant={col.variant}>{grouped[col.key]?.length ?? 0}</Badge>
+          </div>
+          <div className="space-y-3">
+            {(grouped[col.key] ?? []).map((a) => (
+              <button
+                key={a.id}
+                type="button"
+                className="w-full rounded-2xl border border-border bg-surface-raised p-4 text-left transition hover:border-border-active"
+                onClick={() => onSelect(a)}
+              >
+                <div className="text-sm font-semibold">{a.job.title}</div>
+                <div className="text-xs text-text-secondary">
+                  {a.job.companyName} · {a.job.location}
+                </div>
+                <div className="mt-2 text-xs text-text-muted">
+                  Applied {new Date(a.createdAt).toLocaleDateString()}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+});
 
 export function AppliedJobsPage() {
   const { token } = useAuth();
@@ -44,6 +83,9 @@ export function AppliedJobsPage() {
     }, {});
   }, [apps]);
 
+  const showKanban = useCallback(() => setView("kanban"), []);
+  const showList = useCallback(() => setView("list"), []);
+
   function statusMeta(status: ApplicationStatus) {
     return columns.find((c) => c.key === status) ?? columns[0];
   }
@@ -56,10 +98,10 @@ export function AppliedJobsPage() {
           <p className="text-sm text-text-secondary">Track your application status across the pipeline.</p>
         </div>
         <div className="flex gap-2">
-          <Button variant={view === "kanban" ? "primary" : "secondary"} onClick={() => setView("kanban")}>
+          <Button variant={view === "kanban" ? "primary" : "secondary"} onClick={showKanban}>
             Kanban
           </Button>
-          <Button variant={view === "list" ? "primary" : "secondary"} onClick={() => setView("list")}>
+          <Button variant={view === "list" ? "primary" : "secondary"} onClick={showList}>
             List
           </Button>
         </div>
@@ -70,34 +112,7 @@ export function AppliedJobsPage() {
       {apps.length === 0 ? (
         <Card>No applications yet.</Card>
       ) : view === "kanban" ? (
-        <div className="grid gap-4 lg:grid-cols-5">
-          {columns.map((col) => (
-            <div key={col.key} className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="text-sm font-semibold text-text-secondary">{col.label}</div>
-                <Badge variant={col.variant}>{grouped[col.key]?.length ?? 0}</Badge>
-              </div>
-              <div className="space-y-3">
-                {(grouped[col.key] ?? []).map((a) => (
-                  <button
-                    key={a.id}
-                    type="button"
-                    className="w-full rounded-2xl border border-border bg-surface-raised p-4 text-left transition hover:border-border-active"
-                    onClick={() => setSelected(a)}
-                  >
-                    <div className="text-sm font-semibold">{a.job.title}</div>
-                    <div className="text-xs text-text-secondary">
-                      {a.job.companyName} · {a.job.location}
-                    </div>
-                    <div className="mt-2 text-xs text-text-muted">
-                      Applied {new Date(a.createdAt).toLocaleDateString()}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+        <KanbanBoard grouped={grouped} onSelect={setSelected} />
       ) : (
         <Card className="space-y-3">
           <div className="grid grid-cols-[2fr_1.5fr_1fr_1fr] gap-4 text-xs text-text-muted">

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -50,7 +50,7 @@ function withAlpha(color: string, alpha: number) {
   return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
 }
 
-export function BarChart(props: {
+export const BarChart = memo(function BarChart(props: {
   title?: string;
   labels: string[];
   values: number[];
@@ -85,9 +85,9 @@ export function BarChart(props: {
       />
     </div>
   );
-}
+});
 
-export function LineChart(props: {
+export const LineChart = memo(function LineChart(props: {
   title?: string;
   labels: string[];
   values: number[];
@@ -125,9 +125,9 @@ export function LineChart(props: {
       />
     </div>
   );
-}
+});
 
-export function PieChart(props: {
+export const PieChart = memo(function PieChart(props: {
   title?: string;
   labels: string[];
   values: number[];
@@ -170,9 +170,9 @@ export function PieChart(props: {
       />
     </div>
   );
-}
+});
 
-export function MiniSparkline(props: { labels: string[]; values: number[] }) {
+export const MiniSparkline = memo(function MiniSparkline(props: { labels: string[]; values: number[] }) {
   const colors = useThemeColors();
   return (
     <div className="chart" style={{ height: 120 }} aria-label="Trend sparkline">
@@ -202,9 +202,9 @@ export function MiniSparkline(props: { labels: string[]; values: number[] }) {
       />
     </div>
   );
-}
+});
 
-export function DualLineChart(props: {
+export const DualLineChart = memo(function DualLineChart(props: {
   title?: string;
   labels: string[];
   dataset1: { label: string; values: number[]; color: string };
@@ -262,4 +262,4 @@ export function DualLineChart(props: {
       />
     </div>
   );
-}
+});

@@ -125,11 +125,18 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
+function buildQuestions(category: Category, difficulty: Difficulty): Question[] {
+  const pool = QUESTIONS[category] ?? [];
+  if (difficulty === "Easy") return pool.filter((q) => q.type === "HR").slice(0, 8);
+  if (difficulty === "Hard") return pool.filter((q) => q.type !== "HR").slice(0, 8);
+  return pool.slice(0, 8);
+}
+
 /* ─── Main page ─── */
 export function InterviewPrepPage() {
   const [category, setCategory] = useState<Category>("Frontend");
   const [difficulty, setDifficulty] = useState<Difficulty>("Medium");
-  const [questions, setQuestions] = useState<Question[]>([]);
+  const [questions, setQuestions] = useState<Question[]>(() => buildQuestions("Frontend", "Medium"));
   const [ratings, setRatings] = useState<Record<number, number>>({});
   const [showTip, setShowTip] = useState<Record<number, boolean>>({});
   const [showNotes, setShowNotes] = useState<Record<number, boolean>>({});
@@ -139,25 +146,41 @@ export function InterviewPrepPage() {
   const [timer, setTimer] = useState(120);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  /* Load questions */
-  useEffect(() => {
-    const pool = QUESTIONS[category] ?? [];
-    // difficulty filter: Easy=HR, Medium=all, Hard=Technical+Behavioral
-    let filtered = pool;
-    if (difficulty === "Easy") filtered = pool.filter((q) => q.type === "HR");
-    if (difficulty === "Hard") filtered = pool.filter((q) => q.type !== "HR");
-    setQuestions(filtered.slice(0, 8));
+  const resetPracticeState = useCallback(() => {
     setRatings({});
     setShowTip({});
     setShowNotes({});
     setMockMode(false);
-  }, [category, difficulty]);
+    setMockIdx(0);
+    setTimer(120);
+  }, []);
+
+  const onCategoryChange = useCallback((nextCategory: Category) => {
+    setCategory(nextCategory);
+    setQuestions(buildQuestions(nextCategory, difficulty));
+    resetPracticeState();
+  }, [difficulty, resetPracticeState]);
+
+  const onDifficultyChange = useCallback((nextDifficulty: Difficulty) => {
+    setDifficulty(nextDifficulty);
+    setQuestions(buildQuestions(category, nextDifficulty));
+    resetPracticeState();
+  }, [category, resetPracticeState]);
+
+  const toggleMockMode = useCallback(() => {
+    setMockMode((prev) => {
+      const next = !prev;
+      if (next) {
+        setTimer(120);
+        setMockIdx(0);
+      }
+      return next;
+    });
+  }, []);
 
   /* Timer for mock mode */
   useEffect(() => {
     if (!mockMode) { if (timerRef.current) clearInterval(timerRef.current); return; }
-    setTimer(120);
-    setMockIdx(0);
     timerRef.current = setInterval(() => {
       setTimer((t) => {
         if (t <= 1) { setMockIdx((i) => i + 1); return 120; }
@@ -212,19 +235,19 @@ export function InterviewPrepPage() {
       <Card className="flex flex-wrap gap-4 items-end">
         <div className="flex-1 min-w-[160px]">
           <label className="text-xs text-[var(--muted)] block mb-1">Category</label>
-          <select className="input-base w-full" value={category} onChange={(e) => setCategory(e.target.value as Category)}>
+          <select className="input-base w-full" value={category} onChange={(e) => onCategoryChange(e.target.value as Category)}>
             {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
         <div className="flex-1 min-w-[120px]">
           <label className="text-xs text-[var(--muted)] block mb-1">Difficulty</label>
-          <select className="input-base w-full" value={difficulty} onChange={(e) => setDifficulty(e.target.value as Difficulty)}>
+          <select className="input-base w-full" value={difficulty} onChange={(e) => onDifficultyChange(e.target.value as Difficulty)}>
             <option>Easy</option><option>Medium</option><option>Hard</option>
           </select>
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" onClick={doShuffle}>Shuffle</Button>
-          <Button variant={mockMode ? "danger" : "primary"} onClick={() => setMockMode(!mockMode)}>
+          <Button variant={mockMode ? "danger" : "primary"} onClick={toggleMockMode}>
             {mockMode ? "Exit Mock" : "Mock Session"}
           </Button>
         </div>

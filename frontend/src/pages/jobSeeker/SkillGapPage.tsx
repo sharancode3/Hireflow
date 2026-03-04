@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiJson } from "../../api/client";
 import { useAuth } from "../../auth/AuthContext";
 import type { Job, JobSeekerProfile } from "../../types";
@@ -65,20 +65,22 @@ export function SkillGapPage() {
 
   const userSkillsSet = useMemo(() => new Set((profile?.skills ?? []).map((s) => s.toLowerCase())), [profile]);
 
-  const hasSkill = (s: string) => userSkillsSet.has(s.toLowerCase());
-  const missingSkills = roleSkills.filter((r) => !hasSkill(r.skill));
-  const matchedSkills = roleSkills.filter((r) => hasSkill(r.skill));
+  const hasSkill = useCallback((skill: string) => userSkillsSet.has(skill.toLowerCase()), [userSkillsSet]);
 
-  function toggleLearning(skill: string) {
+  const missingSkills = useMemo(() => roleSkills.filter((r) => !hasSkill(r.skill)), [hasSkill, roleSkills]);
+
+  const matchedSkills = useMemo(() => roleSkills.filter((r) => hasSkill(r.skill)), [hasSkill, roleSkills]);
+
+  const toggleLearning = useCallback((skill: string) => {
     setLearning((prev) => {
       const next = new Set(prev);
       if (next.has(skill)) next.delete(skill); else next.add(skill);
       localStorage.setItem("talvion_learning", JSON.stringify([...next]));
       return next;
     });
-  }
+  }, []);
 
-  async function addSkillToProfile(skill: string) {
+  const addSkillToProfile = useCallback(async (skill: string) => {
     if (!token || !profile) return;
     setAdding(true);
     try {
@@ -90,7 +92,7 @@ export function SkillGapPage() {
       setAddSkillModal(null);
     } catch { /* ignore */ }
     setAdding(false);
-  }
+  }, [profile, token]);
 
   if (loading) return <PageSkeleton />;
 

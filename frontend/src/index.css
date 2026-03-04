@@ -355,7 +355,7 @@ html[data-theme="high-contrast"] {
   background:
     radial-gradient(520px 360px at 22% 30%, rgba(var(--accent-rgb), 0.14), transparent 62%),
     radial-gradient(520px 360px at 78% 28%, rgba(var(--secondary-rgb), 0.12), transparent 62%),
-    url("/hirehub-logo.png") center 26% / min(720px, 72vw) no-repeat;
+    url("/vite.svg") center 26% / min(720px, 72vw) no-repeat;
   opacity: 0.10;
   filter: saturate(0.92) blur(0.2px);
 }
@@ -804,11 +804,6 @@ summary { list-style: none; }
   animation: shimmer 1.2s ease-in-out infinite;
 }
 
-@keyframes shimmer {
-  from { transform: translateX(-60%); }
-  to { transform: translateX(60%); }
-}
-
 .layout {
   display: grid;
   gap: 16px;
@@ -975,6 +970,50 @@ summary { list-style: none; }
   color: var(--text-muted);
 }
 
+.floating-field {
+  position: relative;
+  display: block;
+}
+
+.floating-field-input {
+  height: 3.25rem;
+  padding-top: 1.25rem;
+  padding-bottom: 0.35rem;
+}
+
+.floating-field-label {
+  pointer-events: none;
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  transition: top 150ms ease, transform 150ms ease, font-size 150ms ease, color 150ms ease, letter-spacing 150ms ease;
+}
+
+.floating-field:focus-within .floating-field-label,
+.floating-field[data-has-value="true"] .floating-field-label {
+  top: 0.42rem;
+  transform: translateY(0);
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #22D3EE;
+}
+
+.floating-field.has-right-slot .floating-field-input {
+  padding-right: 3.2rem;
+}
+
+.floating-field-right {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+}
+
 /* ==================== Staggered list animation ==================== */
 .stagger-list > * {
   animation: slide-in-up 0.3s ease-out both;
@@ -989,11 +1028,6 @@ summary { list-style: none; }
 .stagger-list > *:nth-child(8) { animation-delay: 240ms; }
 .stagger-list > *:nth-child(9) { animation-delay: 270ms; }
 .stagger-list > *:nth-child(10) { animation-delay: 300ms; }
-
-@keyframes slide-in-up {
-  0% { transform: translateY(6px); opacity: 0; }
-  100% { transform: translateY(0); opacity: 1; }
-}
 
 /* ==================== Hover glow utility ==================== */
 .hover-glow {

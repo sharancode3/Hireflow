@@ -5,6 +5,7 @@ import { apiJson, ApiError } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import type { User, UserRole } from "../types";
 import { Logo } from "../components/Logo";
+import { FloatingInput } from "../components/ui/FloatingInput";
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -154,59 +155,45 @@ export function LoginPage() {
             </div>
 
             <form onSubmit={onSubmit} className="space-y-4">
-              <label className="relative block">
-                <input
-                  id="email"
-                  className="peer h-12 w-full rounded-lg border px-3 pt-4 pb-1.5 text-sm outline-none transition"
-                  style={{ background: "#f8fafc", borderColor: "#e2e8f0", color: "#111827" }}
-                  onFocus={(e) => { e.currentTarget.style.borderColor = "#22D3EE"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(34,211,238,0.1)"; }}
-                  onBlur={(e) => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.boxShadow = "none"; }}
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                  placeholder=" "
-                />
-                <span className="pointer-events-none absolute left-3 top-3 text-sm text-[#94a3b8] transition-all peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-sm peer-focus:top-1 peer-focus:text-xs">
-                  Email address
-                </span>
-              </label>
+              <FloatingInput
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+                label="Email address"
+                className="bg-[#f8fafc] text-[#111827]"
+              />
 
-              <label className="relative block">
-                <input
-                  id="password"
-                  className="peer h-12 w-full rounded-lg border px-3 pt-4 pb-1.5 pr-12 text-sm outline-none transition"
-                  style={{ background: "#f8fafc", borderColor: "#e2e8f0", color: "#111827" }}
-                  onFocus={(e) => { e.currentTarget.style.borderColor = "#22D3EE"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(34,211,238,0.1)"; }}
-                  onBlur={(e) => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.boxShadow = "none"; }}
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  autoComplete="current-password"
-                  placeholder=" "
-                />
-                <span className="pointer-events-none absolute left-3 top-3 text-sm text-[#94a3b8] transition-all peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-sm peer-focus:top-1 peer-focus:text-xs">
-                  Password
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-3 text-xs text-text-secondary"
-                >
-                  {showPassword ? "Hide" : "Show"}
-                </button>
-              </label>
+              <FloatingInput
+                id="password"
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+                label="Password"
+                className="bg-[#f8fafc] text-[#111827]"
+                rightSlot={
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="text-xs text-text-secondary hover:text-text"
+                  >
+                    {showPassword ? "Hide" : "Show"}
+                  </button>
+                }
+              />
 
               {/* Cyan accent Sign In button */}
               <button
                 type="submit"
                 disabled={busy}
                 className="btn-base w-full relative overflow-hidden font-semibold shadow-soft hover:shadow-lift transition-all duration-200"
-                style={{ background: "#22D3EE", color: "#060913", borderRadius: "0.75rem" }}
+                style={{ background: "linear-gradient(90deg, #22D3EE, #6366F1)", color: "#0B1530", borderRadius: "0.75rem" }}
               >
-                {busy ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#060913]/30 border-t-[#060913]" /> : "Sign in"}
+                {busy ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#0B1530]/35 border-t-[#0B1530]" /> : "Sign in"}
               </button>
             </form>
 
