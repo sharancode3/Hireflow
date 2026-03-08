@@ -3,6 +3,38 @@ import type { FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ApiError, apiJson } from "../api/client";
 import { Logo } from "../components/Logo";
+import { AuthSplitLayout } from "../components/AuthLayout";
+
+function FeatureIcon({ color, path }: { color: string; path: string }) {
+  return (
+    <span className="flex h-9 w-9 items-center justify-center rounded-full" style={{ color, background: `${color}1A` }}>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <path d={path} />
+      </svg>
+    </span>
+  );
+}
+
+const recruiterFeatureCards = [
+  {
+    title: "Reach Verified Candidates",
+    description: "Every applicant has a completed, reviewed profile.",
+    color: "#22C55E",
+    iconPath: "M12 3l7 4v5c0 5-3.5 8.5-7 9-3.5-.5-7-4-7-9V7l7-4zm-3 9l2 2 4-4",
+  },
+  {
+    title: "Admin-Approved Listings",
+    description: "Your job posts go live only after admin review.",
+    color: "#1A73E8",
+    iconPath: "M12 8v4l2.5 2.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+  },
+  {
+    title: "Manage All Postings",
+    description: "Track status, edit listings and view applications.",
+    color: "#A855F7",
+    iconPath: "M4 5h16M4 12h16M4 19h10",
+  },
+] as const;
 
 export function RecruiterRegisterPage() {
   const navigate = useNavigate();
@@ -15,7 +47,9 @@ export function RecruiterRegisterPage() {
   const [companyName, setCompanyName] = useState("");
   const [companyWebsite, setCompanyWebsite] = useState("");
   const [designation, setDesignation] = useState("");
+  const [countryCode, setCountryCode] = useState("+91");
   const [phone, setPhone] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -32,7 +66,7 @@ export function RecruiterRegisterPage() {
           companyName,
           companyWebsite,
           designation,
-          phone,
+          phone: `${countryCode} ${phone}`,
         },
       });
       navigate("/recruiter/pending", { replace: true });
@@ -45,69 +79,128 @@ export function RecruiterRegisterPage() {
   }
 
   return (
-    <div className="auth-split-page text-text">
-      <div className="auth-split-layout">
-        <aside className="auth-left-panel">
+    <AuthSplitLayout
+      pageClassName="text-text"
+      leftPanel={
+        <>
           <div className="login-left-orb" />
-          <div className="space-y-5">
+          <div className="auth-left-logo-wrap">
             <Logo />
-            <h1 className="text-4xl font-bold leading-tight text-white">Join as a Recruiter</h1>
-            <p className="max-w-md text-sm text-text-secondary">Post jobs, find candidates, build your team.</p>
           </div>
-          <div className="text-xs text-text-muted">Your recruiter profile is reviewed by Hireflow admins before posting access is granted.</div>
-        </aside>
+          <div className="auth-left-content relative z-10">
+            <div className="space-y-4">
+              <h1 className="text-[36px] font-bold leading-tight text-white">Hire smarter with Hireflow.</h1>
+              <p className="max-w-md text-base text-[#888888]">Post verified jobs and find candidates who actually match.</p>
+            </div>
 
-        <section className="auth-right-panel">
-          <div className="auth-form-card w-full max-w-xl">
-            <h2 className="mb-6 text-2xl font-semibold text-white">Create Recruiter Account</h2>
-
-            {error ? <div className="mb-4 rounded-lg border border-danger/60 bg-danger/10 px-4 py-3 text-sm text-danger">{error}</div> : null}
-
-            <form className="space-y-4" onSubmit={onSubmit}>
-              <label className="field">
-                <span className="label">Full Name</span>
-                <input className="input" required value={fullName} onChange={(e) => setFullName(e.target.value)} />
-              </label>
-              <label className="field">
-                <span className="label">Work Email address</span>
-                <input className="input" required type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-              </label>
-              <label className="field">
-                <span className="label">Password</span>
-                <input className="input" required minLength={8} type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-              </label>
-              <label className="field">
-                <span className="label">Company Name</span>
-                <input className="input" required value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
-              </label>
-              <label className="field">
-                <span className="label">Company Website</span>
-                <input className="input" required type="url" placeholder="https://example.com" value={companyWebsite} onChange={(e) => setCompanyWebsite(e.target.value)} />
-              </label>
-              <label className="field">
-                <span className="label">Your Role or Designation</span>
-                <input className="input" required placeholder="HR Manager / Founder" value={designation} onChange={(e) => setDesignation(e.target.value)} />
-              </label>
-              <label className="field">
-                <span className="label">Phone Number</span>
-                <input className="input" required value={phone} onChange={(e) => setPhone(e.target.value)} />
-              </label>
-
-              <div className="rounded-lg border border-border bg-surface-raised/70 px-4 py-3 text-xs text-text-secondary">
-                Your account will be reviewed by the Hireflow admin team before you can post jobs. This usually takes 1 to 2 business days.
-              </div>
-
-              <button type="submit" disabled={busy} className="btn-primary h-11 w-full rounded-lg font-semibold text-white">
-                {busy ? "Submitting..." : "Submit for Review"}
-              </button>
-            </form>
-
-            <div className="mt-5 text-sm text-text-secondary">
-              Already have recruiter credentials? <Link className="hover:text-white" to="/login">Back to login</Link>
+            <div className="mt-10 space-y-3">
+              {recruiterFeatureCards.map((item, idx) => (
+                <div
+                  key={item.title}
+                  className="login-feature-card"
+                  style={{ animationDelay: `${idx * 100}ms` }}
+                >
+                  <FeatureIcon color={item.color} path={item.iconPath} />
+                  <div>
+                    <div className="text-sm font-semibold text-white">{item.title}</div>
+                    <div className="text-xs text-[#9AA3B5]">{item.description}</div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-        </section>
-      </div>
-    </div>
+        </>
+      }
+      rightPanel={
+        <div className="auth-form-card login-form-card w-full max-w-[420px]">
+          <h2 className="text-2xl font-bold text-white">Create Recruiter Account</h2>
+          <p className="mt-2 text-[13px] text-[#777777]">Fill in your details to apply for recruiter access.</p>
+
+          <div className="mt-5 h-1.5 w-full rounded-full bg-[#1A1A26]">
+            <div className="h-full w-1/2 rounded-full bg-[linear-gradient(90deg,#1A73E8_0%,#1557B0_100%)]" />
+          </div>
+
+          {error ? <div className="mt-4 rounded-lg border border-danger/60 bg-danger/10 px-4 py-3 text-sm text-danger">{error}</div> : null}
+
+          <form className="mt-5 space-y-4" onSubmit={onSubmit}>
+            <label className="field">
+              <span className="label">Full Name</span>
+              <input className="input" required value={fullName} onChange={(e) => setFullName(e.target.value)} />
+            </label>
+
+            <label className="field">
+              <span className="label">Work Email Address</span>
+              <input className="input" required type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            </label>
+
+            <label className="field">
+              <span className="label">Password</span>
+              <span className="flex h-11 items-center gap-2 rounded-lg border border-[#2A2A3A] bg-[#1A1A26] px-3 focus-within:border-[#1A73E8] focus-within:shadow-[0_0_0_3px_rgba(26,115,232,0.15)]">
+                <input
+                  className="h-full w-full border-0 bg-transparent px-0 text-sm text-white outline-none"
+                  required
+                  minLength={8}
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <button type="button" onClick={() => setShowPassword((v) => !v)} className="text-xs text-text-secondary hover:text-text">
+                  {showPassword ? "Hide" : "Show"}
+                </button>
+              </span>
+            </label>
+
+            <label className="field">
+              <span className="label">Company Name</span>
+              <input className="input" required value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
+            </label>
+
+            <label className="field">
+              <span className="label">Company Website</span>
+              <input className="input" required type="url" placeholder="https://example.com" value={companyWebsite} onChange={(e) => setCompanyWebsite(e.target.value)} />
+            </label>
+
+            <label className="field">
+              <span className="label">Your Role or Designation</span>
+              <input className="input" required placeholder="HR Manager, Founder, Talent Lead" value={designation} onChange={(e) => setDesignation(e.target.value)} />
+            </label>
+
+            <label className="field">
+              <span className="label">Phone Number</span>
+              <span className="flex h-11 items-center gap-2 rounded-lg border border-[#2A2A3A] bg-[#1A1A26] px-2 focus-within:border-[#1A73E8] focus-within:shadow-[0_0_0_3px_rgba(26,115,232,0.15)]">
+                <select
+                  className="h-9 w-[82px] rounded-md border border-[#2A2A3A] bg-[#131320] px-2 text-xs text-white outline-none"
+                  value={countryCode}
+                  onChange={(e) => setCountryCode(e.target.value)}
+                >
+                  <option value="+91">+91</option>
+                  <option value="+1">+1</option>
+                  <option value="+44">+44</option>
+                </select>
+                <input
+                  className="h-full w-full border-0 bg-transparent px-0 text-sm text-white outline-none"
+                  required
+                  placeholder="9876543210"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                />
+              </span>
+            </label>
+
+            <div className="rounded-lg border border-[rgba(234,179,8,0.2)] bg-[rgba(234,179,8,0.08)] px-[14px] py-3 text-[12px] text-[#CA8A04]">
+              Your account will be reviewed by the Hireflow admin team before you can post jobs. This typically takes 1 to 2 business days.
+            </div>
+
+            <button type="submit" disabled={busy} className="btn-primary h-11 w-full rounded-lg font-semibold text-white">
+              {busy ? "Submitting..." : "Submit for Review"}
+            </button>
+          </form>
+
+          <div className="mt-4 text-center text-[13px] text-[#555555]">
+            Already have an account? <Link className="hover:text-white" to="/login">Sign in</Link>
+          </div>
+        </div>
+      }
+    />
   );
 }

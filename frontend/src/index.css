@@ -1302,12 +1302,30 @@ button:active {
 }
 
 .auth-split-page {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  width: 100vw;
+  height: 100%;
+  overflow: hidden;
+  background: #0A0A0F;
+}
+
+.auth-page-shell {
   display: flex;
   flex-direction: row;
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  background: var(--color-bg);
+  background: #0A0A0F;
+}
+
+.auth-page-shell--with-bottom {
+  flex-direction: column;
+}
+
+.auth-page-shell--with-bottom .auth-split-page {
+  min-height: 0;
 }
 
 .auth-split-layout {
@@ -1329,33 +1347,108 @@ button:active {
   border-right: 1px solid rgba(255, 255, 255, 0.07);
 }
 
+.auth-left-logo-wrap {
+  position: absolute;
+  top: 40px;
+  left: 64px;
+  z-index: 12;
+}
+
+.auth-left-content {
+  width: 100%;
+  max-width: 560px;
+}
+
 .auth-right-panel {
   width: 520px;
   flex-shrink: 0;
-  background: var(--color-bg);
+  min-height: 0;
+  background: #0A0A0F;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 40px;
+  overflow-y: auto;
 }
 
 .auth-form-card {
   width: 100%;
   max-width: 420px;
-  background: var(--color-card);
+  background: #12121A;
   border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: 16px;
   padding: 40px;
   box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
 }
 
+.auth-bottom-bar {
+  height: 52px;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.02);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.auth-bottom-bar-inner {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 0 16px;
+}
+
+.auth-bottom-copy {
+  font-size: 13px;
+  color: #555555;
+}
+
+.auth-bottom-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #2A2A3A;
+  background: transparent;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 13px;
+  color: #AAAAAA;
+  transition: border-color 150ms ease, color 150ms ease;
+}
+
+.auth-bottom-cta:hover {
+  border-color: #1A73E8;
+  color: #FFFFFF;
+}
+
 @media (max-width: 767px) {
   .auth-left-panel {
     display: none;
   }
+
+  .auth-page-shell,
+  .auth-page-shell--with-bottom,
+  .auth-split-page {
+    height: 100dvh;
+  }
+
   .auth-right-panel {
     width: 100vw;
     padding: 20px;
+    align-items: flex-start;
+  }
+
+  .auth-form-card {
+    padding: 28px 20px;
+  }
+
+  .auth-bottom-bar {
+    height: auto;
+    padding: 10px 0;
+  }
+
+  .auth-bottom-bar-inner {
+    flex-direction: column;
+    gap: 8px;
   }
 }
 

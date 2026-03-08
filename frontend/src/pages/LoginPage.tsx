@@ -5,6 +5,7 @@ import { ApiError, apiJson } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import type { User } from "../types";
 import { Logo } from "../components/Logo";
+import { AuthSplitLayout } from "../components/AuthLayout";
 
 function IconMail() {
   return (
@@ -35,10 +36,10 @@ function IconGoogle() {
   );
 }
 
-function RecruiterPlusIcon() {
+function ArrowRightIcon() {
   return (
     <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.7">
-      <path d="M6 2v8M2 6h8" />
+      <path d="M3 6h6M7 4l2 2-2 2" />
     </svg>
   );
 }
@@ -108,13 +109,16 @@ export function LoginPage() {
   }
 
   return (
-    <div className="auth-split-page text-text">
-      <div className="auth-split-layout">
-        <aside className="auth-left-panel">
+    <AuthSplitLayout
+      pageClassName="text-text"
+      leftPanel={
+        <>
           <div className="login-left-orb" />
-          <div className="relative z-10">
+          <div className="auth-left-logo-wrap">
             <Logo />
-            <div className="mt-14 space-y-6">
+          </div>
+          <div className="auth-left-content relative z-10">
+            <div className="space-y-6">
               <span className="inline-flex rounded-full border border-[#1A73E8]/40 bg-[#1A73E8]/10 px-4 py-1.5 text-xs font-semibold text-[#8AB4F8]">
                 Smart hiring, flowing smoothly
               </span>
@@ -123,107 +127,108 @@ export function LoginPage() {
                 Hireflow helps candidates and hiring teams move faster, with cleaner workflows and better decisions.
               </p>
             </div>
-          </div>
 
-          <div className="relative z-10 mt-10 space-y-3">
-            {featureCards.map((item, idx) => (
-              <div
-                key={item.title}
-                className="login-feature-card"
-                style={{ animationDelay: `${idx * 100}ms` }}
-              >
-                <FeatureIcon color={item.color} path={item.iconPath} />
-                <div>
-                  <div className="text-sm font-semibold text-white">{item.title}</div>
-                  <div className="text-xs text-[#9AA3B5]">{item.description}</div>
+            <div className="mt-10 space-y-3">
+              {featureCards.map((item, idx) => (
+                <div
+                  key={item.title}
+                  className="login-feature-card"
+                  style={{ animationDelay: `${idx * 100}ms` }}
+                >
+                  <FeatureIcon color={item.color} path={item.iconPath} />
+                  <div>
+                    <div className="text-sm font-semibold text-white">{item.title}</div>
+                    <div className="text-xs text-[#9AA3B5]">{item.description}</div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </aside>
+        </>
+      }
+      rightPanel={
+        <div className="auth-form-card login-form-card">
+          <div className="mb-8 flex justify-center">
+            <Logo />
+          </div>
 
-        <section className="auth-right-panel">
-          <div className="auth-form-card login-form-card">
-            <div className="mb-3 flex justify-end">
-              <Link to="/recruiter/register" className="login-recruiter-entry">
-                <RecruiterPlusIcon />
-                Recruiter Access
-              </Link>
-            </div>
+          <div className="mb-6 text-center">
+            <h2 className="text-3xl font-bold text-white">Welcome back</h2>
+            <p className="mt-2 text-sm text-text-secondary">Sign in to continue to Hireflow</p>
+          </div>
 
-            <div className="mb-8 flex justify-center">
-              <Logo />
-            </div>
+          {error ? <div className="mb-4 rounded-lg border border-danger/60 bg-danger/10 px-4 py-3 text-sm text-danger">{error}</div> : null}
 
-            <div className="mb-6 text-center">
-              <h2 className="text-3xl font-bold text-white">Welcome back</h2>
-              <p className="mt-2 text-sm text-text-secondary">Sign in to continue to Hireflow</p>
-            </div>
+          <form onSubmit={onSubmit} className="space-y-4">
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">Email address</span>
+              <span className="flex h-11 items-center gap-2 rounded-lg border border-border bg-[#1A1A26] px-3 focus-within:border-[#1A73E8] focus-within:shadow-[0_0_0_3px_rgba(26,115,232,0.15)]">
+                <span className="text-text-muted"><IconMail /></span>
+                <input
+                  type="email"
+                  required
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="h-full w-full border-0 bg-transparent text-sm text-text outline-none"
+                  placeholder="you@example.com"
+                />
+              </span>
+            </label>
 
-            {error ? <div className="mb-4 rounded-lg border border-danger/60 bg-danger/10 px-4 py-3 text-sm text-danger">{error}</div> : null}
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">Password</span>
+              <span className="flex h-11 items-center gap-2 rounded-lg border border-border bg-[#1A1A26] px-3 focus-within:border-[#1A73E8] focus-within:shadow-[0_0_0_3px_rgba(26,115,232,0.15)]">
+                <span className="text-text-muted"><IconLock /></span>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  required
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="h-full w-full border-0 bg-transparent text-sm text-text outline-none"
+                  placeholder="Enter your password"
+                />
+                <button type="button" onClick={() => setShowPassword((v) => !v)} className="text-xs text-text-secondary hover:text-text">
+                  {showPassword ? "Hide" : "Show"}
+                </button>
+              </span>
+            </label>
 
-            <form onSubmit={onSubmit} className="space-y-4">
-              <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">Email address</span>
-                <span className="flex h-11 items-center gap-2 rounded-lg border border-border bg-[#1A1A26] px-3 focus-within:border-[#1A73E8] focus-within:shadow-[0_0_0_3px_rgba(26,115,232,0.15)]">
-                  <span className="text-text-muted"><IconMail /></span>
-                  <input
-                    type="email"
-                    required
-                    autoComplete="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="h-full w-full border-0 bg-transparent text-sm text-text outline-none"
-                    placeholder="you@example.com"
-                  />
-                </span>
-              </label>
-
-              <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">Password</span>
-                <span className="flex h-11 items-center gap-2 rounded-lg border border-border bg-[#1A1A26] px-3 focus-within:border-[#1A73E8] focus-within:shadow-[0_0_0_3px_rgba(26,115,232,0.15)]">
-                  <span className="text-text-muted"><IconLock /></span>
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    required
-                    autoComplete="current-password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="h-full w-full border-0 bg-transparent text-sm text-text outline-none"
-                    placeholder="Enter your password"
-                  />
-                  <button type="button" onClick={() => setShowPassword((v) => !v)} className="text-xs text-text-secondary hover:text-text">
-                    {showPassword ? "Hide" : "Show"}
-                  </button>
-                </span>
-              </label>
-
-              <button type="submit" disabled={busy} className="btn-primary h-11 w-full rounded-lg font-semibold text-white">
-                {busy ? "Signing in..." : "Sign in"}
-              </button>
-            </form>
-
-            <div className="my-5 flex items-center gap-3 text-xs text-text-muted">
-              <div className="h-px flex-1 bg-border" />
-              <span>OR</span>
-              <div className="h-px flex-1 bg-border" />
-            </div>
-
-            <button
-              type="button"
-              className="btn-base h-11 w-full justify-center gap-2 rounded-lg border border-border bg-[#1A1A26] text-sm text-white hover:border-[#1A73E8]"
-            >
-              <IconGoogle />
-              Continue with Google
+            <button type="submit" disabled={busy} className="btn-primary h-11 w-full rounded-lg font-semibold text-white">
+              {busy ? "Signing in..." : "Sign in"}
             </button>
+          </form>
 
-            <div className="mt-6 flex items-center justify-between text-sm text-text-secondary">
-              <Link to="/register" className="hover:text-white">New to Hireflow? Create an account</Link>
-              <Link to="/forgot-password" className="hover:text-white">Forgot password?</Link>
-            </div>
+          <div className="my-5 flex items-center gap-3 text-xs text-text-muted">
+            <div className="h-px flex-1 bg-border" />
+            <span>OR</span>
+            <div className="h-px flex-1 bg-border" />
           </div>
-        </section>
-      </div>
-    </div>
+
+          <button
+            type="button"
+            className="btn-base h-11 w-full justify-center gap-2 rounded-lg border border-border bg-[#1A1A26] text-sm text-white hover:border-[#1A73E8]"
+          >
+            <IconGoogle />
+            Continue with Google
+          </button>
+
+          <div className="mt-6 flex items-center justify-between text-sm text-text-secondary">
+            <Link to="/register" className="hover:text-white">New to Hireflow? Create an account</Link>
+            <Link to="/forgot-password" className="hover:text-white">Forgot password?</Link>
+          </div>
+        </div>
+      }
+      bottomBar={
+        <div className="auth-bottom-bar-inner">
+          <span className="auth-bottom-copy">Are you a recruiter or company looking to hire?</span>
+          <Link to="/recruiter/register" className="auth-bottom-cta">
+            Join as Recruiter
+            <ArrowRightIcon />
+          </Link>
+        </div>
+      }
+    />
   );
 }
