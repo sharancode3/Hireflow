@@ -7,8 +7,8 @@ import { AuthSplitLayout } from "../components/AuthLayout";
 
 function FeatureIcon({ color, path }: { color: string; path: string }) {
   return (
-    <span className="flex h-9 w-9 items-center justify-center rounded-full" style={{ color, background: `${color}1A` }}>
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+    <span className="recruiter-feature-icon" style={{ color, background: `${color}26` }}>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
         <path d={path} />
       </svg>
     </span>
@@ -17,22 +17,22 @@ function FeatureIcon({ color, path }: { color: string; path: string }) {
 
 const recruiterFeatureCards = [
   {
-    title: "Reach Verified Candidates",
-    description: "Every applicant has a completed, reviewed profile.",
+    title: "Verified Candidates Only",
+    description: "Every applicant profile is complete and reviewed.",
     color: "#22C55E",
     iconPath: "M12 3l7 4v5c0 5-3.5 8.5-7 9-3.5-.5-7-4-7-9V7l7-4zm-3 9l2 2 4-4",
   },
   {
-    title: "Admin-Approved Listings",
-    description: "Your job posts go live only after admin review.",
+    title: "Admin-Approved Postings",
+    description: "Your listings go live only after Hireflow review.",
     color: "#1A73E8",
-    iconPath: "M12 8v4l2.5 2.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+    iconPath: "M9 6h10v12H5V6h4zm0 0V4h6v2",
   },
   {
-    title: "Manage All Postings",
-    description: "Track status, edit listings and view applications.",
+    title: "Full Hiring Dashboard",
+    description: "Track applicants, manage listings and send updates.",
     color: "#A855F7",
-    iconPath: "M4 5h16M4 12h16M4 19h10",
+    iconPath: "M5 19V9M12 19V5M19 19v-7",
   },
 ] as const;
 
@@ -80,30 +80,34 @@ export function RecruiterRegisterPage() {
 
   return (
     <AuthSplitLayout
-      pageClassName="text-text"
+      pageClassName="text-text recruiter-register-page"
+      leftPanelClassName="recruiter-left-panel"
+      rightPanelClassName="recruiter-right-panel"
       leftPanel={
         <>
-          <div className="login-left-orb" />
-          <div className="auth-left-logo-wrap">
+          <div className="recruiter-left-orb" />
+          <div className="recruiter-left-logo-wrap">
             <Logo />
           </div>
-          <div className="auth-left-content relative z-10">
+          <div className="recruiter-left-content">
             <div className="space-y-4">
-              <h1 className="text-[36px] font-bold leading-tight text-white">Hire smarter with Hireflow.</h1>
-              <p className="max-w-md text-base text-[#888888]">Post verified jobs and find candidates who actually match.</p>
+              <h1 className="text-[40px] font-bold leading-tight text-white">Hire smarter with Hireflow.</h1>
+              <p className="max-w-xl text-base leading-[1.6] text-[#888888]">
+                Post verified jobs, reach the right candidates and manage your entire hiring pipeline in one place.
+              </p>
             </div>
 
-            <div className="mt-10 space-y-3">
+            <div className="mt-6 space-y-3">
               {recruiterFeatureCards.map((item, idx) => (
                 <div
                   key={item.title}
-                  className="login-feature-card"
+                  className="recruiter-feature-card"
                   style={{ animationDelay: `${idx * 100}ms` }}
                 >
                   <FeatureIcon color={item.color} path={item.iconPath} />
                   <div>
                     <div className="text-sm font-semibold text-white">{item.title}</div>
-                    <div className="text-xs text-[#9AA3B5]">{item.description}</div>
+                    <div className="text-[13px] text-[#777777]">{item.description}</div>
                   </div>
                 </div>
               ))}
@@ -112,17 +116,17 @@ export function RecruiterRegisterPage() {
         </>
       }
       rightPanel={
-        <div className="auth-form-card login-form-card w-full max-w-[420px]">
-          <h2 className="text-2xl font-bold text-white">Create Recruiter Account</h2>
-          <p className="mt-2 text-[13px] text-[#777777]">Fill in your details to apply for recruiter access.</p>
+        <div className="auth-form-card recruiter-form-card w-full">
+          <h2 className="mb-[6px] text-2xl font-bold text-white">Create Recruiter Account</h2>
+          <p className="mb-6 text-[13px] text-[#666666]">Fill in your details below. Your account will be reviewed before activation.</p>
 
-          <div className="mt-5 h-1.5 w-full rounded-full bg-[#1A1A26]">
+          <div className="h-1.5 w-full rounded-full bg-[#1A1A26]">
             <div className="h-full w-1/2 rounded-full bg-[linear-gradient(90deg,#1A73E8_0%,#1557B0_100%)]" />
           </div>
 
           {error ? <div className="mt-4 rounded-lg border border-danger/60 bg-danger/10 px-4 py-3 text-sm text-danger">{error}</div> : null}
 
-          <form className="mt-5 space-y-4" onSubmit={onSubmit}>
+          <form className="recruiter-form-fields mt-5" onSubmit={onSubmit}>
             <label className="field">
               <span className="label">Full Name</span>
               <input className="input" required value={fullName} onChange={(e) => setFullName(e.target.value)} />
@@ -187,17 +191,17 @@ export function RecruiterRegisterPage() {
               </span>
             </label>
 
-            <div className="rounded-lg border border-[rgba(234,179,8,0.2)] bg-[rgba(234,179,8,0.08)] px-[14px] py-3 text-[12px] text-[#CA8A04]">
+            <div className="recruiter-notice-box">
               Your account will be reviewed by the Hireflow admin team before you can post jobs. This typically takes 1 to 2 business days.
             </div>
 
-            <button type="submit" disabled={busy} className="btn-primary h-11 w-full rounded-lg font-semibold text-white">
+            <button type="submit" disabled={busy} className="recruiter-submit-btn">
               {busy ? "Submitting..." : "Submit for Review"}
             </button>
           </form>
 
           <div className="mt-4 text-center text-[13px] text-[#555555]">
-            Already have an account? <Link className="hover:text-white" to="/login">Sign in</Link>
+            Already have recruiter credentials? <Link className="text-[#1A73E8] hover:underline" to="/login">Back to login</Link>
           </div>
         </div>
       }

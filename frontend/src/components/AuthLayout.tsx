@@ -16,9 +16,18 @@ type AuthSplitLayoutProps = {
   rightPanel: ReactNode;
   bottomBar?: ReactNode;
   pageClassName?: string;
+  leftPanelClassName?: string;
+  rightPanelClassName?: string;
 };
 
-export function AuthSplitLayout({ leftPanel, rightPanel, bottomBar, pageClassName }: AuthSplitLayoutProps) {
+export function AuthSplitLayout({
+  leftPanel,
+  rightPanel,
+  bottomBar,
+  pageClassName,
+  leftPanelClassName,
+  rightPanelClassName,
+}: AuthSplitLayoutProps) {
   const shellClassName = [
     "auth-page-shell",
     bottomBar ? "auth-page-shell--with-bottom" : "",
@@ -31,8 +40,8 @@ export function AuthSplitLayout({ leftPanel, rightPanel, bottomBar, pageClassNam
     <div className={shellClassName}>
       <div className="auth-split-page">
         <div className="auth-split-layout">
-          <aside className="auth-left-panel">{leftPanel}</aside>
-          <section className="auth-right-panel">{rightPanel}</section>
+          <aside className={["auth-left-panel", leftPanelClassName ?? ""].filter(Boolean).join(" ")}>{leftPanel}</aside>
+          <section className={["auth-right-panel", rightPanelClassName ?? ""].filter(Boolean).join(" ")}>{rightPanel}</section>
         </div>
       </div>
       {bottomBar ? <div className="auth-bottom-bar">{bottomBar}</div> : null}

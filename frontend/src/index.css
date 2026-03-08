@@ -1345,6 +1345,7 @@ button:active {
   justify-content: center;
   padding: 64px;
   border-right: 1px solid rgba(255, 255, 255, 0.07);
+  align-items: flex-start;
 }
 
 .auth-left-logo-wrap {
@@ -1362,6 +1363,7 @@ button:active {
 .auth-right-panel {
   width: 520px;
   flex-shrink: 0;
+  height: 100%;
   min-height: 0;
   background: #0A0A0F;
   display: flex;
@@ -1379,6 +1381,121 @@ button:active {
   border-radius: 16px;
   padding: 40px;
   box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
+}
+
+.recruiter-register-page .recruiter-left-panel {
+  flex: 1.2;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 64px;
+}
+
+.recruiter-register-page .recruiter-right-panel {
+  width: 560px;
+  flex-shrink: 0;
+  background: #0A0A0F;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+  overflow-y: auto;
+}
+
+.recruiter-left-logo-wrap {
+  position: absolute;
+  top: 32px;
+  left: 40px;
+  z-index: 1;
+}
+
+.recruiter-left-content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 600px;
+}
+
+.recruiter-left-orb {
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  top: 50%;
+  left: 40%;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(circle, rgba(26, 115, 232, 0.2) 0%, rgba(26, 115, 232, 0) 72%);
+  animation: recruiter-orb-pulse 4s ease-in-out infinite;
+}
+
+.recruiter-feature-card {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 10px;
+  padding: 14px 16px;
+  animation: recruiter-feature-fade-up 300ms ease-out both;
+}
+
+.recruiter-feature-icon {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  flex: 0 0 36px;
+}
+
+.recruiter-form-card {
+  max-width: 460px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 40px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+}
+
+.recruiter-form-fields {
+  display: grid;
+  gap: 18px;
+}
+
+.recruiter-notice-box {
+  margin-top: 20px;
+  margin-bottom: 20px;
+  background: rgba(234, 179, 8, 0.08);
+  border: 1px solid rgba(234, 179, 8, 0.2);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #CA8A04;
+}
+
+.recruiter-submit-btn {
+  width: 100%;
+  height: 46px;
+  border: none;
+  border-radius: 8px;
+  color: #FFFFFF;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  background: linear-gradient(90deg, #1A73E8 0%, #1557B0 100%);
+  box-shadow: 0 4px 15px rgba(26, 115, 232, 0.3);
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.recruiter-submit-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(26, 115, 232, 0.45);
+}
+
+.recruiter-submit-btn:active {
+  transform: scale(0.97);
 }
 
 .auth-bottom-bar {
@@ -1437,6 +1554,16 @@ button:active {
     align-items: flex-start;
   }
 
+  .recruiter-register-page .recruiter-right-panel {
+    width: 100vw;
+    padding: 20px;
+  }
+
+  .recruiter-register-page .recruiter-form-card {
+    max-width: none;
+    padding: 28px 20px;
+  }
+
   .auth-form-card {
     padding: 28px 20px;
   }
@@ -1449,6 +1576,26 @@ button:active {
   .auth-bottom-bar-inner {
     flex-direction: column;
     gap: 8px;
+  }
+}
+
+@keyframes recruiter-feature-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes recruiter-orb-pulse {
+  0%, 100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
   }
 }
 
