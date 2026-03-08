@@ -1450,6 +1450,12 @@ button:active {
   flex: 0 0 36px;
 }
 
+.recruiter-feature-desc {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .recruiter-form-card {
   max-width: 460px;
   border: 1px solid rgba(255, 255, 255, 0.08);

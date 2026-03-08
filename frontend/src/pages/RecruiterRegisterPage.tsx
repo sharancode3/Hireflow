@@ -107,7 +107,7 @@ export function RecruiterRegisterPage() {
                   <FeatureIcon color={item.color} path={item.iconPath} />
                   <div>
                     <div className="text-sm font-semibold text-white">{item.title}</div>
-                    <div className="text-[13px] text-[#777777]">{item.description}</div>
+                    <div className="recruiter-feature-desc text-[13px] text-[#777777]">{item.description}</div>
                   </div>
                 </div>
               ))}
