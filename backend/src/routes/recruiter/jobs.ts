@@ -4,6 +4,7 @@ import { prisma } from "../../prisma";
 import type { AuthenticatedRequest } from "../../middleware/auth";
 import { HttpError } from "../../utils/httpError";
 import { csvToSkills, skillsToCsv } from "../../utils/csvSkills";
+import { sendTransactionalEmail } from "../../utils/emailAutomation";
 
 export const recruiterJobsRouter = Router();
 
@@ -14,6 +15,9 @@ const jobCreateSchema = z.object({
   requiredSkills: z.array(z.string().min(1)).min(1).max(50),
   description: z.string().min(20).max(5000),
   openToFreshers: z.boolean().default(false),
+  jobType: z.enum(["FULL_TIME", "PART_TIME", "INTERNSHIP", "CONTRACT"]).default("FULL_TIME"),
+  minExperienceYears: z.number().int().min(0).max(60).default(0),
+  applicationDeadline: z.string().datetime().optional().nullable(),
 });
 
 recruiterJobsRouter.post("/recruiter/jobs", async (req, res, next) => {
@@ -40,8 +44,29 @@ recruiterJobsRouter.post("/recruiter/jobs", async (req, res, next) => {
         requiredSkillsCsv: skillsToCsv(body.requiredSkills),
         description: body.description,
         openToFreshers: body.openToFreshers,
+        jobType: body.jobType,
+        minExperienceYears: body.minExperienceYears,
+        applicationDeadline: body.applicationDeadline ? new Date(body.applicationDeadline) : null,
+        reviewStatus: "PENDING_REVIEW",
       },
     });
+
+    const recruiterAuthUser = await prisma.user.findUnique({
+      where: { id: authed.auth.userId },
+      select: { email: true },
+    });
+    if (recruiterAuthUser?.email) {
+      await sendTransactionalEmail({
+        to: recruiterAuthUser.email,
+        category: "JOB_POSTED",
+        subject: `Job posted: ${job.title}`,
+        text: [
+          `Your role "${job.title}" is now live on Hireflow.`,
+          `Location: ${job.location}`,
+          "You can edit this listing from the Recruiter dashboard.",
+        ].join("\n"),
+      });
+    }
 
     res.status(201).json({
       job: { ...job, requiredSkills: csvToSkills(job.requiredSkillsCsv) },
@@ -108,7 +133,13 @@ recruiterJobsRouter.patch("/recruiter/jobs/:jobId", async (req, res, next) => {
     if (body.role !== undefined) data.role = body.role;
     if (body.description !== undefined) data.description = body.description;
     if (body.openToFreshers !== undefined) data.openToFreshers = body.openToFreshers;
+    if (body.jobType !== undefined) data.jobType = body.jobType;
+    if (body.minExperienceYears !== undefined) data.minExperienceYears = body.minExperienceYears;
+    if (body.applicationDeadline !== undefined) data.applicationDeadline = body.applicationDeadline ? new Date(body.applicationDeadline) : null;
     if (body.requiredSkills !== undefined) data.requiredSkillsCsv = skillsToCsv(body.requiredSkills);
+    data.reviewStatus = "PENDING_REVIEW";
+    data.adminFeedback = null;
+    data.reviewedAt = null;
 
     const updated = await prisma.job.update({
       where: { id: jobId },
@@ -260,7 +291,7 @@ recruiterJobsRouter.patch("/recruiter/applications/:applicationId", async (req, 
     // Notify job seeker
     const seekerUser = await prisma.jobSeekerProfile.findUnique({
       where: { id: app.jobSeekerId },
-      select: { userId: true },
+      select: { userId: true, fullName: true, user: { select: { email: true } } },
     });
     if (seekerUser) {
       const statusMessage =
@@ -275,6 +306,21 @@ recruiterJobsRouter.patch("/recruiter/applications/:applicationId", async (req, 
           message: statusMessage,
         },
       });
+
+      if (seekerUser.user?.email) {
+        await sendTransactionalEmail({
+          to: seekerUser.user.email,
+          category: "APPLICATION_STATUS_UPDATED",
+          subject: `Application update: ${app.job.title}`,
+          text: [
+            `Hi ${seekerUser.fullName},`,
+            `Your application status is now: ${body.status}.`,
+            body.status === "INTERVIEW_SCHEDULED" && body.interviewAt
+              ? `Interview time: ${new Date(body.interviewAt).toLocaleString()}`
+              : "Please check Hireflow for full details.",
+          ].join("\n"),
+        });
+      }
     }
 
     res.json({ application: updated });

@@ -1,6 +1,6 @@
-# Talvion Frontend
+# Hireflow Frontend
 
-Premium dark SaaS UI for the dual-role Talvion platform (Job Seeker + Recruiter).
+Premium dark SaaS UI for the dual-role Hireflow platform (Job Seeker + Recruiter).
 
 ## Stack
 

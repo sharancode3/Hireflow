@@ -5,7 +5,7 @@ export function LandingPage() {
     <div className="container">
       <div className="page-narrow grid">
         <div className="card" style={{ textAlign: "center" }}>
-          <h1 style={{ marginTop: 0, marginBottom: 6 }}>Talvion</h1>
+          <h1 style={{ marginTop: 0, marginBottom: 6 }}>Hireflow</h1>
           <p className="muted" style={{ margin: 0 }}>
             Choose your role to continue.
           </p>
@@ -15,7 +15,7 @@ export function LandingPage() {
           <div className="card">
             <h2 style={{ marginTop: 0, marginBottom: 10 }}>Job Seeker</h2>
             <div className="button-row" style={{ justifyContent: "flex-start" }}>
-              <Link className="btn btn-primary" to="/login?role=JOB_SEEKER">
+              <Link className="btn btn-primary" to="/login">
                 Login
               </Link>
               <Link className="btn" to="/register?role=JOB_SEEKER">
@@ -27,7 +27,7 @@ export function LandingPage() {
           <div className="card">
             <h2 style={{ marginTop: 0, marginBottom: 10 }}>Recruiter (Hire)</h2>
             <div className="button-row" style={{ justifyContent: "flex-start" }}>
-              <Link className="btn btn-primary" to="/login?role=RECRUITER">
+              <Link className="btn btn-primary" to="/login">
                 Login
               </Link>
               <Link className="btn" to="/register?role=RECRUITER">

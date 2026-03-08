@@ -2,8 +2,8 @@ import { memo } from "react";
 import type { JobSeekerProfile, ResumeSettings, ResumeTemplate } from "../types";
 import { AtsModernTemplate } from "./templates/AtsModernTemplate";
 import { ProfessionalTemplate } from "./templates/ProfessionalTemplate";
-import { TechnicalTemplate } from "./templates/TechnicalTemplate";
 import { SingleColumnTemplate } from "./templates/SingleColumnTemplate";
+import { CreativeCardTemplate } from "./templates/CreativeCardTemplate";
 
 export const ResumePreview = memo(function ResumePreview(props: { profile: JobSeekerProfile; template: ResumeTemplate; settings: ResumeSettings }) {
   if (props.template === "ATS_PLAIN") {
@@ -25,7 +25,7 @@ export const ResumePreview = memo(function ResumePreview(props: { profile: JobSe
     return <ProfessionalTemplate profile={props.profile} settings={props.settings} />;
   }
   if (props.template === "MINIMAL") {
-    return <TechnicalTemplate profile={props.profile} settings={props.settings} />;
+    return <CreativeCardTemplate profile={props.profile} settings={props.settings} />;
   }
   return <AtsModernTemplate profile={props.profile} settings={props.settings} />;
 });

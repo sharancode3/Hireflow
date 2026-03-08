@@ -7,7 +7,7 @@ export function Footer() {
         <div className="footer-brand">
           <div className="brand" style={{ pointerEvents: "none" }} aria-hidden="true">
             <span className="brand-mark" />
-            <span className="brand-name">Talvion</span>
+            <span className="brand-name">Hireflow</span>
           </div>
           <p className="muted" style={{ margin: 0 }}>
             A clean, modern platform for hiring and job searching.

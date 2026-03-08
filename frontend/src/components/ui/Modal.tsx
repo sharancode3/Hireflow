@@ -16,10 +16,10 @@ export function Modal({
       <button
         type="button"
         aria-label="Close modal"
-        className="absolute inset-0 bg-black/50 backdrop-blur"
+        className="absolute inset-0 animate-modal-backdrop bg-black/60 backdrop-blur"
         onClick={onClose}
       />
-      <div className={cn("relative z-10 w-full max-w-2xl animate-scale-in rounded-2xl border border-border bg-surface-raised p-6")}>{children}</div>
+      <div className={cn("relative z-10 w-full max-w-2xl animate-modal-pop rounded-2xl border border-border bg-surface-raised p-6")}>{children}</div>
     </div>
   );
 }

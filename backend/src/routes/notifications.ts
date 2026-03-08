@@ -26,3 +26,14 @@ notificationsRouter.post("/notifications/:id/read", async (req, res) => {
 
   res.json({ ok: true });
 });
+
+notificationsRouter.post("/notifications/read-all", async (req, res) => {
+  const authed = req as unknown as AuthenticatedRequest;
+
+  await prisma.notification.updateMany({
+    where: { userId: authed.auth.userId, isRead: false },
+    data: { isRead: true },
+  });
+
+  res.json({ ok: true });
+});

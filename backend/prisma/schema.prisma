@@ -29,6 +29,13 @@ enum ApplicationStatus {
   HIRED
 }
 
+enum JobReviewStatus {
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  NEEDS_REVISION
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -98,6 +105,12 @@ model Job {
   requiredSkillsCsv String
   description       String
   openToFreshers    Boolean  @default(false)
+  jobType           String   @default("FULL_TIME")
+  minExperienceYears Int     @default(0)
+  reviewStatus      JobReviewStatus @default(PENDING_REVIEW)
+  adminFeedback     String?
+  reviewedAt        DateTime?
+  applicationDeadline DateTime?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 

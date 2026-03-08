@@ -33,9 +33,24 @@ const JOB_TYPE_LABEL: Record<string, string> = {
   CONTRACT: "Contract",
 };
 
+function reviewBadge(status?: Job["reviewStatus"]) {
+  switch (status) {
+    case "APPROVED":
+      return <Badge variant="green">Approved</Badge>;
+    case "REJECTED":
+      return <Badge variant="red">Rejected</Badge>;
+    case "NEEDS_REVISION":
+      return <Badge variant="amber">Needs Revision</Badge>;
+    default:
+      return <Badge variant="amber">Pending Review</Badge>;
+  }
+}
+
 export function RecruiterManageJobsPage() {
   const { token } = useAuth();
   const [jobs, setJobs] = useState<Job[] | null>(null);
+  const [search, setSearch] = useState("");
+  const [filterType, setFilterType] = useState<"ALL" | JobType>("ALL");
   const [edit, setEdit] = useState<EditState | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -91,6 +106,21 @@ export function RecruiterManageJobsPage() {
   const inputCls = "h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--text)] outline-none focus:border-[var(--accent)] transition-colors";
   const labelCls = "text-xs font-medium text-[var(--muted)] mb-1.5 block";
 
+  const totalJobs = jobs?.length ?? 0;
+  const fresherFriendly = jobs?.filter((j) => j.openToFreshers).length ?? 0;
+  const internships = jobs?.filter((j) => j.jobType === "INTERNSHIP").length ?? 0;
+
+  const filteredJobs = (jobs ?? []).filter((job) => {
+    const q = search.trim().toLowerCase();
+    const matchesQuery =
+      !q ||
+      job.title.toLowerCase().includes(q) ||
+      job.location.toLowerCase().includes(q) ||
+      job.role.toLowerCase().includes(q);
+    const matchesType = filterType === "ALL" || job.jobType === filterType;
+    return matchesQuery && matchesType;
+  });
+
   if (jobs === null && !error) return <PageSkeleton />;
 
   return (
@@ -105,15 +135,53 @@ export function RecruiterManageJobsPage() {
 
       {error && <Card className="border-[var(--danger)]/30 p-4 text-sm text-[var(--danger)]">{error}</Card>}
 
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Card className="p-4">
+          <div className="text-xs text-[var(--muted)]">Total Jobs</div>
+          <div className="mt-1 text-2xl font-semibold text-[var(--text)]">{totalJobs}</div>
+        </Card>
+        <Card className="p-4">
+          <div className="text-xs text-[var(--muted)]">Fresher Friendly</div>
+          <div className="mt-1 text-2xl font-semibold text-[var(--text)]">{fresherFriendly}</div>
+        </Card>
+        <Card className="p-4">
+          <div className="text-xs text-[var(--muted)]">Internships</div>
+          <div className="mt-1 text-2xl font-semibold text-[var(--text)]">{internships}</div>
+        </Card>
+      </div>
+
+      <Card className="p-4">
+        <div className="grid gap-3 sm:grid-cols-[1fr_180px]">
+          <input
+            className={inputCls}
+            placeholder="Search by title, role, or location"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <select className={inputCls} value={filterType} onChange={(e) => setFilterType(e.target.value as "ALL" | JobType)}>
+            <option value="ALL">All Job Types</option>
+            <option value="FULL_TIME">Full-time</option>
+            <option value="INTERNSHIP">Internship</option>
+            <option value="CONTRACT">Contract</option>
+            <option value="PART_TIME">Part-time</option>
+          </select>
+        </div>
+      </Card>
+
       {jobs && jobs.length === 0 ? (
         <EmptyState
           title="No jobs posted"
           description="You haven't posted any jobs yet. Create your first listing."
           action={<Link to="/recruiter/post-job"><Button variant="primary">Post a Job</Button></Link>}
         />
+      ) : filteredJobs.length === 0 ? (
+        <EmptyState
+          title="No matching jobs"
+          description="Try a different search or clear your job type filter."
+        />
       ) : (
         <div className="space-y-3 stagger-list">
-          {jobs?.map((job) => (
+          {filteredJobs.map((job) => (
             <Card key={job.id} className="p-5">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
@@ -121,6 +189,7 @@ export function RecruiterManageJobsPage() {
                     <h3 className="text-sm font-semibold text-[var(--text)]">{job.title}</h3>
                     <Badge variant="blue">{JOB_TYPE_LABEL[job.jobType] ?? job.jobType}</Badge>
                     {job.openToFreshers && <Badge variant="teal">Freshers OK</Badge>}
+                    {reviewBadge(job.reviewStatus)}
                   </div>
                   <p className="mt-1 text-xs text-[var(--muted)]">
                     {job.companyName} &middot; {job.location} &middot; {job.role}
@@ -132,6 +201,9 @@ export function RecruiterManageJobsPage() {
                     ))}
                     {job.requiredSkills.length > 5 && <span className="text-[10px] text-[var(--muted)]">+{job.requiredSkills.length - 5}</span>}
                   </div>
+                  {job.adminFeedback ? (
+                    <p className="mt-2 text-xs text-amber-300">Admin feedback: {job.adminFeedback}</p>
+                  ) : null}
                 </div>
                 <div className="flex flex-wrap gap-2 sm:shrink-0">
                   <Link to={`/recruiter/applicants?jobId=${job.id}`}>

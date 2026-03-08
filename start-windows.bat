@@ -1,13 +1,13 @@
 @echo off
 setlocal
-title HireHub Starter
+title Hireflow Starter
 cd /d %~dp0
 
 set "AUTO=0"
 if /I "%~1"=="--auto" set "AUTO=1"
 
 set "LOG=%~dp0start-windows.log"
-echo === HireHub Starter Log === > "%LOG%"
+echo === Hireflow Starter Log === > "%LOG%"
 echo Started: %DATE% %TIME%>> "%LOG%"
 echo Folder: %CD%>> "%LOG%"
 
@@ -24,7 +24,7 @@ if "%AUTO%"=="0" (
   echo AUTO mode: starting immediately...
 )
 
-echo === HireHub (Windows) Starter ===
+echo === Hireflow (Windows) Starter ===
 echo.
 
 echo [INFO] Writing progress to start-windows.log
@@ -81,14 +81,14 @@ popd >nul
 echo.
 echo [4/4] Starting backend + frontend in two windows...
 echo [INFO] Step 4: starting dev servers>> "%LOG%"
-start "HireHub Backend" cmd /k "cd /d %~dp0backend && npm run dev"
-start "HireHub Frontend" cmd /k "cd /d %~dp0frontend && npm run dev"
+start "Hireflow Backend" cmd /k "cd /d %~dp0backend && npm run dev"
+start "Hireflow Frontend" cmd /k "cd /d %~dp0frontend && npm run dev"
 
 echo.
 echo Done. Open the frontend URL printed (usually http://localhost:5173)
 echo.
 echo If you don't see two new windows, use Alt+Tab.
-echo Look for: "HireHub Backend" and "HireHub Frontend".
+echo Look for: "Hireflow Backend" and "Hireflow Frontend".
 
 if "%AUTO%"=="0" (
   echo.

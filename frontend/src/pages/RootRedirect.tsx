@@ -17,5 +17,9 @@ export function RootRedirect() {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 
-  return <Navigate to={user.role === "JOB_SEEKER" ? "/job-seeker" : "/recruiter"} replace />;
+  if (user.role === "RECRUITER" && user.recruiterApprovalStatus === "PENDING") {
+    return <Navigate to="/recruiter/pending" replace />;
+  }
+
+  return <Navigate to={user.role === "JOB_SEEKER" ? "/job-seeker" : "/recruiter/dashboard"} replace />;
 }

@@ -88,6 +88,7 @@ export type MockUser = {
   email: string;
   password: string;
   role: UserRole;
+  recruiterApprovalStatus?: "PENDING" | "APPROVED";
   createdAt: string;
 };
 

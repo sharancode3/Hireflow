@@ -36,7 +36,7 @@ export async function openResumePreview(resumeId: string, token: string) {
       <h1>${title}</h1>
       <div class="muted">Uploaded: ${createdAt}${resume ? ` • Size: ${sizeKb} KB` : ""}</div>
       <p style="margin-top:12px">
-        Demo mode: Talvion stores resume metadata only (no real file upload).
+        Demo mode: Hireflow stores resume metadata only (no real file upload).
       </p>
       <p class="muted" style="margin:0">
         When you add a real backend later, this preview will open the actual PDF/DOC.

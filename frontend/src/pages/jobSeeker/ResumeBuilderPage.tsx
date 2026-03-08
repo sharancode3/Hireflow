@@ -396,17 +396,18 @@ export function ResumeBuilderPage() {
   }
 
   /* ─── Save / Create version ────────────────────────── */
-  async function saveVersion() {
+  async function saveVersion(nameOverride?: string) {
     if (!token || !profile) return;
     setSaving(true);
     try {
       const snap = snapshotFromProfile(profile);
+      const finalTitle = (nameOverride ?? title).trim() || "Untitled Resume";
       const res = await apiJson<{ generatedResume: GeneratedResume }>("/job-seeker/generated-resumes", {
         method: "POST",
         token,
         body: {
           template,
-          title: title.trim() || "Untitled Resume",
+          title: finalTitle,
           snapshot: snap as any,
           settings: settings as any,
           tags: tags as any,
@@ -533,7 +534,7 @@ export function ResumeBuilderPage() {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-[260px_1fr] lg:grid-cols-[260px_1fr_1fr]">
 
           {/* ═══ LEFT PANEL — Versions ═══════════════ */}
-          <Card className="p-0 overflow-hidden" style={{ maxHeight: "calc(100vh - 180px)" }}>
+          <Card className="overflow-hidden p-0 lg:max-h-[calc(100vh-180px)]">
             <div className="border-b border-[var(--border)] px-4 py-3 flex items-center justify-between">
               <span className="text-sm font-semibold text-[var(--text)]">Versions</span>
               <button
@@ -543,7 +544,7 @@ export function ResumeBuilderPage() {
                 <IconPlus /> New
               </button>
             </div>
-            <div className="overflow-y-auto p-2 space-y-1.5" style={{ maxHeight: "calc(100vh - 240px)" }}>
+            <div className="space-y-1.5 overflow-y-auto p-2 lg:max-h-[calc(100vh-240px)]">
               {versions.length === 0 && (
                 <div className="py-8 text-center">
                   <div className="text-3xl mb-2">📝</div>
@@ -586,14 +587,22 @@ export function ResumeBuilderPage() {
             </div>
             {/* Save current */}
             <div className="border-t border-[var(--border)] p-3">
-              <Button variant="primary" className="w-full text-sm" loading={saving} onClick={saveVersion}>
+              <Button
+                variant="primary"
+                className="w-full text-sm"
+                loading={saving}
+                onClick={() => {
+                  setNewVersionTitle(title || "My Resume");
+                  setShowNewVersionModal(true);
+                }}
+              >
                 Save as New Version
               </Button>
             </div>
           </Card>
 
           {/* ═══ CENTER PANEL — Controls ═════════════ */}
-          <Card className="p-0 overflow-hidden" style={{ maxHeight: "calc(100vh - 180px)" }}>
+          <Card className="overflow-hidden p-0 lg:max-h-[calc(100vh-180px)]">
             {/* Tab bar */}
             <div className="border-b border-[var(--border)] px-4 py-2 flex items-center gap-1">
               {(["templates", "sections", "settings"] as const).map(t => (
@@ -607,7 +616,7 @@ export function ResumeBuilderPage() {
               ))}
             </div>
 
-            <div className="overflow-y-auto p-4" style={{ maxHeight: "calc(100vh - 240px)" }}>
+            <div className="overflow-y-auto p-4 lg:max-h-[calc(100vh-240px)]">
 
               {/* ── Templates tab ───────────────────── */}
               {tab === "templates" && (
@@ -731,6 +740,7 @@ export function ResumeBuilderPage() {
                       { value: "Inter", label: "Inter" },
                       { value: "Roboto", label: "Roboto" },
                       { value: "Georgia", label: "Georgia" },
+                      { value: "Times New Roman", label: "Times New Roman" },
                       { value: "Merriweather", label: "Merriweather" },
                       { value: "Calibri", label: "Calibri" },
                     ]}
@@ -739,11 +749,23 @@ export function ResumeBuilderPage() {
                   <SettingSelect<string>
                     label="Font Size"
                     value={String(settings.fontSize ?? 11)}
-                    onChange={(v) => updateSetting("fontSize", Number(v) as 10 | 11 | 12)}
+                    onChange={(v) => updateSetting("fontSize", Number(v) as 10 | 11 | 12 | 13)}
                     options={[
-                      { value: "10", label: "10 px — Compact" },
-                      { value: "11", label: "11 px — Default" },
-                      { value: "12", label: "12 px — Comfortable" },
+                      { value: "10", label: "10 px" },
+                      { value: "11", label: "11 px" },
+                      { value: "12", label: "12 px" },
+                      { value: "13", label: "13 px" },
+                    ]}
+                  />
+
+                  <SettingSelect<"1" | "1.15" | "1.5">
+                    label="Line Spacing"
+                    value={settings.lineSpacing ?? "1.15"}
+                    onChange={(v) => updateSetting("lineSpacing", v)}
+                    options={[
+                      { value: "1", label: "Single" },
+                      { value: "1.15", label: "1.15" },
+                      { value: "1.5", label: "1.5" },
                     ]}
                   />
 
@@ -752,9 +774,9 @@ export function ResumeBuilderPage() {
                     value={settings.pageMargin ?? "NORMAL"}
                     onChange={(v) => updateSetting("pageMargin", v)}
                     options={[
-                      { value: "NARROW", label: "Narrow" },
+                      { value: "NARROW", label: "Compact" },
                       { value: "NORMAL", label: "Normal" },
-                      { value: "WIDE", label: "Wide" },
+                      { value: "WIDE", label: "Spacious" },
                     ]}
                   />
 
@@ -782,7 +804,7 @@ export function ResumeBuilderPage() {
 
                   <ColorPicker
                     label="Accent Color"
-                    value={settings.accentColor ?? "#4F8EF7"}
+                    value={settings.accentColor ?? "#1A73E8"}
                     onChange={(v) => updateSetting("accentColor", v)}
                   />
 
@@ -819,7 +841,7 @@ export function ResumeBuilderPage() {
           </Card>
 
           {/* ═══ RIGHT PANEL — Live Preview ══════════ */}
-          <Card className="hidden p-0 overflow-hidden relative lg:block" style={{ maxHeight: "calc(100vh - 180px)" }}>
+          <Card className="relative hidden overflow-hidden p-0 lg:block lg:max-h-[calc(100vh-180px)]">
             <div className="border-b border-[var(--border)] px-4 py-2.5 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold text-[var(--text)]">Preview</span>
@@ -852,6 +874,7 @@ export function ResumeBuilderPage() {
                   style={{
                     fontFamily: settings.fontFamily ?? "Inter",
                     fontSize: `${settings.fontSize ?? 11}px`,
+                    lineHeight: settings.lineSpacing ?? "1.15",
                     ...(settings.accentColor ? { "--resume-accent": settings.accentColor } as any : {}),
                     ...(settings.pageMargin === "NARROW" ? { padding: 18 } : settings.pageMargin === "WIDE" ? { padding: 38 } : {}),
                   }}
@@ -868,7 +891,7 @@ export function ResumeBuilderPage() {
 
       {/* New Version Modal */}
       <Modal open={showNewVersionModal} onClose={() => setShowNewVersionModal(false)}>
-        <h2 className="text-lg font-semibold text-[var(--text)] mb-4">Create New Version</h2>
+        <h2 className="text-lg font-semibold text-[var(--text)] mb-4">Save as New Version</h2>
         <div className="space-y-3">
           <div>
             <label className="text-sm font-medium text-[var(--muted)]">Version Name</label>
@@ -880,13 +903,9 @@ export function ResumeBuilderPage() {
               placeholder="e.g. Frontend Developer Resume"
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
+                  void saveVersion(newVersionTitle);
                   setTitle(newVersionTitle.trim() || "Untitled Resume");
                   setShowNewVersionModal(false);
-                  // Create fresh settings
-                  setSettings(defaultResumeSettings());
-                  setTemplate("ATS_PLAIN");
-                  setActiveVersionId(null);
-                  setTags([]);
                 }
               }}
             />
@@ -896,15 +915,12 @@ export function ResumeBuilderPage() {
             <Button
               variant="primary"
               onClick={() => {
+                void saveVersion(newVersionTitle);
                 setTitle(newVersionTitle.trim() || "Untitled Resume");
                 setShowNewVersionModal(false);
-                setSettings(defaultResumeSettings());
-                setTemplate("ATS_PLAIN");
-                setActiveVersionId(null);
-                setTags([]);
               }}
             >
-              Create
+              Save
             </Button>
           </div>
         </div>
@@ -945,6 +961,7 @@ export function ResumeBuilderPage() {
               style={{
                 fontFamily: settings.fontFamily ?? "Inter",
                 fontSize: `${settings.fontSize ?? 11}px`,
+                lineHeight: settings.lineSpacing ?? "1.15",
                 ...(settings.accentColor ? { "--resume-accent": settings.accentColor } as any : {}),
                 ...(settings.pageMargin === "NARROW" ? { padding: 18 } : settings.pageMargin === "WIDE" ? { padding: 38 } : {}),
               }}

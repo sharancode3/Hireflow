@@ -11,10 +11,10 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    "relative overflow-hidden bg-gradient-to-r from-[#22D3EE] to-[#6366F1] text-[#0B1530] shadow-soft hover:shadow-lift before:absolute before:inset-y-0 before:left-0 before:w-1/3 before:-translate-x-full before:bg-white/20 before:blur-md before:transition-transform before:duration-300 hover:before:translate-x-[320%]",
+    "btn-primary relative overflow-hidden text-white before:absolute before:inset-y-0 before:left-0 before:w-1/3 before:-translate-x-full before:bg-white/20 before:blur-md before:transition-transform before:duration-300 hover:before:translate-x-[320%]",
   secondary:
-    "border border-border bg-transparent text-text hover:bg-surface-raised",
-  ghost: "bg-transparent text-text hover:bg-surface-raised",
+    "border border-[#2A2A3A] bg-transparent text-[#CCCCCC] hover:border-[#1A73E8] hover:text-white",
+  ghost: "border border-[#2A2A3A] bg-transparent text-[#CCCCCC] hover:border-[#1A73E8] hover:text-white",
   danger: "border border-danger text-danger hover:bg-danger hover:text-white",
 };
 

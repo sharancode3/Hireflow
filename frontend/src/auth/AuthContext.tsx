@@ -14,13 +14,20 @@ type AuthState = {
 
 const AuthContext = createContext<AuthState | null>(null);
 
-const TOKEN_KEY = "talvion_token";
+const TOKEN_KEY = "hireflow_token";
+const LEGACY_TOKEN_KEY_2 = "talvion_token";
 const LEGACY_TOKEN_KEY = "hirehub_token";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(() => {
     const current = localStorage.getItem(TOKEN_KEY);
     if (current) return current;
+    const legacy2 = localStorage.getItem(LEGACY_TOKEN_KEY_2);
+    if (legacy2) {
+      localStorage.setItem(TOKEN_KEY, legacy2);
+      localStorage.removeItem(LEGACY_TOKEN_KEY_2);
+      return legacy2;
+    }
     const legacy = localStorage.getItem(LEGACY_TOKEN_KEY);
     if (legacy) {
       localStorage.setItem(TOKEN_KEY, legacy);
@@ -34,6 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(LEGACY_TOKEN_KEY_2);
     localStorage.removeItem(LEGACY_TOKEN_KEY);
     setToken(null);
     setUser(null);

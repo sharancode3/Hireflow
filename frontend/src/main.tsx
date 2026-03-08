@@ -14,7 +14,7 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ThemeProvider>
       <AuthProvider>
-        <BrowserRouter basename="/Talvion">
+        <BrowserRouter basename="/Hireflow">
           <App />
         </BrowserRouter>
       </AuthProvider>

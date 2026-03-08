@@ -1,73 +1,137 @@
 import { NavLink } from "react-router-dom";
+import type { LucideIcon } from "lucide-react";
+import {
+  Bookmark,
+  Briefcase,
+  FileEdit,
+  FileText,
+  Flag,
+  LayoutDashboard,
+  MessageSquare,
+  Rss,
+  Settings,
+  UserCircle,
+} from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 
-const jobSeekerNav = [
-  { group: "MAIN", items: [
-    { to: "/job-seeker/dashboard", label: "Dashboard" },
-    { to: "/job-seeker/jobs", label: "Jobs" },
-    { to: "/job-seeker/applied", label: "Applications" },
-    { to: "/job-seeker/insights", label: "Talent Trends" },
-  ] },
-  { group: "WORKSPACE", items: [
-    { to: "/job-seeker/profile", label: "Profile Builder" },
-    { to: "/job-seeker/resume-builder", label: "Resume Builder" },
-    { to: "/job-seeker/interview-prep", label: "Interview Prep" },
-    { to: "/job-seeker/skill-gap", label: "Skill Gap" },
-    { to: "/job-seeker/saved", label: "Saved Jobs" },
-    { to: "/job-seeker/notifications", label: "Notifications" },
-  ] },
-  { group: "ACCOUNT", items: [
-    { to: "/job-seeker/settings", label: "Settings" },
-  ] },
+type NavItem = { to: string; label: string; icon: LucideIcon };
+type NavGroup = { group: string; items: NavItem[] };
+
+const jobSeekerNav: NavGroup[] = [
+  {
+    group: "MAIN",
+    items: [
+      { to: "/job-seeker/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { to: "/job-seeker/jobs", label: "Jobs & Internships", icon: Briefcase },
+      { to: "/job-seeker/applied", label: "Applications", icon: FileText },
+    ],
+  },
+  {
+    group: "WORKSPACE",
+    items: [
+      { to: "/job-seeker/profile", label: "Profile Builder", icon: UserCircle },
+      { to: "/job-seeker/resume-builder", label: "Resume Builder", icon: FileEdit },
+      { to: "/job-seeker/interview-prep", label: "Interview Prep", icon: MessageSquare },
+      { to: "/job-seeker/saved", label: "Saved", icon: Bookmark },
+    ],
+  },
+  {
+    group: "COMMUNITY",
+    items: [
+      { to: "/job-seeker/experience-feed", label: "Community Feed", icon: Rss },
+      { to: "/job-seeker/complaints", label: "Feedback", icon: Flag },
+    ],
+  },
+  {
+    group: "ACCOUNT",
+    items: [{ to: "/job-seeker/settings", label: "Settings", icon: Settings }],
+  },
 ];
 
-const recruiterNav = [
-  { group: "MAIN", items: [
-    { to: "/recruiter/overview", label: "Dashboard" },
-    { to: "/recruiter/jobs", label: "Jobs" },
-    { to: "/recruiter/applicants", label: "Applicants" },
-    { to: "/recruiter/insights", label: "Talent Trends" },
-  ] },
-  { group: "WORKSPACE", items: [
-    { to: "/recruiter/post-job", label: "Post a Job" },
-    { to: "/recruiter/interviews", label: "Interviews" },
-    { to: "/recruiter/notifications", label: "Notifications" },
-  ] },
-  { group: "ACCOUNT", items: [
-    { to: "/recruiter/profile", label: "Profile" },
-    { to: "/recruiter/settings", label: "Settings" },
-  ] },
+const recruiterNav: NavGroup[] = [
+  {
+    group: "MAIN",
+    items: [
+      { to: "/recruiter/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { to: "/recruiter/jobs", label: "Jobs & Internships", icon: Briefcase },
+      { to: "/recruiter/applicants", label: "Applications", icon: FileText },
+    ],
+  },
+  {
+    group: "WORKSPACE",
+    items: [
+      { to: "/recruiter/post-job", label: "Post a Job", icon: UserCircle },
+      { to: "/recruiter/interviews", label: "Interview Prep", icon: MessageSquare },
+      { to: "/recruiter/shortlisted", label: "Saved", icon: Bookmark },
+      { to: "/recruiter/profile", label: "Profile Builder", icon: FileEdit },
+    ],
+  },
+  {
+    group: "COMMUNITY",
+    items: [
+      { to: "/recruiter/experience-feed", label: "Community Feed", icon: Rss },
+      { to: "/recruiter/complaints", label: "Feedback", icon: Flag },
+      { to: "/recruiter/community-moderation", label: "Moderation", icon: Flag },
+    ],
+  },
+  {
+    group: "ACCOUNT",
+    items: [{ to: "/recruiter/settings", label: "Settings", icon: Settings }],
+  },
 ];
 
-export function AppSidebar({ mobile, onNavigate }: { mobile?: boolean; onNavigate?: () => void } = {}) {
+export function AppSidebar({
+  mobile,
+  onNavigate,
+  collapsed = false,
+}: {
+  mobile?: boolean;
+  onNavigate?: () => void;
+  collapsed?: boolean;
+} = {}) {
   const { user } = useAuth();
   const groups = user?.role === "RECRUITER" ? recruiterNav : jobSeekerNav;
 
   const baseClass = mobile
     ? "flex flex-col gap-6"
-    : "hidden lg:flex lg:w-[260px] lg:flex-col lg:gap-6 lg:border-r lg:border-border lg:bg-surface lg:px-4 lg:py-6";
+    : `hidden lg:flex lg:max-h-[calc(100vh-64px)] lg:flex-col lg:gap-6 lg:overflow-y-auto lg:border-r lg:border-white/5 lg:bg-[#0D0D14] lg:px-3 lg:py-6 lg:transition-all lg:duration-300 ${collapsed ? "lg:w-[60px]" : "lg:w-[256px]"}`;
 
   return (
     <aside className={baseClass}>
-      {groups.map((group) => (
+      {groups.map((group, groupIndex) => (
         <div key={group.group} className="space-y-2">
-          <div className="text-xs font-semibold tracking-[0.2em] text-text-muted">{group.group}</div>
+          {!collapsed || mobile ? (
+            <div className={(groupIndex === 0 ? "mb-1 px-2" : "mt-4 mb-1 px-2") + " text-[10px] font-semibold uppercase tracking-[0.08em] text-[#555555]"}>{group.group}</div>
+          ) : null}
           <nav className="flex flex-col gap-1">
             {group.items.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
                 onClick={onNavigate}
+                title={collapsed && !mobile ? item.label : undefined}
                 className={({ isActive }) =>
                   [
-                    "flex items-center rounded-lg px-3 py-2 text-sm transition",
+                    "group relative overflow-hidden flex items-center rounded-lg py-2 text-sm transition duration-150",
+                    collapsed && !mobile ? "justify-center px-0" : "gap-[10px] px-3",
                     isActive
-                      ? "border-l-2 border-l-[var(--accent)] bg-[var(--surface-raised)] text-[var(--text)] font-medium"
-                      : "border-l-2 border-l-transparent text-[var(--muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--text)]",
+                      ? "border-l-2 border-l-[#1A73E8] bg-[rgba(26,115,232,0.1)] text-white font-medium"
+                      : "border-l-2 border-l-transparent text-text-secondary hover:bg-[rgba(255,255,255,0.03)] hover:text-white",
                   ].join(" ")
                 }
               >
-                <span className="ml-1">{item.label}</span>
+                {({ isActive }) => (
+                  <>
+                    <span className="animate-sidebar-sheen pointer-events-none absolute inset-0 -translate-x-full opacity-0 group-hover:opacity-100" />
+                    <span
+                      className="inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center transition-colors duration-150 group-hover:text-[#1A73E8]"
+                      style={{ color: isActive ? "#1A73E8" : "#888888" }}
+                    >
+                      <item.icon size={18} strokeWidth={2} />
+                    </span>
+                    {!collapsed || mobile ? <span className="whitespace-nowrap overflow-visible text-[14px] font-medium">{item.label}</span> : null}
+                  </>
+                )}
               </NavLink>
             ))}
           </nav>

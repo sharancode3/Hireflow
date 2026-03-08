@@ -22,6 +22,8 @@ function splitSkills(input: string) {
 
 export function JobSeekerJobsPage({ freshersOnly }: Props) {
   const { token } = useAuth();
+  const GUIDE_KEY = "hireflow_js_guide_dismissed";
+  const LEGACY_GUIDE_KEY = "talvion_js_guide_dismissed";
 
   const [jobs, setJobs] = useState<Job[]>([]);
   const [savedJobIds, setSavedJobIds] = useState<Set<string>>(new Set());
@@ -32,7 +34,16 @@ export function JobSeekerJobsPage({ freshersOnly }: Props) {
   const [q, setQ] = useState<string>("");
   const [jobType, setJobType] = useState<JobType | "">("");
   const [minExp, setMinExp] = useState<string>("");
-  const [showGuide, setShowGuide] = useState<boolean>(() => localStorage.getItem("talvion_js_guide_dismissed") !== "1");
+  const [showGuide, setShowGuide] = useState<boolean>(() => {
+    const current = localStorage.getItem(GUIDE_KEY);
+    if (current) return current !== "1";
+    const legacy = localStorage.getItem(LEGACY_GUIDE_KEY);
+    if (legacy) {
+      localStorage.setItem(GUIDE_KEY, legacy);
+      return legacy !== "1";
+    }
+    return true;
+  });
 
   const [activeJob, setActiveJob] = useState<Job | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -166,7 +177,8 @@ export function JobSeekerJobsPage({ freshersOnly }: Props) {
             <Button
               variant="secondary"
               onClick={() => {
-                localStorage.setItem("talvion_js_guide_dismissed", "1");
+                localStorage.setItem(GUIDE_KEY, "1");
+                localStorage.removeItem(LEGACY_GUIDE_KEY);
                 setShowGuide(false);
               }}
             >
@@ -350,11 +362,11 @@ export function JobSeekerJobsPage({ freshersOnly }: Props) {
 
                     <div className="flex flex-wrap gap-2">
                       <Button type="button" variant="secondary" onClick={() => openJob(job)}>
-                        Details
+                        Quick View
                       </Button>
-                      <Button type="button" variant="primary" disabled={busy} onClick={() => void apply(job.id)}>
-                        Apply
-                      </Button>
+                      <Link to={`/job-seeker/jobs/${job.id}`}>
+                        <Button type="button" variant="primary">Apply Now</Button>
+                      </Link>
                     </div>
                   </Card>
                 );

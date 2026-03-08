@@ -1,6 +1,6 @@
-# Talvion
+# Hireflow
 
-Talvion is a role-based hiring platform for job seekers and recruiters with mock-first workflows, analytics dashboards, and an ATS-focused resume builder.
+Hireflow is a role-based hiring platform for job seekers and recruiters with mock-first workflows, analytics dashboards, and an ATS-focused resume builder.
 
 ## Tech Stack
 
@@ -15,12 +15,12 @@ Talvion is a role-based hiring platform for job seekers and recruiters with mock
 
 ## Live Deployment
 
-- Frontend (GitHub Pages): https://sharancode3.github.io/Talvion/
+- Frontend (GitHub Pages): https://sharancode3.github.io/Hireflow/
 
 ## Demo Credentials
 
-- Job seeker: `seeker1@talvion.demo` / `Password123!`
-- Recruiter: `recruiter1@talvion.demo` / `Password123!`
+- Job seeker: `seeker1@hireflow.demo` / `Password123!`
+- Recruiter: `recruiter1@hireflow.demo` / `Password123!`
 
 ## Major Features
 

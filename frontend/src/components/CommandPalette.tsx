@@ -5,16 +5,14 @@ import { useAuth } from "../auth/AuthContext";
 /* ─── route manifests ─── */
 const SEEKER_ROUTES = [
   { path: "/job-seeker/dashboard", label: "Dashboard", group: "Navigate", keywords: "home" },
-  { path: "/job-seeker/jobs", label: "Browse Jobs", group: "Navigate", keywords: "search find" },
-  { path: "/job-seeker/applied", label: "Applied Jobs", group: "Navigate", keywords: "applications tracker" },
+  { path: "/job-seeker/jobs", label: "Browse Jobs & Internships", group: "Navigate", keywords: "search find" },
+  { path: "/job-seeker/applied", label: "My Applications", group: "Navigate", keywords: "applications tracker" },
   { path: "/job-seeker/profile", label: "Profile Builder", group: "Navigate", keywords: "edit" },
   { path: "/job-seeker/resume-builder", label: "Resume Builder", group: "Navigate", keywords: "cv document pdf" },
   { path: "/job-seeker/interview-prep", label: "Interview Prep", group: "Navigate", keywords: "practice questions mock session" },
-  { path: "/job-seeker/skill-gap", label: "Skill Gap", group: "Navigate", keywords: "skills roadmap learning" },
   { path: "/job-seeker/saved", label: "Saved Jobs", group: "Navigate", keywords: "bookmarks" },
-  { path: "/job-seeker/freshers", label: "Fresher Jobs", group: "Navigate", keywords: "entry level" },
-  { path: "/job-seeker/notifications", label: "Notifications", group: "Navigate", keywords: "alerts" },
-  { path: "/job-seeker/insights", label: "Talent Trends", group: "Navigate", keywords: "analytics charts" },
+  { path: "/job-seeker/experience-feed", label: "Experience Feed", group: "Navigate", keywords: "community posts" },
+  { path: "/job-seeker/complaints", label: "Complaints & Opinions", group: "Navigate", keywords: "feedback reports" },
   { path: "/job-seeker/settings", label: "Settings", group: "Navigate", keywords: "preferences theme" },
 ];
 
@@ -26,8 +24,9 @@ const RECRUITER_ROUTES = [
   { path: "/recruiter/shortlisted", label: "Shortlisted", group: "Navigate", keywords: "favorites" },
   { path: "/recruiter/interviews", label: "Interview Schedule", group: "Navigate", keywords: "calendar" },
   { path: "/recruiter/profile", label: "Company Profile", group: "Navigate", keywords: "edit" },
-  { path: "/recruiter/notifications", label: "Notifications", group: "Navigate", keywords: "alerts" },
-  { path: "/recruiter/insights", label: "Talent Trends", group: "Navigate", keywords: "analytics charts" },
+  { path: "/recruiter/experience-feed", label: "Experience Feed", group: "Navigate", keywords: "community posts" },
+  { path: "/recruiter/complaints", label: "Complaints & Opinions", group: "Navigate", keywords: "feedback reports" },
+  { path: "/recruiter/community-moderation", label: "Community Moderation", group: "Navigate", keywords: "admin complaints review" },
   { path: "/recruiter/settings", label: "Settings", group: "Navigate", keywords: "preferences theme" },
 ];
 

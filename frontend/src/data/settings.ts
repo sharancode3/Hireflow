@@ -32,11 +32,15 @@ const DEFAULT_SETTINGS: UserSettings = {
 };
 
 function key(userId: string) {
+  return `hireflow_settings_v1:${userId}`;
+}
+
+function legacyKey(userId: string) {
   return `talvion_settings_v1:${userId}`;
 }
 
 export function loadUserSettings(userId: string): UserSettings {
-  const raw = localStorage.getItem(key(userId));
+  const raw = localStorage.getItem(key(userId)) ?? localStorage.getItem(legacyKey(userId));
   if (!raw) return { ...DEFAULT_SETTINGS };
   try {
     const parsed = JSON.parse(raw) as Partial<UserSettings>;
@@ -54,6 +58,7 @@ export function loadUserSettings(userId: string): UserSettings {
 
 export function saveUserSettings(userId: string, settings: UserSettings) {
   localStorage.setItem(key(userId), JSON.stringify(settings));
+  localStorage.removeItem(legacyKey(userId));
 }
 
 export function roleHome(role: UserRole) {

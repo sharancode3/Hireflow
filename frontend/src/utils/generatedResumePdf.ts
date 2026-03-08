@@ -185,6 +185,15 @@ export async function downloadGeneratedResumePdf(resume: GeneratedResume) {
     }
   }
 
-  const filename = `${(safeText(resume.title) || "resume").replace(/[^a-z0-9\- _]/gi, "").trim() || "resume"}.pdf`;
+  const fullName = safeText(s.fullName);
+  const namePart = fullName
+    ? fullName
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .join("_")
+    : "Resume";
+  const fallbackTitle = (safeText(resume.title) || "Resume").replace(/[^a-z0-9\- _]/gi, "").trim() || "Resume";
+  const filename = `${namePart || fallbackTitle}_Resume.pdf`;
   doc.save(filename);
 }

@@ -1,7 +1,8 @@
 import { createSeedDb } from "./seed";
 import type { MockDb } from "./types";
 
-const DB_KEY = "talvion_mock_db_v1";
+const DB_KEY = "hireflow_mock_db_v1";
+const LEGACY_DB_KEY_2 = "talvion_mock_db_v1";
 const LEGACY_DB_KEY = "hirehub_mock_db_v1";
 
 function normalizeDb(db: any): MockDb {
@@ -9,6 +10,14 @@ function normalizeDb(db: any): MockDb {
   const out: any = { ...seeded, ...db };
 
   out.users = Array.isArray(out.users) ? out.users : seeded.users;
+    out.users = out.users.map((u: any) => ({
+      ...u,
+      recruiterApprovalStatus:
+        u.role === "RECRUITER"
+          ? (u.recruiterApprovalStatus ?? "APPROVED")
+          : undefined,
+    }));
+
   out.recruiters = Array.isArray(out.recruiters) ? out.recruiters : seeded.recruiters;
   out.jobSeekers = Array.isArray(out.jobSeekers) ? out.jobSeekers : seeded.jobSeekers;
   out.jobs = Array.isArray(out.jobs) ? out.jobs : seeded.jobs;
@@ -47,6 +56,7 @@ function normalizeDb(db: any): MockDb {
 
 export function loadDb(): MockDb {
   let raw = localStorage.getItem(DB_KEY);
+  if (!raw) raw = localStorage.getItem(LEGACY_DB_KEY_2);
   if (!raw) raw = localStorage.getItem(LEGACY_DB_KEY);
   if (!raw) return createSeedDb();
   try {
@@ -54,6 +64,7 @@ export function loadDb(): MockDb {
     // Persist under new key if we loaded legacy
     if (!localStorage.getItem(DB_KEY)) {
       localStorage.setItem(DB_KEY, JSON.stringify(parsed));
+      localStorage.removeItem(LEGACY_DB_KEY_2);
       localStorage.removeItem(LEGACY_DB_KEY);
     }
     return parsed;
@@ -67,7 +78,7 @@ export function saveDb(db: MockDb) {
 }
 
 export function initMockDb() {
-  const existing = localStorage.getItem(DB_KEY) ?? localStorage.getItem(LEGACY_DB_KEY);
+  const existing = localStorage.getItem(DB_KEY) ?? localStorage.getItem(LEGACY_DB_KEY_2) ?? localStorage.getItem(LEGACY_DB_KEY);
   if (existing) return;
   const db = createSeedDb();
   saveDb(db);

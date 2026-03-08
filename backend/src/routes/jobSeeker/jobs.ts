@@ -19,7 +19,7 @@ jobSeekerJobsRouter.get("/jobs", async (req, res, next) => {
 
     const q = querySchema.parse(req.query);
 
-    const where: any = {};
+    const where: any = { reviewStatus: "APPROVED" };
     if (q.location) where.location = { contains: q.location, mode: "insensitive" };
     if (q.role) where.role = { contains: q.role, mode: "insensitive" };
     if (q.freshersOnly === "true") where.openToFreshers = true;
@@ -59,7 +59,7 @@ jobSeekerJobsRouter.get("/jobs", async (req, res, next) => {
 jobSeekerJobsRouter.get("/jobs/:jobId", async (req, res, next) => {
   try {
     const jobId = z.string().min(1).parse(req.params.jobId);
-    const job = await prisma.job.findUnique({ where: { id: jobId } });
+    const job = await prisma.job.findFirst({ where: { id: jobId, reviewStatus: "APPROVED" } });
     if (!job) throw new HttpError(404, "Job not found");
 
     res.json({

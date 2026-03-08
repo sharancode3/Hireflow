@@ -6,7 +6,7 @@ import helmet from "helmet";
 import { env } from "./env";
 import { notFound } from "./middleware/notFound";
 import { errorHandler } from "./middleware/errorHandler";
-import { requireAuth } from "./middleware/auth";
+import { requireAdmin, requireAuth } from "./middleware/auth";
 import { loadUserRole } from "./middleware/loadUserRole";
 
 import { healthRouter } from "./routes/health";
@@ -23,6 +23,8 @@ import { recruiterProfileRouter } from "./routes/recruiter/profile";
 import { recruiterJobsRouter } from "./routes/recruiter/jobs";
 import { recruiterOverviewRouter } from "./routes/recruiter/overview";
 import { recruiterApplicationsRouter } from "./routes/recruiter/applications";
+import { adminJobReviewRouter } from "./routes/admin/jobReview";
+import { startDeadlineReminderScheduler } from "./jobs/deadlineReminders";
 
 const app = express();
 
@@ -55,7 +57,11 @@ app.use(recruiterJobsRouter);
 app.use(recruiterOverviewRouter);
 app.use(recruiterApplicationsRouter);
 
+app.use(requireAdmin());
+app.use(adminJobReviewRouter);
+
 app.use(notFound);
 app.use(errorHandler);
 
 app.listen(env.PORT);
+startDeadlineReminderScheduler();

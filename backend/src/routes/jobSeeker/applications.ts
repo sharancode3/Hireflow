@@ -4,6 +4,7 @@ import { prisma } from "../../prisma";
 import type { AuthenticatedRequest } from "../../middleware/auth";
 import { HttpError } from "../../utils/httpError";
 import { csvToSkills } from "../../utils/csvSkills";
+import { sendApplicationConfirmationEmail, sendTransactionalEmail } from "../../utils/emailAutomation";
 
 export const jobSeekerApplicationsRouter = Router();
 
@@ -14,7 +15,7 @@ jobSeekerApplicationsRouter.post("/job-seeker/applications", async (req, res, ne
 
     const user = await prisma.user.findUnique({
       where: { id: authed.auth.userId },
-      select: { role: true, jobSeekerProfile: { select: { id: true, userId: true, fullName: true } } },
+      select: { role: true, email: true, jobSeekerProfile: { select: { id: true, userId: true, fullName: true } } },
     });
 
     if (!user || user.role !== "JOB_SEEKER" || !user.jobSeekerProfile) {
@@ -23,6 +24,7 @@ jobSeekerApplicationsRouter.post("/job-seeker/applications", async (req, res, ne
 
     const job = await prisma.job.findUnique({ where: { id: body.jobId } });
     if (!job) throw new HttpError(404, "Job not found");
+    if (job.reviewStatus !== "APPROVED") throw new HttpError(400, "This job is not open for applications yet");
 
     const app = await prisma.application.create({
       data: {
@@ -45,7 +47,7 @@ jobSeekerApplicationsRouter.post("/job-seeker/applications", async (req, res, ne
     // Notify recruiter
     const recruiterUser = await prisma.recruiterProfile.findUnique({
       where: { id: job.recruiterId },
-      select: { userId: true },
+      select: { userId: true, companyName: true, user: { select: { email: true } } },
     });
     if (recruiterUser) {
       await prisma.notification.create({
@@ -55,7 +57,29 @@ jobSeekerApplicationsRouter.post("/job-seeker/applications", async (req, res, ne
           message: `${user.jobSeekerProfile.fullName} applied to ${job.title}`,
         },
       });
+
+      if (recruiterUser.user?.email) {
+        await sendTransactionalEmail({
+          to: recruiterUser.user.email,
+          category: "APPLICATION_SUBMITTED",
+          subject: `New applicant for ${job.title}`,
+          text: [
+            `Candidate: ${user.jobSeekerProfile.fullName}`,
+            `Role: ${job.title}`,
+            `Company: ${recruiterUser.companyName}`,
+            "Open Hireflow to review this applicant.",
+          ].join("\n"),
+        });
+      }
     }
+
+    await sendApplicationConfirmationEmail({
+      to: user.email,
+      applicantName: user.jobSeekerProfile.fullName,
+      jobTitle: job.title,
+      companyName: job.companyName,
+      applicationsUrl: `${process.env.CORS_ORIGIN ?? "http://localhost:5173"}/job-seeker/applied`,
+    });
 
     res.status(201).json({ application: app });
   } catch (err) {

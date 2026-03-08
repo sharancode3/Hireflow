@@ -1,27 +1,20 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import type { FormEvent } from "react";
-import { useNavigate, useSearchParams, Link } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { apiJson, ApiError } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
-import type { User, UserRole } from "../types";
+import type { User } from "../types";
 import { Logo } from "../components/Logo";
 import { Button } from "../components/ui/Button";
 import { FloatingInput } from "../components/ui/FloatingInput";
 
 export function RegisterPage() {
   const navigate = useNavigate();
-  const [params] = useSearchParams();
   const { login } = useAuth();
 
-  const preRole = (params.get("role") as UserRole | null) ?? null;
-
-  const [role, setRole] = useState<UserRole>(preRole ?? "JOB_SEEKER");
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [fullName, setFullName] = useState<string>("");
-  const [companyName, setCompanyName] = useState<string>("");
-  const [companySize, setCompanySize] = useState<string>("");
-  const [industry, setIndustry] = useState<string>("");
   const [currentStatus, setCurrentStatus] = useState<string>("");
   const [desiredRole, setDesiredRole] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
@@ -29,25 +22,19 @@ export function RegisterPage() {
   const [step, setStep] = useState<1 | 2>(1);
   const [showPassword, setShowPassword] = useState(false);
 
-  const destination = useMemo(() => (role === "JOB_SEEKER" ? "/job-seeker" : "/recruiter"), [role]);
-
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError(null);
 
     try {
-      const body: any = { email, password, role };
-      if (role === "JOB_SEEKER") body.jobSeeker = { fullName };
-      if (role === "RECRUITER") body.recruiter = { companyName };
-
       const data = await apiJson<{ token: string; user: User }>("/auth/register", {
         method: "POST",
-        body,
+        body: { email, password, fullName },
       });
 
       login({ token: data.token, user: data.user });
-      navigate(destination, { replace: true });
+      navigate("/", { replace: true });
     } catch (err) {
       if (err instanceof ApiError) setError(err.message);
       else setError("Registration failed");
@@ -66,19 +53,20 @@ export function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-bg text-text">
-      <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[3fr_2fr]">
-        <aside className="relative hidden overflow-hidden border-r border-border bg-gradient-to-br from-[#0D0F14] to-[#1A1E28] p-12 lg:flex lg:flex-col lg:justify-between">
+    <div className="auth-split-page text-text">
+      <div className="auth-split-layout">
+        <aside className="auth-left-panel">
+          <div className="login-left-orb" />
           <div className="space-y-6">
             <Logo />
             <div className="space-y-3">
-              <h1 className="text-3xl font-semibold tracking-tight">Create your Talvion account</h1>
+              <h1 className="text-3xl font-semibold tracking-tight">Create your Hireflow account</h1>
               <p className="text-sm text-text-secondary">Small progress every day adds up — your next opportunity starts here.</p>
             </div>
             <div className="flex flex-wrap gap-2">
               {[
                 "Multi-step onboarding",
-                "Role-specific fields",
+                "Profile-ready setup",
                 "Profile-ready resume",
               ].map((pill) => (
                 <span key={pill} className="rounded-full border border-border px-3 py-1 text-xs text-text-secondary">
@@ -89,20 +77,17 @@ export function RegisterPage() {
           </div>
 
           <div className="space-y-3 text-sm text-text-secondary">
-            <div>Strict role separation for routing + permissions.</div>
+            <div>Fast sign-up with guided onboarding.</div>
             <div>Theme ready: light, soft dark, and high contrast.</div>
             <div>Resume generator included from day one.</div>
           </div>
         </aside>
 
-        <section className="flex items-center justify-center px-4 py-10 lg:px-10">
-          <div className="w-full max-w-md space-y-6 rounded-3xl border border-border bg-surface p-8 shadow-soft">
-            <div className="lg:hidden">
-              <Logo />
-            </div>
+        <section className="auth-right-panel">
+          <div className="auth-form-card w-full max-w-md space-y-6">
             <div className="space-y-2">
               <h2 className="text-2xl font-semibold">Register</h2>
-              <p className="text-sm text-text-secondary">Step {step} of 2 — set your credentials and profile basics.</p>
+              <p className="text-sm text-text-secondary">Step {step} of 2 — create your account and add personal details.</p>
             </div>
 
             {error ? (
@@ -121,32 +106,6 @@ export function RegisterPage() {
                   }
                 />
               ))}
-            </div>
-
-            <div className="space-y-3">
-              <span className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted">Role</span>
-              <div className="relative flex h-12 rounded-full border border-border bg-surface-raised p-1">
-                <span
-                  className={
-                    "absolute top-1 h-10 w-1/2 rounded-full bg-surface shadow-soft transition-transform duration-200 " +
-                    (role === "JOB_SEEKER" ? "translate-x-0" : "translate-x-full")
-                  }
-                />
-                <button
-                  type="button"
-                  className="relative z-10 flex-1 text-sm font-medium"
-                  onClick={() => setRole("JOB_SEEKER")}
-                >
-                  Job Seeker
-                </button>
-                <button
-                  type="button"
-                  className="relative z-10 flex-1 text-sm font-medium"
-                  onClick={() => setRole("RECRUITER")}
-                >
-                  Recruiter
-                </button>
-              </div>
             </div>
 
             <form onSubmit={onSubmit} className="space-y-4">
@@ -190,57 +149,28 @@ export function RegisterPage() {
                 </>
               ) : (
                 <>
-                  {role === "JOB_SEEKER" ? (
-                    <>
-                      <FloatingInput
-                        id="fullName"
-                        className="h-12"
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        required
-                        label="Full name"
-                      />
-                      <FloatingInput
-                        id="currentStatus"
-                        className="h-12"
-                        value={currentStatus}
-                        onChange={(e) => setCurrentStatus(e.target.value)}
-                        label="Current status (Student/Working/Fresher)"
-                      />
-                      <FloatingInput
-                        id="desiredRole"
-                        className="h-12"
-                        value={desiredRole}
-                        onChange={(e) => setDesiredRole(e.target.value)}
-                        label="Desired role"
-                      />
-                    </>
-                  ) : (
-                    <>
-                      <FloatingInput
-                        id="companyName"
-                        className="h-12"
-                        value={companyName}
-                        onChange={(e) => setCompanyName(e.target.value)}
-                        required
-                        label="Company name"
-                      />
-                      <FloatingInput
-                        id="companySize"
-                        className="h-12"
-                        value={companySize}
-                        onChange={(e) => setCompanySize(e.target.value)}
-                        label="Company size"
-                      />
-                      <FloatingInput
-                        id="industry"
-                        className="h-12"
-                        value={industry}
-                        onChange={(e) => setIndustry(e.target.value)}
-                        label="Industry"
-                      />
-                    </>
-                  )}
+                  <FloatingInput
+                    id="fullName"
+                    className="h-12"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    required
+                    label="Full name"
+                  />
+                  <FloatingInput
+                    id="currentStatus"
+                    className="h-12"
+                    value={currentStatus}
+                    onChange={(e) => setCurrentStatus(e.target.value)}
+                    label="Current status"
+                  />
+                  <FloatingInput
+                    id="desiredRole"
+                    className="h-12"
+                    value={desiredRole}
+                    onChange={(e) => setDesiredRole(e.target.value)}
+                    label="Desired role"
+                  />
 
                   <div className="grid gap-3 sm:grid-cols-2">
                     <Button type="button" variant="secondary" onClick={() => setStep(1)}>
@@ -255,7 +185,7 @@ export function RegisterPage() {
             </form>
 
             <div className="text-sm text-text-secondary">
-              Already have an account? <Link to={`/login?role=${role}`} className="hover:text-text">Sign in</Link>
+              Already have an account? <Link to="/login" className="hover:text-text">Sign in</Link>
             </div>
           </div>
         </section>

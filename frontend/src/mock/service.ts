@@ -36,10 +36,17 @@ function emailVariants(rawEmail: string): string[] {
 
   if (lower.endsWith("@hirehub.demo")) {
     variants.add(lower.replace("@hirehub.demo", "@talvion.demo"));
+    variants.add(lower.replace("@hirehub.demo", "@hireflow.demo"));
   }
 
   if (lower.endsWith("@talvion.demo")) {
     variants.add(lower.replace("@talvion.demo", "@hirehub.demo"));
+    variants.add(lower.replace("@talvion.demo", "@hireflow.demo"));
+  }
+
+  if (lower.endsWith("@hireflow.demo")) {
+    variants.add(lower.replace("@hireflow.demo", "@talvion.demo"));
+    variants.add(lower.replace("@hireflow.demo", "@hirehub.demo"));
   }
 
   return Array.from(variants);
@@ -79,25 +86,39 @@ function listGeneratedResumesForUser(db: MockDb, userId: string): GeneratedResum
     .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 }
 
-export type LoginResponse = { token: string; user: { id: string; email: string; role: UserRole } };
+export type LoginResponse = {
+  token: string;
+  user: {
+    id: string;
+    email: string;
+    role: UserRole;
+    recruiterApprovalStatus?: "PENDING" | "APPROVED";
+  };
+};
 
 export const mockApi = {
   auth: {
-    login(email: string, password: string, role: UserRole): LoginResponse {
+    login(email: string, password: string, role?: UserRole): LoginResponse {
       const db = loadDb();
       const candidates = emailVariants(email);
       const user = db.users.find((u) => candidates.includes(u.email.toLowerCase()));
       if (!user || user.password !== password) throw new Error("Invalid credentials");
-      if (user.role !== role) throw new Error("Selected role does not match this account");
-      return { token: tokenFor(user.id), user: { id: user.id, email: user.email, role: user.role } };
+      if (role && user.role !== role) throw new Error("Selected role does not match this account");
+      return {
+        token: tokenFor(user.id),
+        user: {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          recruiterApprovalStatus: user.role === "RECRUITER" ? user.recruiterApprovalStatus ?? "APPROVED" : undefined,
+        },
+      };
     },
 
     register(payload: {
       email: string;
       password: string;
-      role: UserRole;
-      jobSeeker?: { fullName: string };
-      recruiter?: { companyName: string };
+      fullName: string;
     }): LoginResponse {
       const db = loadDb();
       const exists = db.users.some((u) => u.email.toLowerCase() === payload.email.toLowerCase());
@@ -108,48 +129,79 @@ export const mockApi = {
         id,
         email: payload.email,
         password: payload.password,
-        role: payload.role,
+        role: "JOB_SEEKER",
         createdAt: nowIso(),
       };
       db.users.push(user);
 
-      if (payload.role === "JOB_SEEKER") {
-        if (!payload.jobSeeker) throw new Error("Job seeker details required");
-        db.jobSeekers.push({
-          id: `js_new_${Date.now().toString(16)}`,
-          userId: id,
-          fullName: payload.jobSeeker.fullName,
-          skills: [],
-          skillLevels: {},
-          phone: null,
-          location: null,
-          experienceYears: 0,
-          desiredRole: null,
-          isFresher: true,
-          visibility: "PUBLIC",
-        });
-      }
-
-      if (payload.role === "RECRUITER") {
-        if (!payload.recruiter) throw new Error("Recruiter details required");
-        db.recruiters.push({
-          id: `rec_new_${Date.now().toString(16)}`,
-          userId: id,
-          companyName: payload.recruiter.companyName,
-          website: "",
-          location: "",
-          description: "",
-        });
-      }
+      db.jobSeekers.push({
+        id: `js_new_${Date.now().toString(16)}`,
+        userId: id,
+        fullName: payload.fullName,
+        skills: [],
+        skillLevels: {},
+        phone: null,
+        location: null,
+        experienceYears: 0,
+        desiredRole: null,
+        isFresher: true,
+        visibility: "PUBLIC",
+      });
 
       saveDb(db);
       return { token: tokenFor(user.id), user: { id: user.id, email: user.email, role: user.role } };
     },
 
-    me(token: string): { user: { id: string; email: string; role: UserRole } } {
+    registerRecruiter(payload: {
+      fullName: string;
+      email: string;
+      password: string;
+      companyName: string;
+      companyWebsite: string;
+      designation: string;
+      phone: string;
+    }): { ok: true } {
+      const db = loadDb();
+      const exists = db.users.some((u) => u.email.toLowerCase() === payload.email.toLowerCase());
+      if (exists) throw new Error("Email already registered");
+
+      const id = `usr_new_${Date.now().toString(16)}`;
+      const user: MockUser = {
+        id,
+        email: payload.email,
+        password: payload.password,
+        role: "RECRUITER",
+        recruiterApprovalStatus: "PENDING",
+        createdAt: nowIso(),
+      };
+      db.users.push(user);
+
+      db.recruiters.push({
+        id: `rec_new_${Date.now().toString(16)}`,
+        userId: id,
+        companyName: payload.companyName,
+        website: payload.companyWebsite,
+        location: "",
+        description: `${payload.designation} · ${payload.fullName} · ${payload.phone}`,
+      });
+
+      saveDb(db);
+      return { ok: true };
+    },
+
+    me(token: string): {
+      user: { id: string; email: string; role: UserRole; recruiterApprovalStatus?: "PENDING" | "APPROVED" };
+    } {
       const db = loadDb();
       const user = assertUser(token, db);
-      return { user: { id: user.id, email: user.email, role: user.role } };
+      return {
+        user: {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          recruiterApprovalStatus: user.role === "RECRUITER" ? user.recruiterApprovalStatus ?? "APPROVED" : undefined,
+        },
+      };
     },
   },
 
@@ -169,6 +221,15 @@ export const mockApi = {
       const user = assertUser(token, db);
       const n = db.notifications.find((x) => x.id === id && x.userId === user.id);
       if (n) n.isRead = true;
+      saveDb(db);
+      return { ok: true };
+    },
+    markAllRead(token: string) {
+      const db = loadDb();
+      const user = assertUser(token, db);
+      for (const n of db.notifications) {
+        if (n.userId === user.id) n.isRead = true;
+      }
       saveDb(db);
       return { ok: true };
     },

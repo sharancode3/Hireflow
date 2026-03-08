@@ -25,12 +25,29 @@ const SkillGapPageLazy = lazy(async () => {
   const m = await import("./pages/jobSeeker/SkillGapPage");
   return { default: m.SkillGapPage };
 });
+const CommunityFeedPageLazy = lazy(async () => {
+  const m = await import("./pages/CommunityFeedPage");
+  return { default: m.CommunityFeedPage };
+});
+const ComplaintsOpinionsPageLazy = lazy(async () => {
+  const m = await import("./pages/ComplaintsOpinionsPage");
+  return { default: m.ComplaintsOpinionsPage };
+});
+const RecruiterCommunityModerationPageLazy = lazy(async () => {
+  const m = await import("./pages/recruiter/CommunityModerationPage");
+  return { default: m.RecruiterCommunityModerationPage };
+});
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { ThemePage } from "./pages/ThemePage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { OnboardingPage } from "./pages/OnboardingPage";
+import { RecruiterRegisterPage } from "./pages/RecruiterRegisterPage";
+import { RecruiterPendingPage } from "./pages/RecruiterPendingPage";
+import { PageTitleSync } from "./components/PageTitleSync";
+import { AdminJobReviewPage } from "./pages/admin/JobReviewPage";
 
 import { JobSeekerLayout } from "./pages/jobSeeker/JobSeekerLayout";
 import { JobSeekerDashboardPage } from "./pages/jobSeeker/DashboardPage";
@@ -71,18 +88,24 @@ class InsightsErrorBoundary extends React.Component<
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/" element={<RootRedirect />} />
+    <>
+      <PageTitleSync />
+      <Routes>
+        <Route path="/" element={<RootRedirect />} />
 
       <Route element={<AuthLayout />}>
         <Route element={<RequireGuest />}>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/recruiter/register" element={<RecruiterRegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         </Route>
       </Route>
 
+      <Route path="/recruiter/pending" element={<RecruiterPendingPage />} />
+
       <Route element={<RequireAuth />}>
+        <Route path="/onboarding" element={<OnboardingPage />} />
         <Route element={<AppLayout />}>
           <Route path="/trends" element={<Navigate to="/talent-trends" replace />} />
           <Route path="/hire-trends" element={<Navigate to="/talent-trends" replace />} />
@@ -98,6 +121,8 @@ export default function App() {
             path="/settings"
             element={<RoleRedirect jobSeekerTo="/job-seeker/settings" recruiterTo="/recruiter/settings" />}
           />
+
+          <Route path="/admin/job-review" element={<AdminJobReviewPage />} />
 
           <Route element={<RequireAuth role="JOB_SEEKER" />}>
             <Route path="/job-seeker" element={<JobSeekerLayout />}>
@@ -118,6 +143,22 @@ export default function App() {
               <Route path="applied" element={<AppliedJobsPage />} />
               <Route path="saved" element={<SavedJobsPage />} />
               <Route path="notifications" element={<JobSeekerNotificationsPage />} />
+              <Route
+                path="experience-feed"
+                element={
+                  <Suspense fallback={<div className="card">Loading community feed…</div>}>
+                    <CommunityFeedPageLazy />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="complaints"
+                element={
+                  <Suspense fallback={<div className="card">Loading complaints…</div>}>
+                    <ComplaintsOpinionsPageLazy />
+                  </Suspense>
+                }
+              />
               <Route
                 path="interview-prep"
                 element={
@@ -152,7 +193,8 @@ export default function App() {
 
           <Route element={<RequireAuth role="RECRUITER" />}>
             <Route path="/recruiter" element={<RecruiterLayout />}>
-              <Route index element={<Navigate to="/recruiter/overview" replace />} />
+              <Route index element={<Navigate to="/recruiter/dashboard" replace />} />
+              <Route path="dashboard" element={<RecruiterOverviewPage />} />
               <Route path="overview" element={<RecruiterOverviewPage />} />
               <Route path="post-job" element={<RecruiterPostJobPage />} />
               <Route path="jobs" element={<RecruiterManageJobsPage />} />
@@ -161,6 +203,30 @@ export default function App() {
               <Route path="interviews" element={<RecruiterInterviewSchedulePage />} />
               <Route path="profile" element={<RecruiterProfilePage />} />
               <Route path="notifications" element={<RecruiterNotificationsPage />} />
+              <Route
+                path="experience-feed"
+                element={
+                  <Suspense fallback={<div className="card">Loading community feed…</div>}>
+                    <CommunityFeedPageLazy />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="complaints"
+                element={
+                  <Suspense fallback={<div className="card">Loading complaints…</div>}>
+                    <ComplaintsOpinionsPageLazy />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="community-moderation"
+                element={
+                  <Suspense fallback={<div className="card">Loading moderation…</div>}>
+                    <RecruiterCommunityModerationPageLazy />
+                  </Suspense>
+                }
+              />
 
               <Route
                 path="insights"
@@ -179,7 +245,8 @@ export default function App() {
         </Route>
       </Route>
 
-      <Route path="*" element={<NotFoundPage />} />
-    </Routes>
+        <Route path="*" element={<NotFoundPage />} />
+      </Routes>
+    </>
   );
 }

@@ -12,11 +12,11 @@ export function HomePage() {
           <p className="subtext">A simple, modern platform for hiring and job searching</p>
 
           <div className="button-row">
-            <button type="button" className="btn btn-primary" onClick={() => navigate("/login?role=JOB_SEEKER")}
+            <button type="button" className="btn btn-primary" onClick={() => navigate("/login")}
             >
               Job Seeker
             </button>
-            <button type="button" className="btn" onClick={() => navigate("/login?role=RECRUITER")}
+            <button type="button" className="btn" onClick={() => navigate("/login")}
             >
               Hire (Recruiter)
             </button>
@@ -29,7 +29,7 @@ export function HomePage() {
 
         <section className="grid">
           <div className="card">
-            <h2 style={{ marginTop: 0 }}>Why Talvion</h2>
+            <h2 style={{ marginTop: 0 }}>Why Hireflow</h2>
             <div className="grid grid-2" style={{ marginTop: 12 }}>
               <div className="card card-ghost">
                 <h3 style={{ marginTop: 0 }}>Professional profiles</h3>

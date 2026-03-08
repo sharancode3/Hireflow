@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import { z } from "zod";
 import { env } from "../env";
 import { HttpError } from "../utils/httpError";
+import { prisma } from "../prisma";
 
 const tokenPayloadSchema = z.object({
   userId: z.string().min(1),
@@ -40,6 +41,27 @@ export function requireRole(role: "JOB_SEEKER" | "RECRUITER") {
     if (anyReq.userRole !== role) {
       return next(new HttpError(403, "Forbidden"));
     }
+    return next();
+  };
+}
+
+export function requireAdmin() {
+  return async (req: Request, _res: Response, next: NextFunction) => {
+    const anyReq = req as AuthenticatedRequest;
+    const user = await prisma.user.findUnique({
+      where: { id: anyReq.auth.userId },
+      select: { email: true },
+    });
+
+    if (!user) {
+      return next(new HttpError(401, "User not found"));
+    }
+
+    const allowlist = env.ADMIN_EMAILS.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
+    if (!allowlist.includes(user.email.toLowerCase())) {
+      return next(new HttpError(403, "Admin access required"));
+    }
+
     return next();
   };
 }

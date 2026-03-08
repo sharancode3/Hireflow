@@ -12,7 +12,6 @@ import type {
   ProjectItem,
   Resume,
   ResumeTemplate,
-  SkillProficiency,
 } from "../../types";
 import { openResumePreview } from "../../utils/resumePreview";
 import { downloadGeneratedResumePdf } from "../../utils/generatedResumePdf";
@@ -89,30 +88,56 @@ function buildProfilePatch(profile: JobSeekerProfile) {
   };
 }
 
+function generateSummaryFromProfile(profile: JobSeekerProfile, notes: string) {
+  const parts = [
+    profile.headline || profile.desiredRole || "Professional",
+    profile.location ? `based in ${profile.location}` : "",
+    profile.experienceYears > 0 ? `${profile.experienceYears}+ years of experience` : "early-career",
+    profile.skills.length ? `skilled in ${profile.skills.slice(0, 6).join(", ")}` : "",
+    notes.trim() ? notes.trim() : "",
+  ].filter(Boolean);
+
+  return `${profile.fullName} is a ${parts.join(", ")}. Focused on delivering measurable outcomes, collaborating effectively with teams, and building reliable, user-centric solutions. Seeking opportunities that align with long-term growth and impact.`;
+}
+
+function improveBulletsFromText(text: string, presentTense: boolean) {
+  const rows = text
+    .split(/\n|\.|•|·/)
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .slice(0, 5);
+
+  if (!rows.length) return text;
+
+  const verb = presentTense ? "Drive" : "Drove";
+  return rows
+    .map((r) => `• ${verb} ${r.charAt(0).toLowerCase()}${r.slice(1)} with measurable impact and clear ownership.`)
+    .join("\n");
+}
+
+const EDUCATION_LEVEL_OPTIONS = [
+  { value: "SCHOOL", label: "School (10th / 12th)" },
+  { value: "DIPLOMA", label: "Diploma" },
+  { value: "BACHELOR", label: "Bachelor's" },
+  { value: "MASTER", label: "Master's" },
+  { value: "PHD", label: "PhD" },
+  { value: "OTHER", label: "Other" },
+] as const;
+
+function getEducationBodyLabel(level?: EducationItem["level"]) {
+  return level === "SCHOOL" ? "Board" : "University / awarding body";
+}
+
 function ProgressBar({ value }: { value: number }) {
   const safe = clampNumber(value, 0, 100);
   return (
-    <div style={{ display: "grid", gap: 8 }}>
+    <div style={{ display: "grid", gap: 10 }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-        <div style={{ fontWeight: 800 }}>Profile completion</div>
-        <div className="muted">{safe}%</div>
+        <div className="text-xs text-[#777777]">{safe}% complete</div>
+        <div className="text-xs text-[#777777]">3 of 7 sections done</div>
       </div>
-      <div
-        style={{
-          height: 10,
-          borderRadius: 999,
-          background: "var(--border)",
-          overflow: "hidden",
-        }}
-      >
-        <div
-          style={{
-            height: "100%",
-            width: `${safe}%`,
-            background: "var(--accent)",
-            transition: "width 160ms ease",
-          }}
-        />
+      <div className="progress-track">
+        <div className="progress-fill" style={{ width: `${safe}%` }} />
       </div>
     </div>
   );
@@ -183,7 +208,7 @@ function ProfilePreviewCard({
         </div>
         <div className="mt-4 text-xs text-text-muted">Completion: {completion}%</div>
       </div>
-      <Button variant="secondary" onClick={onOpen}>
+      <Button variant="secondary" className="w-full border border-[#2A2A3A] bg-[#1A1A26] text-[13px] text-white hover:border-[#1A73E8] hover:text-[#1A73E8]" onClick={onOpen}>
         Full preview
       </Button>
     </Card>
@@ -200,19 +225,23 @@ export function JobSeekerProfilePage() {
   const saveTimer = useRef<number | null>(null);
   const lastSavedSnapshot = useRef<string>("");
 
-  type ProfileStep = "BASICS" | "SKILLS" | "EXPERIENCE" | "PROJECTS" | "EDUCATION" | "RESUME";
+  type ProfileStep = "BASICS" | "SKILLS" | "EXPERIENCE" | "PROJECTS" | "EDUCATION" | "CERTIFICATIONS" | "RESUME";
   const steps: Array<{ key: ProfileStep; label: string; subtitle: string }> = [
     { key: "BASICS", label: "Basics", subtitle: "Identity, goals, about" },
     { key: "SKILLS", label: "Skills", subtitle: "Skills + interests" },
     { key: "EXPERIENCE", label: "Experience", subtitle: "Roles and impact" },
     { key: "PROJECTS", label: "Projects", subtitle: "Projects + proofs" },
     { key: "EDUCATION", label: "Education", subtitle: "Degrees + institutions" },
+    { key: "CERTIFICATIONS", label: "Certifications", subtitle: "Credentials + highlights" },
     { key: "RESUME", label: "Resume", subtitle: "Upload or generate" },
   ];
   const [step, setStep] = useState<ProfileStep>("BASICS");
   const [resumeTemplate, setResumeTemplate] = useState<ResumeTemplate>("ATS_PLAIN");
   const [resumeTitle, setResumeTitle] = useState<string>("");
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [summaryModalOpen, setSummaryModalOpen] = useState(false);
+  const [summaryNotes, setSummaryNotes] = useState("");
+  const [summaryDraft, setSummaryDraft] = useState("");
 
   const hasResume = resumes.length > 0 || generatedResumes.length > 0;
   const completion = useMemo(() => {
@@ -259,7 +288,7 @@ export function JobSeekerProfilePage() {
       setProfile(updated.profile);
       lastSavedSnapshot.current = JSON.stringify(buildProfilePatch(updated.profile));
       setSaveState("saved");
-      window.setTimeout(() => setSaveState("idle"), 800);
+      window.setTimeout(() => setSaveState("idle"), 3000);
     } catch (e) {
       setSaveState("error");
       if (e instanceof ApiError) setError(e.message);
@@ -375,21 +404,15 @@ export function JobSeekerProfilePage() {
     EXPERIENCE: experience.length >= 1 || profile.isFresher,
     PROJECTS: projects.length >= 1,
     EDUCATION: education.length >= 1,
+    CERTIFICATIONS: certifications.length >= 1 || achievements.length >= 1,
     RESUME: hasResume,
   };
 
-  const saveLabel =
-    saveState === "saving"
-      ? "Saving…"
-      : saveState === "saved"
-        ? "Saved"
-        : saveState === "error"
-          ? "Save failed"
-          : "All changes saved";
+  const saveLabel = saveState === "saving" ? "Saving..." : saveState === "saved" ? "Saved" : saveState === "error" ? "Save failed" : "";
 
   const stepIndex = steps.findIndex((s) => s.key === step);
   const canBack = stepIndex > 0;
-  const canNext = stepIndex < steps.length - 1;
+  const canNext = stepIndex < steps.length - 1 && stepDone[step];
 
   function back() {
     if (!canBack) return;
@@ -397,7 +420,12 @@ export function JobSeekerProfilePage() {
   }
 
   function next() {
+    if (!stepDone[step]) {
+      setError(`Complete the ${steps[stepIndex]?.label.toLowerCase()} step before moving forward.`);
+      return;
+    }
     if (!canNext) return;
+    setError(null);
     setStep(steps[stepIndex + 1]!.key);
   }
 
@@ -405,12 +433,17 @@ export function JobSeekerProfilePage() {
     <div className="space-y-6">
       <Card className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h2 className="text-2xl font-semibold">Profile Builder</h2>
+          <h2 className="bg-gradient-to-r from-white to-[#AAAAAA] bg-clip-text text-[28px] font-bold text-transparent">Profile Builder</h2>
           <p className="text-sm text-text-secondary">
             Inline editing + instant saving. Your visibility controls what recruiters can view.
           </p>
         </div>
-        <div className="text-xs text-text-muted">{saveLabel}</div>
+        {saveLabel ? (
+          <div className="flex items-center gap-2 text-xs text-[#777777] animate-fade-in">
+            {saveState === "saved" ? <span className="h-1.5 w-1.5 rounded-full bg-[#22C55E] animate-[pulse-check_1.5s_ease-in-out_infinite]" /> : null}
+            {saveLabel}
+          </div>
+        ) : null}
       </Card>
 
       {error ? <Card className="border-danger/60 bg-danger/10 text-danger">{error}</Card> : null}
@@ -418,32 +451,39 @@ export function JobSeekerProfilePage() {
       <div className="grid gap-6 lg:grid-cols-[3fr_2fr]">
         <div className="space-y-6">
           <Card className="space-y-4">
-            <div className="flex flex-wrap gap-2">
-              {steps.map((s) => (
+            <div className="profile-tabs-scroll flex gap-2 overflow-x-auto pb-1">
+              {steps.map((s, idx) => (
                 <button
                   key={s.key}
                   type="button"
                   className={
-                    "flex flex-col items-center gap-1 rounded-full border px-4 py-2 text-xs font-medium transition " +
+                    "shrink-0 rounded-full border px-4 py-1.5 text-[13px] font-medium transition " +
                     (s.key === step
-                      ? "border-accent/70 bg-surface-raised text-text"
-                      : "border-border bg-surface text-text-secondary hover:border-border-active hover:text-text")
+                      ? "border-[rgba(26,115,232,0.3)] bg-[rgba(26,115,232,0.15)] text-white"
+                      : "border-transparent bg-transparent text-[#666666] hover:bg-[rgba(255,255,255,0.03)] hover:text-[#AAAAAA]")
                   }
-                  onClick={() => setStep(s.key)}
+                  onClick={() => {
+                    if (idx > stepIndex && !stepDone[step]) {
+                      setError(`Complete the ${steps[stepIndex]?.label.toLowerCase()} step before moving forward.`);
+                      return;
+                    }
+                    setError(null);
+                    setStep(s.key);
+                  }}
                   aria-current={s.key === step ? "step" : undefined}
                   title={s.subtitle}
                 >
                   <span>{s.label}</span>
-                  <span
-                    className={
-                      "h-1 w-6 rounded-full " + (stepDone[s.key] ? "bg-accent-teal" : "bg-border")
-                    }
-                  />
                 </button>
               ))}
             </div>
+            <ProgressBar value={completion} />
+            {!stepDone[step] ? (
+              <span className="inline-flex w-fit items-center rounded-full border border-[rgba(234,88,12,0.3)] bg-[rgba(234,88,12,0.1)] px-3 py-1 text-xs text-[#EA580C]">
+                Complete required fields to continue
+              </span>
+            ) : null}
             <div className="flex flex-wrap items-center justify-between gap-4">
-              <span className="text-xs text-text-muted">{completion}% complete</span>
               <div className="flex gap-2">
                 <Button variant="secondary" onClick={back} disabled={!canBack}>
                   Back
@@ -640,9 +680,12 @@ export function JobSeekerProfilePage() {
                   <button
                     type="button"
                     className="text-xs text-accent hover:text-text"
-                    onClick={() => setError("AI assist will be available soon.")}
+                    onClick={() => {
+                      setSummaryDraft(generateSummaryFromProfile(profile, summaryNotes));
+                      setSummaryModalOpen(true);
+                    }}
                   >
-                    ✨ Improve with AI
+                    ✨ Generate with AI
                   </button>
                 </div>
                 <textarea
@@ -689,47 +732,15 @@ export function JobSeekerProfilePage() {
                     const nextSkills = addUniqueCaseInsensitive(profile.skills, skill);
                     const nextLevels = { ...(profile.skillLevels ?? {}) };
                     const normalized = skill.trim().replace(/\s+/g, " ");
-                    if (normalized && !nextLevels[normalized]) nextLevels[normalized] = 3 as SkillProficiency;
+                    if (normalized && !nextLevels[normalized]) nextLevels[normalized] = 3;
                     const next = { ...profile, skills: nextSkills, skillLevels: nextLevels };
                     setProfile(next);
                     scheduleSave(next);
                   }}
                 />
 
-                <div className="card" style={{ padding: 12, display: "grid", gap: 10 }}>
-                  <div style={{ fontWeight: 800 }}>Skill proficiency</div>
-                  <div className="muted" style={{ fontSize: 13 }}>
-                    Used for resume skill bars and charts. Set 1–5.
-                  </div>
-
-                  {profile.skills.length ? (
-                    <div style={{ display: "grid", gap: 8 }}>
-                      {profile.skills.slice(0, 24).map((sk) => (
-                        <div key={sk.toLowerCase()} style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
-                          <div style={{ fontWeight: 700 }}>{sk}</div>
-                          <select
-                            className="select"
-                            value={String(profile.skillLevels?.[sk] ?? 3)}
-                            onChange={(e) => {
-                              const v = Number(e.target.value) as SkillProficiency;
-                              const next = { ...profile, skillLevels: { ...(profile.skillLevels ?? {}), [sk]: v } };
-                              setProfile(next);
-                              scheduleSave(next);
-                            }}
-                            style={{ width: 110 }}
-                          >
-                            <option value="1">1 / 5</option>
-                            <option value="2">2 / 5</option>
-                            <option value="3">3 / 5</option>
-                            <option value="4">4 / 5</option>
-                            <option value="5">5 / 5</option>
-                          </select>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="muted">Add skills to set proficiency.</div>
-                  )}
+                <div className="muted" style={{ fontSize: 13 }}>
+                  Add at least 3 technical skills to proceed. Skills are tag-based only.
                 </div>
               </div>
 
@@ -773,6 +784,15 @@ export function JobSeekerProfilePage() {
           {step === "EXPERIENCE" ? (
             <ExperienceSection
               items={experience}
+              onImproveAI={(id) => {
+                const target = experience.find((x) => x.id === id);
+                if (!target) return;
+                const improved = improveBulletsFromText(target.summary, !target.endDate);
+                const nextItems = experience.map((x) => (x.id === id ? { ...x, summary: improved } : x));
+                const next = { ...profile, experience: nextItems };
+                setProfile(next);
+                scheduleSave(next);
+              }}
               onChange={(nextItems) => {
                 const next = { ...profile, experience: nextItems };
                 setProfile(next);
@@ -785,13 +805,26 @@ export function JobSeekerProfilePage() {
             <>
               <ProjectsSection
                 items={projects}
+                onImproveAI={(id) => {
+                  const target = projects.find((x) => x.id === id);
+                  if (!target) return;
+                  const improved = improveBulletsFromText(target.summary, true);
+                  const nextItems = projects.map((x) => (x.id === id ? { ...x, summary: improved } : x));
+                  const next = { ...profile, projects: nextItems };
+                  setProfile(next);
+                  scheduleSave(next);
+                }}
                 onChange={(nextItems) => {
                   const next = { ...profile, projects: nextItems };
                   setProfile(next);
                   scheduleSave(next);
                 }}
               />
+            </>
+          ) : null}
 
+          {step === "CERTIFICATIONS" ? (
+            <>
               <CertificationsSection
                 items={certifications}
                 onChange={(nextItems) => {
@@ -800,7 +833,11 @@ export function JobSeekerProfilePage() {
                   scheduleSave(next);
                 }}
               />
+            </>
+          ) : null}
 
+          {step === "CERTIFICATIONS" ? (
+            <>
               <AchievementsSection
                 items={achievements}
                 onChange={(nextItems) => {
@@ -1024,6 +1061,54 @@ export function JobSeekerProfilePage() {
           </div>
         </div>
       </Modal>
+
+      <Modal open={summaryModalOpen} onClose={() => setSummaryModalOpen(false)}>
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-text">Generate Professional Summary</h3>
+          <div className="text-sm text-text-secondary">Use your profile context and optional notes to draft a polished summary.</div>
+
+          <div className="field">
+            <label className="label">Extra notes for AI</label>
+            <textarea
+              className="input"
+              style={{ minHeight: 90, resize: "vertical" }}
+              value={summaryNotes}
+              onChange={(e) => setSummaryNotes(e.target.value)}
+              placeholder="Example: Focus on leadership and fintech roles."
+            />
+          </div>
+
+          <div className="field">
+            <label className="label">Generated summary</label>
+            <textarea
+              className="input"
+              style={{ minHeight: 150, resize: "vertical" }}
+              value={summaryDraft}
+              onChange={(e) => setSummaryDraft(e.target.value)}
+            />
+          </div>
+
+          <div className="flex gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => setSummaryDraft(generateSummaryFromProfile(profile, summaryNotes))}
+            >
+              Regenerate
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                const next = { ...profile, about: summaryDraft || null };
+                setProfile(next);
+                scheduleSave(next);
+                setSummaryModalOpen(false);
+              }}
+            >
+              Accept
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
@@ -1079,9 +1164,11 @@ function EducationSection({
   function add() {
     const next: EducationItem = {
       id: uid("edu"),
+      level: "BACHELOR",
       institution: "",
       degree: "",
       fieldOfStudy: "",
+      awardingBody: null,
       startYear: new Date().getFullYear(),
       endYear: null,
       grade: null,
@@ -1114,6 +1201,12 @@ function EducationSection({
                       <div className="muted" style={{ fontSize: 13 }}>
                         {(it.degree || "(Degree)") + (it.fieldOfStudy ? ` • ${it.fieldOfStudy}` : "")}
                       </div>
+                      {it.level ? (
+                        <div className="muted" style={{ fontSize: 13 }}>
+                          {EDUCATION_LEVEL_OPTIONS.find((x) => x.value === it.level)?.label ?? it.level}
+                          {it.awardingBody ? ` • ${it.awardingBody}` : ""}
+                        </div>
+                      ) : null}
                       <div className="muted" style={{ fontSize: 13 }}>
                         {it.startYear} – {it.endYear ?? "Present"}
                       </div>
@@ -1132,6 +1225,22 @@ function EducationSection({
                 <>
                   <div className="grid grid-2">
                     <div className="field">
+                      <label className="label">Education level</label>
+                      <select
+                        className="input"
+                        value={it.level ?? "BACHELOR"}
+                        onChange={(e) =>
+                          onChange(items.map((x) => (x.id === it.id ? { ...x, level: e.target.value as EducationItem["level"] } : x)))
+                        }
+                      >
+                        {EDUCATION_LEVEL_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="field">
                       <label className="label">Institution</label>
                       <input
                         className="input"
@@ -1148,11 +1257,20 @@ function EducationSection({
                       />
                     </div>
                     <div className="field">
-                      <label className="label">Field of study</label>
+                      <label className="label">Field of study / stream</label>
                       <input
                         className="input"
                         value={it.fieldOfStudy}
                         onChange={(e) => onChange(items.map((x) => (x.id === it.id ? { ...x, fieldOfStudy: e.target.value } : x)))}
+                      />
+                    </div>
+                    <div className="field">
+                      <label className="label">{getEducationBodyLabel(it.level)}</label>
+                      <input
+                        className="input"
+                        value={it.awardingBody ?? ""}
+                        onChange={(e) => onChange(items.map((x) => (x.id === it.id ? { ...x, awardingBody: e.target.value || null } : x)))}
+                        placeholder={it.level === "SCHOOL" ? "CBSE, ICSE, State Board" : "Optional"}
                       />
                     </div>
                     <div className="field">
@@ -1211,9 +1329,11 @@ function EducationSection({
 
 function ExperienceSection({
   items,
+  onImproveAI,
   onChange,
 }: {
   items: ExperienceItem[];
+  onImproveAI: (id: string) => void;
   onChange: (items: ExperienceItem[]) => void;
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -1260,6 +1380,9 @@ function ExperienceSection({
                     {it.summary ? <div className="muted" style={{ fontSize: 13 }}>{it.summary}</div> : null}
                   </div>
                   <div style={{ display: "flex", gap: 8 }}>
+                    <button type="button" className="btn" onClick={() => onImproveAI(it.id)}>
+                      Improve with AI
+                    </button>
                     <button type="button" className="btn" onClick={() => setEditingId(it.id)}>
                       Edit
                     </button>
@@ -1346,9 +1469,11 @@ function ExperienceSection({
 
 function ProjectsSection({
   items,
+  onImproveAI,
   onChange,
 }: {
   items: ProjectItem[];
+  onImproveAI: (id: string) => void;
   onChange: (items: ProjectItem[]) => void;
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -1398,6 +1523,9 @@ function ProjectsSection({
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: 8 }}>
+                    <button type="button" className="btn" onClick={() => onImproveAI(it.id)}>
+                      Improve with AI
+                    </button>
                     <button type="button" className="btn" onClick={() => setEditingId(it.id)}>
                       Edit
                     </button>
@@ -1508,6 +1636,11 @@ function CertificationsSection({
   onChange: (items: CertificationItem[]) => void;
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [verificationMode, setVerificationMode] = useState<Record<string, "URL" | "UPLOAD">>({});
+
+  function getMode(item: CertificationItem) {
+    return verificationMode[item.id] ?? (item.credentialUrl?.startsWith("uploaded:") ? "UPLOAD" : "URL");
+  }
 
   function add() {
     const next: CertificationItem = {
@@ -1544,7 +1677,13 @@ function CertificationsSection({
                     <div className="muted" style={{ fontSize: 13 }}>
                       {(it.issuer || "(Issuer)") + ` • ${it.issuedOn}`}
                     </div>
-                    {it.credentialUrl ? <div className="muted" style={{ fontSize: 13 }}>{it.credentialUrl}</div> : null}
+                    {it.credentialUrl ? (
+                      <div className="muted" style={{ fontSize: 13 }}>
+                        {it.credentialUrl.startsWith("uploaded:")
+                          ? `Uploaded proof: ${it.credentialUrl.replace("uploaded:", "")}`
+                          : it.credentialUrl}
+                      </div>
+                    ) : null}
                   </div>
                   <div style={{ display: "flex", gap: 8 }}>
                     <button type="button" className="btn" onClick={() => setEditingId(it.id)}>
@@ -1594,14 +1733,46 @@ function CertificationsSection({
                       />
                     </div>
                   </div>
-                  <div className="field">
-                    <label className="label">Credential URL</label>
-                    <input
-                      className="input"
-                      value={it.credentialUrl ?? ""}
-                      onChange={(e) => onChange(items.map((x) => (x.id === it.id ? { ...x, credentialUrl: e.target.value || null } : x)))}
-                      placeholder="Optional"
-                    />
+                  <div className="field" style={{ display: "grid", gap: 8 }}>
+                    <label className="label">Verification method</label>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <button
+                        type="button"
+                        className={`btn ${getMode(it) === "URL" ? "btn-primary" : ""}`}
+                        onClick={() => setVerificationMode((prev) => ({ ...prev, [it.id]: "URL" }))}
+                      >
+                        URL
+                      </button>
+                      <button
+                        type="button"
+                        className={`btn ${getMode(it) === "UPLOAD" ? "btn-primary" : ""}`}
+                        onClick={() => setVerificationMode((prev) => ({ ...prev, [it.id]: "UPLOAD" }))}
+                      >
+                        Upload proof
+                      </button>
+                    </div>
+
+                    {getMode(it) === "URL" ? (
+                      <input
+                        className="input"
+                        value={it.credentialUrl?.startsWith("uploaded:") ? "" : it.credentialUrl ?? ""}
+                        onChange={(e) =>
+                          onChange(items.map((x) => (x.id === it.id ? { ...x, credentialUrl: e.target.value || null } : x)))
+                        }
+                        placeholder="https://credential-link"
+                      />
+                    ) : (
+                      <input
+                        className="input"
+                        type="file"
+                        accept=".pdf,.png,.jpg,.jpeg"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          onChange(items.map((x) => (x.id === it.id ? { ...x, credentialUrl: `uploaded:${file.name}` } : x)));
+                        }}
+                      />
+                    )}
                   </div>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                     <button type="button" className="btn btn-primary" onClick={() => setEditingId(null)}>
@@ -1792,9 +1963,9 @@ function LanguagesSection({
                           )
                         }
                       >
-                        <option value="BEGINNER">Beginner</option>
-                        <option value="INTERMEDIATE">Intermediate</option>
-                        <option value="ADVANCED">Advanced</option>
+                        <option value="BEGINNER">Basic</option>
+                        <option value="INTERMEDIATE">Conversational</option>
+                        <option value="ADVANCED">Fluent</option>
                         <option value="NATIVE">Native</option>
                       </select>
                     </div>

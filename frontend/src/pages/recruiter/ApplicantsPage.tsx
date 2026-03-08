@@ -43,8 +43,26 @@ export function RecruiterApplicantsPage() {
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(false);
   const [schedule, setSchedule] = useState<Record<string, string>>({});
+  const [statusFilter, setStatusFilter] = useState<"ALL" | keyof typeof STATUS_BADGE>("ALL");
 
   const jobOptions = useMemo(() => jobs.map((j) => ({ id: j.id, label: `${j.title} (${j.location})` })), [jobs]);
+
+  const pipelineCounts = useMemo(() => {
+    return {
+      ALL: rows.length,
+      APPLIED: rows.filter((r) => r.status === "APPLIED").length,
+      SHORTLISTED: rows.filter((r) => r.status === "SHORTLISTED").length,
+      INTERVIEW_SCHEDULED: rows.filter((r) => r.status === "INTERVIEW_SCHEDULED").length,
+      OFFERED: rows.filter((r) => r.status === "OFFERED").length,
+      REJECTED: rows.filter((r) => r.status === "REJECTED").length,
+      HIRED: rows.filter((r) => r.status === "HIRED").length,
+    };
+  }, [rows]);
+
+  const visibleRows = useMemo(
+    () => (statusFilter === "ALL" ? rows : rows.filter((r) => r.status === statusFilter)),
+    [rows, statusFilter],
+  );
 
   async function loadJobs() {
     if (!token) return;
@@ -136,7 +154,31 @@ export function RecruiterApplicantsPage() {
         <EmptyState title="No applicants yet" description="No one has applied to this position yet." />
       ) : (
         <div className="space-y-3 stagger-list">
-          {rows.map((r) => {
+          <Card className="p-4">
+            <div className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">Pipeline</div>
+            <div className="flex flex-wrap gap-2">
+              {([
+                "ALL",
+                "APPLIED",
+                "SHORTLISTED",
+                "INTERVIEW_SCHEDULED",
+                "OFFERED",
+                "HIRED",
+                "REJECTED",
+              ] as const).map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  className={`btn ${statusFilter === k ? "btn-primary" : ""}`}
+                  onClick={() => setStatusFilter(k)}
+                >
+                  {k === "ALL" ? "All" : (STATUS_BADGE[k]?.label ?? k)} ({pipelineCounts[k]})
+                </button>
+              ))}
+            </div>
+          </Card>
+
+          {visibleRows.map((r) => {
             const sb = STATUS_BADGE[r.status] ?? { variant: "blue" as const, label: r.status };
             return (
               <Card key={r.applicationId} className="p-5">
@@ -192,6 +234,9 @@ export function RecruiterApplicantsPage() {
               </Card>
             );
           })}
+          {visibleRows.length === 0 ? (
+            <EmptyState title="No applicants in this stage" description="Pick a different pipeline stage to review candidates." />
+          ) : null}
         </div>
       )}
     </div>

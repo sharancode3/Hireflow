@@ -6,6 +6,7 @@ export type User = {
   id: string;
   email: string;
   role: UserRole;
+  recruiterApprovalStatus?: "PENDING" | "APPROVED";
 };
 
 export type Job = {
@@ -20,14 +21,20 @@ export type Job = {
   minExperienceYears: number;
   description: string;
   openToFreshers: boolean;
+  reviewStatus?: "PENDING_REVIEW" | "APPROVED" | "REJECTED" | "NEEDS_REVISION";
+  adminFeedback?: string | null;
+  reviewedAt?: string | null;
+  applicationDeadline?: string | null;
   createdAt: string;
 };
 
 export type EducationItem = {
   id: string;
+  level?: "SCHOOL" | "DIPLOMA" | "BACHELOR" | "MASTER" | "PHD" | "OTHER";
   institution: string;
   degree: string;
   fieldOfStudy: string;
+  awardingBody?: string | null;
   startYear: number;
   endYear: number | null;
   grade: string | null;
@@ -79,7 +86,7 @@ export type ResumeDensity = "COMPACT" | "NORMAL" | "SPACIOUS";
 
 export type ResumeAccent = "ACCENT" | "NEUTRAL" | "MUTED";
 
-export type ResumeFont = "Inter" | "Roboto" | "Georgia" | "Merriweather" | "Calibri";
+export type ResumeFont = "Inter" | "Roboto" | "Georgia" | "Merriweather" | "Calibri" | "Times New Roman";
 
 export type ResumePageMargin = "NARROW" | "NORMAL" | "WIDE";
 
@@ -110,7 +117,8 @@ export type ResumeSettings = {
 
   /* Extended settings (Phase 3) */
   fontFamily?: ResumeFont;
-  fontSize?: 10 | 11 | 12;
+  fontSize?: 10 | 11 | 12 | 13;
+  lineSpacing?: "1" | "1.15" | "1.5";
   pageMargin?: ResumePageMargin;
   accentColor?: string;
   dateFormat?: ResumeDateFormat;

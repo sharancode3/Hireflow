@@ -82,7 +82,7 @@ authRouter.post("/auth/register", async (req, res, next) => {
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
-  role: z.enum(["JOB_SEEKER", "RECRUITER"]),
+  role: z.enum(["JOB_SEEKER", "RECRUITER"]).optional(),
 });
 
 authRouter.post("/auth/login", async (req, res, next) => {
@@ -99,7 +99,7 @@ authRouter.post("/auth/login", async (req, res, next) => {
       throw new HttpError(401, "Invalid credentials");
     }
 
-    if (user.role !== body.role) {
+    if (body.role && user.role !== body.role) {
       throw new HttpError(403, "Selected role does not match this account");
     }
 

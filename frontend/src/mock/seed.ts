@@ -125,14 +125,15 @@ export function createSeedDb(): MockDb {
   for (let i = 1; i <= RECRUITER_COUNT; i++) {
     const userId = id("usr_r", i);
     const recruiterId = id("rec", i);
-    const companyName = companyNames[i - 1] ?? `Talvion Partner ${i}`;
+    const companyName = companyNames[i - 1] ?? `Hireflow Partner ${i}`;
     const location = pick(locations, i * 3);
 
     users.push({
       id: userId,
-      email: `recruiter${i}@talvion.demo`,
+      email: `recruiter${i}@hireflow.demo`,
       password: "Password123!",
       role: "RECRUITER",
+      recruiterApprovalStatus: "APPROVED",
       createdAt: nowIso(),
     });
 
@@ -160,7 +161,7 @@ export function createSeedDb(): MockDb {
 
     users.push({
       id: userId,
-      email: `seeker${i}@talvion.demo`,
+      email: `seeker${i}@hireflow.demo`,
       password: "Password123!",
       role: "JOB_SEEKER",
       createdAt: nowIso(),

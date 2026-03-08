@@ -145,10 +145,21 @@ function RadialGauge({ value, max, label, unit, color }: { value: number; max: n
 /* ── Main Page ── */
 export function RecruiterOverviewPage() {
   const { token } = useAuth();
+  const GUIDE_KEY = "hireflow_rec_guide_dismissed";
+  const LEGACY_GUIDE_KEY = "talvion_rec_guide_dismissed";
   const [overview, setOverview] = useState<Overview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showGuide, setShowGuide] = useState(
-    () => localStorage.getItem("talvion_rec_guide_dismissed") !== "1",
+    () => {
+      const current = localStorage.getItem(GUIDE_KEY);
+      if (current) return current !== "1";
+      const legacy = localStorage.getItem(LEGACY_GUIDE_KEY);
+      if (legacy) {
+        localStorage.setItem(GUIDE_KEY, legacy);
+        return legacy !== "1";
+      }
+      return true;
+    },
   );
 
   useEffect(() => {
@@ -197,7 +208,7 @@ export function RecruiterOverviewPage() {
                 ))}
               </ol>
             </div>
-            <Button variant="ghost" className="text-xs shrink-0" onClick={() => { localStorage.setItem("talvion_rec_guide_dismissed", "1"); setShowGuide(false); }}>Dismiss</Button>
+            <Button variant="ghost" className="text-xs shrink-0" onClick={() => { localStorage.setItem(GUIDE_KEY, "1"); localStorage.removeItem(LEGACY_GUIDE_KEY); setShowGuide(false); }}>Dismiss</Button>
           </div>
         </Card>
       )}

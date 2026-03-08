@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { apiJson, ApiError } from "../../api/client";
 import { useAuth } from "../../auth/AuthContext";
@@ -10,6 +10,29 @@ import { Badge } from "../../components/ui/Badge";
 function splitSkills(input: string) {
   return input.split(",").map((s) => s.trim()).filter(Boolean);
 }
+
+const ROLE_PRESETS = [
+  {
+    label: "Frontend Engineer",
+    role: "Frontend Developer",
+    title: "Frontend Engineer",
+    skills: "React, TypeScript, CSS, Testing",
+  },
+  {
+    label: "Backend Engineer",
+    role: "Backend Developer",
+    title: "Backend Engineer",
+    skills: "Node.js, Express, SQL, REST APIs",
+  },
+  {
+    label: "Product Designer",
+    role: "UI/UX Designer",
+    title: "Product Designer",
+    skills: "Figma, UX Research, Wireframing, Prototyping",
+  },
+] as const;
+
+const DRAFT_KEY = "hireflow_recruiter_post_job_draft";
 
 export function RecruiterPostJobPage() {
   const { token } = useAuth();
@@ -26,6 +49,75 @@ export function RecruiterPostJobPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [createdJob, setCreatedJob] = useState<Job | null>(null);
+
+  useEffect(() => {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw) as Partial<{
+        title: string;
+        location: string;
+        role: string;
+        skills: string;
+        description: string;
+        openToFreshers: boolean;
+        jobType: JobType;
+        minExperienceYears: number;
+      }>;
+      setTitle(parsed.title ?? "");
+      setLocation(parsed.location ?? "");
+      setRole(parsed.role ?? "");
+      setSkills(parsed.skills ?? "");
+      setDescription(parsed.description ?? "");
+      setOpenToFreshers(parsed.openToFreshers ?? false);
+      setJobType(parsed.jobType ?? "FULL_TIME");
+      setMinExperienceYears(parsed.minExperienceYears ?? 0);
+    } catch {
+      localStorage.removeItem(DRAFT_KEY);
+    }
+  }, []);
+
+  const parsedSkills = useMemo(() => splitSkills(skills), [skills]);
+  const checklist = useMemo(
+    () => [
+      { ok: title.trim().length >= 4, label: "Role title is specific" },
+      { ok: location.trim().length >= 2, label: "Location added" },
+      { ok: role.trim().length >= 2, label: "Role category selected" },
+      { ok: parsedSkills.length >= 4, label: "At least 4 required skills" },
+      { ok: description.trim().length >= 60, label: "Job description is detailed" },
+    ],
+    [description, location, parsedSkills.length, role, title],
+  );
+
+  const readyToPost = checklist.every((x) => x.ok);
+
+  function saveDraft() {
+    localStorage.setItem(
+      DRAFT_KEY,
+      JSON.stringify({
+        title,
+        location,
+        role,
+        skills,
+        description,
+        openToFreshers,
+        jobType,
+        minExperienceYears,
+      }),
+    );
+  }
+
+  function clearDraft() {
+    localStorage.removeItem(DRAFT_KEY);
+  }
+
+  function applyPreset(index: number) {
+    const preset = ROLE_PRESETS[index];
+    if (!preset) return;
+    setTitle(preset.title);
+    setRole(preset.role);
+    setSkills(preset.skills);
+  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -44,6 +136,7 @@ export function RecruiterPostJobPage() {
         },
       });
       setCreatedJob(data.job);
+      clearDraft();
       setTitle(""); setLocation(""); setRole(""); setSkills("");
       setDescription(""); setOpenToFreshers(false);
       setJobType("FULL_TIME"); setMinExperienceYears(0);
@@ -62,8 +155,19 @@ export function RecruiterPostJobPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-[var(--text)]">Post a Job</h1>
-        <p className="mt-1 text-sm text-[var(--muted)]">Create a new opening and start receiving applications.</p>
+        <p className="mt-1 text-sm text-[var(--muted)]">Create an opening, save drafts, and publish when quality checks are met.</p>
       </div>
+
+      <Card className="p-5">
+        <div className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">Role presets</div>
+        <div className="flex flex-wrap gap-2">
+          {ROLE_PRESETS.map((preset, idx) => (
+            <button key={preset.label} type="button" className="btn" onClick={() => applyPreset(idx)}>
+              Use {preset.label}
+            </button>
+          ))}
+        </div>
+      </Card>
 
       {error && <Card className="border-[var(--danger)]/30 p-4 text-sm text-[var(--danger)]">{error}</Card>}
 
@@ -97,6 +201,7 @@ export function RecruiterPostJobPage() {
             <div>
               <label className={labelCls}>Required Skills</label>
               <input className={inputCls} value={skills} onChange={(e) => setSkills(e.target.value)} required placeholder="React, TypeScript, Node.js" />
+              <div className="mt-1 text-[11px] text-[var(--muted)]">Tip: add comma-separated must-have skills.</div>
             </div>
             <div>
               <label className={labelCls}>Job Type</label>
@@ -122,6 +227,7 @@ export function RecruiterPostJobPage() {
               required
               placeholder="Describe the role, responsibilities, and what you're looking for..."
             />
+            <div className="mt-1 text-[11px] text-[var(--muted)]">{description.trim().length} characters</div>
           </div>
 
           <label className="flex items-center gap-2 cursor-pointer w-fit">
@@ -129,9 +235,26 @@ export function RecruiterPostJobPage() {
             <span className="text-sm text-[var(--text-secondary)]">Open to Freshers</span>
           </label>
 
-          <Button variant="primary" type="submit" loading={busy}>
-            {busy ? "Posting..." : "Post Job"}
-          </Button>
+          <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-end">
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] p-3">
+              <div className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">Publishing Checklist</div>
+              <div className="grid gap-1">
+                {checklist.map((item) => (
+                  <div key={item.label} className="text-xs" style={{ color: item.ok ? "#22c55e" : "var(--text-secondary)" }}>
+                    {item.ok ? "OK" : "TODO"} - {item.label}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button variant="ghost" type="button" onClick={saveDraft}>Save Draft</Button>
+              <Button variant="secondary" type="button" onClick={clearDraft}>Clear Draft</Button>
+              <Button variant="primary" type="submit" loading={busy} disabled={!readyToPost && !busy}>
+                {busy ? "Posting..." : "Post Job"}
+              </Button>
+            </div>
+          </div>
         </Card>
       </form>
     </div>

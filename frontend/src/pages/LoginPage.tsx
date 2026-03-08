@@ -1,31 +1,91 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import type { FormEvent } from "react";
-import { useNavigate, useSearchParams, Link } from "react-router-dom";
-import { apiJson, ApiError } from "../api/client";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { ApiError, apiJson } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
-import type { User, UserRole } from "../types";
+import type { User } from "../types";
 import { Logo } from "../components/Logo";
-import { FloatingInput } from "../components/ui/FloatingInput";
+
+function IconMail() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <rect x="2" y="3" width="12" height="10" rx="2" />
+      <path d="M3 5l5 4 5-4" />
+    </svg>
+  );
+}
+
+function IconLock() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <rect x="3" y="7" width="10" height="7" rx="2" />
+      <path d="M5.5 7V5.5a2.5 2.5 0 115 0V7" />
+    </svg>
+  );
+}
+
+function IconGoogle() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+      <path fill="#FBBC05" d="M10.53 28.59a14.5 14.5 0 010-9.18l-7.98-6.19a24.03 24.03 0 000 21.56l7.98-6.19z"/>
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+    </svg>
+  );
+}
+
+function RecruiterPlusIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.7">
+      <path d="M6 2v8M2 6h8" />
+    </svg>
+  );
+}
+
+function FeatureIcon({ color, path }: { color: string; path: string }) {
+  return (
+    <span className="flex h-9 w-9 items-center justify-center rounded-full" style={{ color, background: `${color}1A` }}>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <path d={path} />
+      </svg>
+    </span>
+  );
+}
+
+const featureCards = [
+  {
+    title: "Verified Opportunities",
+    description: "Every job listing is reviewed before going live.",
+    color: "#22C55E",
+    iconPath: "M12 3l7 4v5c0 5-3.5 8.5-7 9-3.5-.5-7-4-7-9V7l7-4zm-3 9l2 2 4-4",
+  },
+  {
+    title: "AI-Powered Matching",
+    description: "Your profile gets matched to roles that actually fit.",
+    color: "#1A73E8",
+    iconPath: "M13 2L4 14h6l-1 8 9-12h-6l1-8z",
+  },
+  {
+    title: "Track Everything",
+    description: "Applications, interviews and offers in one place.",
+    color: "#A855F7",
+    iconPath: "M12 7v5l3 3M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+  },
+] as const;
 
 export function LoginPage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const { login } = useAuth();
 
-  const preRole = (params.get("role") as UserRole | null) ?? null;
   const next = params.get("next") ?? "";
 
-  const [role, setRole] = useState<UserRole>(preRole ?? "JOB_SEEKER");
-  const [email, setEmail] = useState<string>("");
-  const [password, setPassword] = useState<string>("");
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-
-  const destination = useMemo(() => {
-    if (next) return next;
-    return role === "JOB_SEEKER" ? "/job-seeker" : "/recruiter";
-  }, [next, role]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -35,191 +95,131 @@ export function LoginPage() {
     try {
       const data = await apiJson<{ token: string; user: User }>("/auth/login", {
         method: "POST",
-        body: { email, password, role },
+        body: { email, password },
       });
       login({ token: data.token, user: data.user });
-      navigate(destination, { replace: true });
+      navigate(next || "/", { replace: true });
     } catch (err) {
       if (err instanceof ApiError) setError(err.message);
-      else setError("Login failed");
+      else setError("Sign in failed");
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div className="min-h-screen bg-bg text-text">
-      <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[3fr_2fr]">
-        {/* ═══ LEFT PANEL ═══ */}
-        <aside className="relative hidden overflow-hidden border-r border-border lg:flex lg:flex-col lg:justify-between" style={{ background: "#060913" }}>
-          <div className="p-12 space-y-8">
-            {/* Logo — forced white */}
-            <div className="flex items-center gap-2">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-sm font-bold text-white">T</span>
-              <span className="text-base font-semibold tracking-tight text-white">Talvion</span>
-            </div>
-
-            {/* Badge */}
-            <span className="inline-block rounded-full bg-[#22D3EE]/15 px-4 py-1.5 text-xs font-semibold text-[#22D3EE]">
-              where Talent meets Vision
-            </span>
-
-            {/* Heading */}
-            <h1 className="text-[38px] font-extrabold leading-tight tracking-tight text-white" style={{ fontFamily: "'Sora', 'Inter', system-ui, sans-serif" }}>
-              Your career,<br />at your pace.
-            </h1>
-
-            {/* Subtext */}
-            <p className="text-[15px] leading-relaxed" style={{ color: "#94A3B8" }}>
-              Build a profile you're proud of. Match with roles that fit. Apply fast.
-            </p>
-
-            {/* Feature list */}
-            <div className="space-y-3 pt-2">
-              {[
-                { icon: "🎯", text: "Role-separated workspaces" },
-                { icon: "📄", text: "ATS-ready resume builder" },
-                { icon: "📊", text: "Live talent trends" },
-              ].map((f) => (
-                <div key={f.text} className="flex items-center gap-3">
-                  <span className="text-lg">{f.icon}</span>
-                  <span className="text-sm text-white/80">{f.text}</span>
-                </div>
-              ))}
+    <div className="auth-split-page text-text">
+      <div className="auth-split-layout">
+        <aside className="auth-left-panel">
+          <div className="login-left-orb" />
+          <div className="relative z-10">
+            <Logo />
+            <div className="mt-14 space-y-6">
+              <span className="inline-flex rounded-full border border-[#1A73E8]/40 bg-[#1A73E8]/10 px-4 py-1.5 text-xs font-semibold text-[#8AB4F8]">
+                Smart hiring, flowing smoothly
+              </span>
+              <h1 className="text-5xl font-extrabold tracking-tight text-white">Connect talent to opportunity.</h1>
+              <p className="max-w-md text-base text-[#A6ACBA]">
+                Hireflow helps candidates and hiring teams move faster, with cleaner workflows and better decisions.
+              </p>
             </div>
           </div>
 
-          {/* Bottom mock card */}
-          <div className="px-12 pb-12">
-            <div className="rounded-xl border border-white/8 p-5" style={{ background: "#0F1728", maxWidth: 280 }}>
-              <div className="space-y-3">
-                {[
-                  { dot: "#4F8EF7", label: "Applied", detail: "Product Analyst at Zenith" },
-                  { dot: "#F59E0B", label: "Interview", detail: "UI/UX Designer at BlueWave" },
-                  { dot: "#22C55E", label: "Offer", detail: "Frontend Dev at Nexora" },
-                ].map((row) => (
-                  <div key={row.label} className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-full shrink-0" style={{ background: row.dot }} />
-                      <span className="text-xs font-medium text-white/70">{row.label}</span>
-                    </div>
-                    <span className="text-[11px] text-white/40 text-right">{row.detail}</span>
-                  </div>
-                ))}
+          <div className="relative z-10 mt-10 space-y-3">
+            {featureCards.map((item, idx) => (
+              <div
+                key={item.title}
+                className="login-feature-card"
+                style={{ animationDelay: `${idx * 100}ms` }}
+              >
+                <FeatureIcon color={item.color} path={item.iconPath} />
+                <div>
+                  <div className="text-sm font-semibold text-white">{item.title}</div>
+                  <div className="text-xs text-[#9AA3B5]">{item.description}</div>
+                </div>
               </div>
-              {/* Progress bar */}
-              <div className="mt-4 h-1.5 w-full rounded-full bg-white/5 overflow-hidden">
-                <div className="h-full rounded-full" style={{ width: "65%", background: "linear-gradient(90deg, #22D3EE, #4F8EF7)" }} />
-              </div>
-            </div>
-            <p className="mt-3 text-xs" style={{ color: "#64748B" }}>Track every application in one place.</p>
+            ))}
           </div>
         </aside>
 
-        {/* ═══ RIGHT PANEL ═══ */}
-        <section className="flex items-center justify-center px-4 py-10 lg:px-10">
-          <div className="w-full max-w-md space-y-6 rounded-3xl border border-border bg-surface p-8 shadow-soft">
-            <div className="lg:hidden">
+        <section className="auth-right-panel">
+          <div className="auth-form-card login-form-card">
+            <div className="mb-3 flex justify-end">
+              <Link to="/recruiter/register" className="login-recruiter-entry">
+                <RecruiterPlusIcon />
+                Recruiter Access
+              </Link>
+            </div>
+
+            <div className="mb-8 flex justify-center">
               <Logo />
             </div>
-            <div className="space-y-2">
-              <h2 className="text-2xl font-semibold">Sign in</h2>
-              <p className="text-sm text-text-secondary">Select your role, then enter your credentials.</p>
+
+            <div className="mb-6 text-center">
+              <h2 className="text-3xl font-bold text-white">Welcome back</h2>
+              <p className="mt-2 text-sm text-text-secondary">Sign in to continue to Hireflow</p>
             </div>
 
-            {error ? (
-              <div className="rounded-xl border border-danger/60 bg-danger/10 px-4 py-3 text-sm text-danger animate-shake">
-                {error}
-              </div>
-            ) : null}
-
-            {/* Role selector — accent-styled */}
-            <div className="space-y-3">
-              <span className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted">Role</span>
-              <div className="flex gap-3">
-                {(["JOB_SEEKER", "RECRUITER"] as const).map((r) => (
-                  <button
-                    key={r}
-                    type="button"
-                    onClick={() => setRole(r)}
-                    className="flex-1 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-150"
-                    style={role === r
-                      ? { background: "rgba(34,211,238,0.1)", border: "1.5px solid #22D3EE", color: "#22D3EE" }
-                      : { background: "transparent", border: "1px solid rgba(255,255,255,0.1)", color: "#94a3b8" }
-                    }
-                  >
-                    {r === "JOB_SEEKER" ? "Job Seeker" : "Recruiter"}
-                  </button>
-                ))}
-              </div>
-            </div>
+            {error ? <div className="mb-4 rounded-lg border border-danger/60 bg-danger/10 px-4 py-3 text-sm text-danger">{error}</div> : null}
 
             <form onSubmit={onSubmit} className="space-y-4">
-              <FloatingInput
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoComplete="email"
-                label="Email address"
-                className="bg-[#f8fafc] text-[#111827]"
-              />
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">Email address</span>
+                <span className="flex h-11 items-center gap-2 rounded-lg border border-border bg-[#1A1A26] px-3 focus-within:border-[#1A73E8] focus-within:shadow-[0_0_0_3px_rgba(26,115,232,0.15)]">
+                  <span className="text-text-muted"><IconMail /></span>
+                  <input
+                    type="email"
+                    required
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="h-full w-full border-0 bg-transparent text-sm text-text outline-none"
+                    placeholder="you@example.com"
+                  />
+                </span>
+              </label>
 
-              <FloatingInput
-                id="password"
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                autoComplete="current-password"
-                label="Password"
-                className="bg-[#f8fafc] text-[#111827]"
-                rightSlot={
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((v) => !v)}
-                    className="text-xs text-text-secondary hover:text-text"
-                  >
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">Password</span>
+                <span className="flex h-11 items-center gap-2 rounded-lg border border-border bg-[#1A1A26] px-3 focus-within:border-[#1A73E8] focus-within:shadow-[0_0_0_3px_rgba(26,115,232,0.15)]">
+                  <span className="text-text-muted"><IconLock /></span>
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    required
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="h-full w-full border-0 bg-transparent text-sm text-text outline-none"
+                    placeholder="Enter your password"
+                  />
+                  <button type="button" onClick={() => setShowPassword((v) => !v)} className="text-xs text-text-secondary hover:text-text">
                     {showPassword ? "Hide" : "Show"}
                   </button>
-                }
-              />
+                </span>
+              </label>
 
-              {/* Cyan accent Sign In button */}
-              <button
-                type="submit"
-                disabled={busy}
-                className="btn-base w-full relative overflow-hidden font-semibold shadow-soft hover:shadow-lift transition-all duration-200"
-                style={{ background: "linear-gradient(90deg, #22D3EE, #6366F1)", color: "#0B1530", borderRadius: "0.75rem" }}
-              >
-                {busy ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#0B1530]/35 border-t-[#0B1530]" /> : "Sign in"}
+              <button type="submit" disabled={busy} className="btn-primary h-11 w-full rounded-lg font-semibold text-white">
+                {busy ? "Signing in..." : "Sign in"}
               </button>
             </form>
 
-            <div className="grid gap-3">
-              {/* Google button with icon */}
-              <button
-                type="button"
-                className="btn-base w-full flex items-center justify-center gap-2 border border-border bg-transparent text-text hover:bg-surface-raised transition"
-                style={{ borderRadius: "0.75rem" }}
-              >
-                <svg width="18" height="18" viewBox="0 0 48 48">
-                  <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-                  <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-                  <path fill="#FBBC05" d="M10.53 28.59a14.5 14.5 0 0 1 0-9.18l-7.98-6.19a24.03 24.03 0 0 0 0 21.56l7.98-6.19z"/>
-                  <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-                </svg>
-                Continue with Google
-              </button>
-              <div className="flex items-center justify-between text-sm text-text-secondary">
-                <Link to={`/register?role=${role}`} className="hover:text-text">
-                  New here? Create account
-                </Link>
-                <Link to="/forgot-password" className="hover:text-text">
-                  Forgot password?
-                </Link>
-              </div>
+            <div className="my-5 flex items-center gap-3 text-xs text-text-muted">
+              <div className="h-px flex-1 bg-border" />
+              <span>OR</span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+
+            <button
+              type="button"
+              className="btn-base h-11 w-full justify-center gap-2 rounded-lg border border-border bg-[#1A1A26] text-sm text-white hover:border-[#1A73E8]"
+            >
+              <IconGoogle />
+              Continue with Google
+            </button>
+
+            <div className="mt-6 flex items-center justify-between text-sm text-text-secondary">
+              <Link to="/register" className="hover:text-white">New to Hireflow? Create an account</Link>
+              <Link to="/forgot-password" className="hover:text-white">Forgot password?</Link>
             </div>
           </div>
         </section>

@@ -34,6 +34,7 @@ function rand8() {
   const pw = "Password123!";
   const seekerEmail = `seeker_${rand}@example.com`;
   const recruiterEmail = `recruiter_${rand}@example.com`;
+  const adminEmail = (process.env.ADMIN_EMAILS || "admin@hireflow.local").split(",")[0]?.trim() || "admin@hireflow.local";
 
   const seeker = await j("/auth/register", {
     method: "POST",
@@ -50,6 +51,27 @@ function rand8() {
     },
   });
 
+  let admin;
+  try {
+    admin = await j("/auth/register", {
+      method: "POST",
+      body: {
+        email: adminEmail,
+        password: pw,
+        role: "RECRUITER",
+        recruiter: { companyName: "Admin Company" },
+      },
+    });
+  } catch {
+    admin = await j("/auth/login", {
+      method: "POST",
+      body: {
+        email: adminEmail,
+        password: pw,
+      },
+    });
+  }
+
   const job = await j("/recruiter/jobs", {
     method: "POST",
     token: recruiter.token,
@@ -64,6 +86,21 @@ function rand8() {
   });
 
   const jobs = await j("/jobs", { method: "GET", token: seeker.token });
+  const preApprovalVisible = jobs.jobs.some((x) => x.id === job.job.id);
+
+  await j("/admin/job-review", {
+    method: "GET",
+    token: admin.token,
+  });
+
+  await j(`/admin/job-review/${job.job.id}`, {
+    method: "PATCH",
+    token: admin.token,
+    body: { action: "APPROVE" },
+  });
+
+  const jobsAfterApprove = await j("/jobs", { method: "GET", token: seeker.token });
+  const postApprovalVisible = jobsAfterApprove.jobs.some((x) => x.id === job.job.id);
 
   const application = await j("/job-seeker/applications", {
     method: "POST",
@@ -90,8 +127,11 @@ function rand8() {
         ok: true,
         seekerEmail,
         recruiterEmail,
+        adminEmail,
         jobId: job.job.id,
         jobCount: jobs.jobs.length,
+        preApprovalVisible,
+        postApprovalVisible,
         applicantCount: applicants.applicants.length,
         notifCount: notifications.notifications.length,
       },

@@ -3,15 +3,29 @@ import { Outlet } from "react-router-dom";
 import { AppTopBar } from "./AppTopBar";
 import { AppSidebar } from "./AppSidebar";
 import { CommandPalette } from "./CommandPalette";
+import { HireflowAIAssistant } from "./HireflowAIAssistant";
+import { MobileBottomNav } from "./MobileBottomNav";
 
 export function AppLayout() {
   const [mobileNav, setMobileNav] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => localStorage.getItem("hireflow_sidebar_collapsed") === "1");
   const toggleMobileNav = useCallback(() => setMobileNav((v) => !v), []);
   const closeMobileNav = useCallback(() => setMobileNav(false), []);
+  const toggleDesktopSidebar = useCallback(() => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem("hireflow_sidebar_collapsed", next ? "1" : "0");
+      return next;
+    });
+  }, []);
 
   return (
     <div className="page-shell">
-      <AppTopBar onMenuToggle={toggleMobileNav} />
+      <AppTopBar
+        onMenuToggle={toggleMobileNav}
+        onSidebarToggle={toggleDesktopSidebar}
+        sidebarCollapsed={sidebarCollapsed}
+      />
       <CommandPalette />
 
       {/* Mobile sidebar overlay */}
@@ -31,13 +45,15 @@ export function AppLayout() {
       )}
 
       <div className="flex">
-        <AppSidebar />
-        <main className="flex-1 px-4 py-6 lg:px-8">
-          <div className="mx-auto max-w-[1100px] animate-fade-in-up">
+        <AppSidebar collapsed={sidebarCollapsed} />
+        <main className="flex-1 px-4 py-6 pb-24 transition-all duration-300 ease-in-out lg:px-8 lg:pb-6">
+          <div className="mx-auto max-w-[1100px] animate-page-enter">
             <Outlet />
           </div>
         </main>
       </div>
+      <MobileBottomNav />
+      <HireflowAIAssistant />
     </div>
   );
 }

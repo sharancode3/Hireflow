@@ -30,6 +30,9 @@ export async function apiJson<T>(path: string, options: ApiOptions = {}): Promis
     if (path === "/auth/register" && method === "POST") {
       return mockApi.auth.register(body) as any;
     }
+    if (path === "/auth/recruiter/register" && method === "POST") {
+      return mockApi.auth.registerRecruiter(body) as any;
+    }
     if (path === "/auth/me" && method === "GET") {
       return mockApi.auth.me(token ?? "") as any;
     }
@@ -46,6 +49,9 @@ export async function apiJson<T>(path: string, options: ApiOptions = {}): Promis
     if (path.startsWith("/notifications/") && path.endsWith("/read") && method === "POST") {
       const id = path.split("/")[2];
       return mockApi.notifications.markRead(token ?? "", id) as any;
+    }
+    if (path === "/notifications/read-all" && method === "POST") {
+      return mockApi.notifications.markAllRead(token ?? "") as any;
     }
 
     // Job seeker

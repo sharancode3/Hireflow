@@ -14,7 +14,7 @@ export function Logo({
     <NavLink
       to={to}
       className="flex items-center gap-2"
-      aria-label="Talvion Home"
+      aria-label="Hireflow Home"
       data-has-image={hasImage ? "true" : "false"}
       data-variant={variant}
     >
@@ -22,7 +22,7 @@ export function Logo({
         <img
           className="h-9 w-9 rounded-xl border border-border bg-surface"
           src="/vite.svg"
-          alt="Talvion"
+          alt="Hireflow"
           loading="eager"
           decoding="async"
           onError={() => setHasImage(false)}
@@ -30,7 +30,7 @@ export function Logo({
       ) : (
         <span className="h-9 w-9 rounded-xl border border-border bg-surface" aria-hidden="true" />
       )}
-      {variant === "full" ? <span className="text-base font-semibold tracking-tight">Talvion</span> : null}
+      {variant === "full" ? <span className="text-base font-semibold tracking-tight">Hireflow</span> : null}
     </NavLink>
   );
 }

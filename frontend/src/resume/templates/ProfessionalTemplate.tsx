@@ -27,20 +27,20 @@ export function ProfessionalTemplate(props: { profile: JobSeekerProfile; setting
       }
       data-template="PROFESSIONAL"
     >
-      <aside className="resumeSide">
+      <aside className="resumeSide" style={{ background: "#1A1A2E", color: "#F8FAFC", margin: "-22px 0 -22px -22px", padding: "22px 16px 22px 16px", borderRight: "none" }}>
         <div className="resumeName" style={{ fontSize: 20 }}>{p.fullName || "Your Name"}</div>
-        <div className="resumeMeta">{[p.headline, p.desiredRole].filter(Boolean).join(" • ")}</div>
-        <div className="resumeMeta">{[p.location, p.phone].filter(Boolean).join(" • ")}</div>
+        <div className="resumeMeta" style={{ color: "#CBD5E1" }}>{[p.headline, p.desiredRole].filter(Boolean).join(" • ")}</div>
+        <div className="resumeMeta" style={{ color: "#94A3B8" }}>{[p.location, p.phone].filter(Boolean).join(" • ")}</div>
 
         {sections.includes("SKILLS") && p.skills?.length ? (
           <section className="resumeSection" style={{ marginTop: 14 }}>
-            <h3 className="resumeH3">Skills</h3>
+            <h3 className="resumeH3" style={{ color: "#E2E8F0" }}>Skills</h3>
             <div className="resumeStack">
               {p.skills.slice(0, 14).map((sk) => (
                 <div key={sk} className="resumeSkillRow">
                   <div className="resumeRow" style={{ gap: 10 }}>
-                    <div className="resumeStrong">{sk}</div>
-                    <div className="resumeMuted" style={{ fontSize: 12 }}>
+                    <div className="resumeStrong" style={{ color: "#F8FAFC" }}>{sk}</div>
+                    <div className="resumeMuted" style={{ fontSize: 12, color: "#CBD5E1" }}>
                       {p.skillLevels?.[sk] ? `${p.skillLevels[sk]}/5` : "—"}
                     </div>
                   </div>
@@ -57,10 +57,10 @@ export function ProfessionalTemplate(props: { profile: JobSeekerProfile; setting
 
         {sections.includes("LANGUAGES") && p.languages?.length ? (
           <section className="resumeSection" style={{ marginTop: 14 }}>
-            <h3 className="resumeH3">Languages</h3>
+            <h3 className="resumeH3" style={{ color: "#E2E8F0" }}>Languages</h3>
             <div className="resumeChips">
               {p.languages.slice(0, 6).map((l) => (
-                <span key={l.id} className="resumeChip">
+                <span key={l.id} className="resumeChip" style={{ background: "rgba(248,250,252,0.08)", color: "#E2E8F0", borderColor: "rgba(248,250,252,0.2)" }}>
                   {l.name} ({l.proficiency})
                 </span>
               ))}
@@ -70,12 +70,12 @@ export function ProfessionalTemplate(props: { profile: JobSeekerProfile; setting
 
         {sections.includes("CERTIFICATIONS") && p.certifications?.length ? (
           <section className="resumeSection" style={{ marginTop: 14 }}>
-            <h3 className="resumeH3">Certifications</h3>
+            <h3 className="resumeH3" style={{ color: "#E2E8F0" }}>Certifications</h3>
             <ul className="resumeList">
               {p.certifications.slice(0, 6).map((c) => (
                 <li key={c.id}>
-                  <span className="resumeStrong">{c.name}</span>
-                  <div className="resumeMuted">{c.issuer}</div>
+                  <span className="resumeStrong" style={{ color: "#F8FAFC" }}>{c.name}</span>
+                  <div className="resumeMuted" style={{ color: "#CBD5E1" }}>{c.issuer}</div>
                 </li>
               ))}
             </ul>
@@ -83,7 +83,7 @@ export function ProfessionalTemplate(props: { profile: JobSeekerProfile; setting
         ) : null}
       </aside>
 
-      <main className="resumeMain">
+      <main className="resumeMain" style={{ background: "#ffffff" }}>
         {sections.includes("SUMMARY") && p.about ? (
           <section className="resumeSection">
             <h3 className="resumeH3">Summary</h3>

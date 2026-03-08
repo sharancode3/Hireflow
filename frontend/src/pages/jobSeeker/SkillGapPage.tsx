@@ -19,12 +19,25 @@ const LEARNING_TIME: Record<string, number> = {
 
 export function SkillGapPage() {
   const { token } = useAuth();
+  const LEARNING_KEY = "hireflow_learning";
+  const LEGACY_LEARNING_KEY = "talvion_learning";
   const [profile, setProfile] = useState<JobSeekerProfile | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [targetRole, setTargetRole] = useState("");
   const [learning, setLearning] = useState<Set<string>>(() => {
-    try { return new Set(JSON.parse(localStorage.getItem("talvion_learning") ?? "[]")); } catch { return new Set(); }
+    try {
+      const current = localStorage.getItem(LEARNING_KEY);
+      if (current) return new Set(JSON.parse(current));
+      const legacy = localStorage.getItem(LEGACY_LEARNING_KEY);
+      if (legacy) {
+        localStorage.setItem(LEARNING_KEY, legacy);
+        return new Set(JSON.parse(legacy));
+      }
+      return new Set();
+    } catch {
+      return new Set();
+    }
   });
   const [addSkillModal, setAddSkillModal] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
@@ -75,7 +88,8 @@ export function SkillGapPage() {
     setLearning((prev) => {
       const next = new Set(prev);
       if (next.has(skill)) next.delete(skill); else next.add(skill);
-      localStorage.setItem("talvion_learning", JSON.stringify([...next]));
+      localStorage.setItem(LEARNING_KEY, JSON.stringify([...next]));
+      localStorage.removeItem(LEGACY_LEARNING_KEY);
       return next;
     });
   }, []);
