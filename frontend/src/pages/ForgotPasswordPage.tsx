@@ -23,10 +23,14 @@ export function ForgotPasswordPage() {
     const base = import.meta.env.BASE_URL || "/";
     const prefix = base === "/" ? "" : base.replace(/\/$/, "");
     const configuredAppUrl = String(import.meta.env.VITE_PUBLIC_APP_URL || "").trim();
+    const pathForSpa = "reset-password";
+
+    // Use `/?/path` format so static hosts (e.g. GitHub Pages) can restore SPA routes.
+    const suffix = `${prefix}/?/${pathForSpa}`;
     if (configuredAppUrl) {
-      return `${configuredAppUrl.replace(/\/$/, "")}${prefix}/reset-password`;
+      return `${configuredAppUrl.replace(/\/$/, "")}${suffix}`;
     }
-    return `${window.location.origin}${prefix}/reset-password`;
+    return `${window.location.origin}${suffix}`;
   }
 
   async function onSubmit(e: FormEvent) {
