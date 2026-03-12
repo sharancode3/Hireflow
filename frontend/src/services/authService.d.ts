@@ -14,6 +14,7 @@ export type AuthSession = {
 
 export function signInWithEmail(email: string, password: string): Promise<AuthSession>;
 export function signUpWithEmail(email: string, password: string, metadata?: SignUpMetadata): Promise<AuthSession>;
+export function resendVerificationEmail(email: string): Promise<void>;
 export function signOut(): Promise<void>;
 export function getCurrentUser(): Promise<User | null>;
 export function onAuthStateChange(callback: (user: User | null) => void): () => void;

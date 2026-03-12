@@ -41,6 +41,7 @@ const RecruiterCommunityModerationPageLazy = lazy(async () => {
 import { LoginPage } from "./pages/LoginPage";
 import { RecruiterLoginPage } from "./pages/RecruiterLoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
+import { VerifyEmailPage } from "./pages/VerifyEmailPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
@@ -90,6 +91,7 @@ export default function App() {
           <Route path="/recruiter/login" element={<RecruiterLoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/recruiter/register" element={<RecruiterRegisterPage />} />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         </Route>
       </Route>

@@ -218,7 +218,7 @@ export function RecruiterRegisterPage() {
           submittedAt: new Date().toISOString(),
         }),
       );
-      navigate("/recruiter/pending", { replace: true });
+      navigate(`/verify-email?email=${encodeURIComponent(email.trim().toLowerCase())}`, { replace: true });
     } catch (err) {
       if (err instanceof Error) setError(err.message);
       else setError("Unable to submit recruiter registration.");

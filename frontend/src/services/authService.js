@@ -4,6 +4,9 @@ import { supabase } from "../lib/supabaseClient";
 function toAuthMessage(error, fallback) {
   const message = String(error?.message || "").trim();
   if (!message) return fallback;
+  if (/failed to fetch|networkerror|network request failed/i.test(message)) {
+    return "Network error. Please check your connection and try again.";
+  }
   if (/invalid login credentials/i.test(message)) return "Incorrect email or password. Please try again.";
   if (/email not confirmed/i.test(message)) return "Please verify your email before signing in.";
   if (/already registered/i.test(message)) return "Email already registered.";
@@ -155,33 +158,43 @@ export async function signUpWithEmail(email, password, metadata = {}) {
   }
 
   const authUser = data.user;
-  const session = data.session;
   if (!authUser) {
     throw new Error("Signup succeeded but user is missing. Please try login.");
   }
 
-  // Email confirmation enabled: user exists but no active session yet.
-  // Avoid profile writes here because anon/RLS may reject unauthenticated upserts.
-  if (!session?.access_token) {
-    return {
-      token: "",
-      user: {
-        id: authUser.id,
-        email: authUser.email,
-        role: requestedRole,
-        isAdmin: isAdminEmail(authUser.email),
-        recruiterApprovalStatus: requestedRole === "RECRUITER" ? "PENDING" : undefined,
-      },
-    };
+  // Professional flow: always require email confirmation before login/profile writes.
+  // Even if a session is returned (project setting differs), clear it to avoid partial onboarding states.
+  if (data.session?.access_token) {
+    await supabase.auth.signOut();
   }
 
-  await ensureProfile(authUser, metadata);
-  await recordLoginEvent(authUser.id);
+  return {
+    token: "",
+    user: {
+      id: authUser.id,
+      email: authUser.email,
+      role: requestedRole,
+      isAdmin: isAdminEmail(authUser.email),
+      recruiterApprovalStatus: requestedRole === "RECRUITER" ? "PENDING" : undefined,
+    },
+  };
+}
 
-  const user = await mapSessionUser(authUser);
-  if (!user) throw new Error("Unable to load user profile.");
+export async function resendVerificationEmail(email) {
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+  if (!normalizedEmail) throw new Error("Please enter your email address.");
 
-  return { token: session?.access_token || "", user };
+  const { error } = await supabase.auth.resend({
+    type: "signup",
+    email: normalizedEmail,
+    options: {
+      emailRedirectTo: getEmailRedirectUrl("login?verified=1"),
+    },
+  });
+
+  if (error) {
+    throw new Error(toAuthMessage(error, "Unable to resend verification email right now."));
+  }
 }
 
 export async function signOut() {

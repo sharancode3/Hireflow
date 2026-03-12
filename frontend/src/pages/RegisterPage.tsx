@@ -170,7 +170,7 @@ export function RegisterPage() {
       });
 
       if (!result.token) {
-        navigate("/login?verify=1", { replace: true });
+        navigate(`/verify-email?email=${encodeURIComponent(email.trim().toLowerCase())}`, { replace: true });
         return;
       }
 
@@ -180,7 +180,7 @@ export function RegisterPage() {
         navigate("/job-seeker/dashboard", { replace: true });
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unable to create account.";
+      const message = err instanceof Error ? err.message : "Unable to create account right now.";
       setError(message);
     } finally {
       setBusy(false);

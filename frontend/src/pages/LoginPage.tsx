@@ -75,8 +75,8 @@ export function LoginPage() {
     try {
       await signInWithEmail(email, password);
       navigate(next || "/", { replace: true });
-    } catch {
-      setError("Incorrect email or password. Please try again.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to sign in right now.");
     } finally {
       setBusy(false);
     }
