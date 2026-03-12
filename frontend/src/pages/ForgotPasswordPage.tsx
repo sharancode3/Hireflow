@@ -24,13 +24,14 @@ export function ForgotPasswordPage() {
     const base = import.meta.env.BASE_URL || "/";
     const prefix = base === "/" ? "" : base.replace(/\/$/, "");
     const pathForSpa = "reset-password";
+    const lowerAppUrl = config.publicAppUrl.toLowerCase();
+    const lowerPrefix = prefix.toLowerCase();
+    const appBase = config.publicAppUrl
+      ? (prefix && lowerAppUrl.endsWith(lowerPrefix) ? config.publicAppUrl : `${config.publicAppUrl}${prefix}`)
+      : `${window.location.origin}${prefix}`;
 
     // Use `/?/path` format so static hosts (e.g. GitHub Pages) can restore SPA routes.
-    const suffix = `${prefix}/?/${pathForSpa}`;
-    if (config.publicAppUrl) {
-      return `${config.publicAppUrl}${suffix}`;
-    }
-    return `${window.location.origin}${suffix}`;
+    return `${appBase}/?/${pathForSpa}`;
   }
 
   async function onSubmit(e: FormEvent) {

@@ -19,9 +19,14 @@ function getEmailRedirectUrl(path = "") {
   const normalizedPath = String(path || "").replace(/^\/+/, "");
   const base = import.meta.env.BASE_URL || "/";
   const prefix = base === "/" ? "" : base.replace(/\/$/, "");
-  if (!normalizedPath) return `${config.publicAppUrl}${prefix}`;
+  const lowerAppUrl = config.publicAppUrl.toLowerCase();
+  const lowerPrefix = prefix.toLowerCase();
+  const appBase = prefix && lowerAppUrl.endsWith(lowerPrefix)
+    ? config.publicAppUrl
+    : `${config.publicAppUrl}${prefix}`;
+  if (!normalizedPath) return appBase;
   // Use /?/path for static hosts (GitHub Pages) so SPA route restore works.
-  return `${config.publicAppUrl}${prefix}/?/${normalizedPath}`;
+  return `${appBase}/?/${normalizedPath}`;
 }
 
 async function ensureProfile(user, metadata = {}) {
