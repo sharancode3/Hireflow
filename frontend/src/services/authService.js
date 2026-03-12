@@ -1,5 +1,5 @@
 import { config } from "../config";
-import { supabase } from "../lib/supabaseClient";
+import { isSupabaseConfigured, supabase } from "../lib/supabaseClient";
 
 function toAuthMessage(error, fallback) {
   const message = String(error?.message || "").trim();
@@ -15,6 +15,11 @@ function toAuthMessage(error, fallback) {
 
 function isAdminEmail(email) {
   return config.adminEmails.includes(String(email || "").trim().toLowerCase());
+}
+
+function requireSupabaseConfig() {
+  if (isSupabaseConfigured) return;
+  throw new Error("Authentication is temporarily unavailable. Deployment is missing Supabase configuration.");
 }
 
 function getEmailRedirectUrl(path = "") {
@@ -104,6 +109,7 @@ async function mapSessionUser(authUser) {
 }
 
 export async function signInWithEmail(email, password) {
+  requireSupabaseConfig();
   const normalizedEmail = String(email || "").trim().toLowerCase();
 
   const { data, error } = await supabase.auth.signInWithPassword({
@@ -136,6 +142,7 @@ export async function signInWithEmail(email, password) {
 }
 
 export async function signUpWithEmail(email, password, metadata = {}) {
+  requireSupabaseConfig();
   const normalizedEmail = String(email || "").trim().toLowerCase();
   const requestedRole = metadata.role === "RECRUITER" ? "RECRUITER" : "JOB_SEEKER";
 
@@ -181,6 +188,7 @@ export async function signUpWithEmail(email, password, metadata = {}) {
 }
 
 export async function resendVerificationEmail(email) {
+  requireSupabaseConfig();
   const normalizedEmail = String(email || "").trim().toLowerCase();
   if (!normalizedEmail) throw new Error("Please enter your email address.");
 
@@ -198,11 +206,13 @@ export async function resendVerificationEmail(email) {
 }
 
 export async function signOut() {
+  requireSupabaseConfig();
   const { error } = await supabase.auth.signOut();
   if (error) throw new Error(toAuthMessage(error, "Unable to sign out right now."));
 }
 
 export async function getCurrentUser() {
+  requireSupabaseConfig();
   const { data, error } = await supabase.auth.getUser();
   if (error) return null;
   return mapSessionUser(data.user);
@@ -237,6 +247,7 @@ export function onAuthStateChange(callback) {
 }
 
 export async function getCurrentSession() {
+  requireSupabaseConfig();
   const { data } = await supabase.auth.getSession();
   const user = data.session?.user ? await mapSessionUser(data.session.user) : null;
   return {
