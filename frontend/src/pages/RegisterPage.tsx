@@ -8,6 +8,7 @@ import { getPhoneCountryByCode } from "../data/phoneCountries";
 import { countDigits } from "../utils/phone";
 import { savePendingRegistration } from "../auth/pendingRegistration";
 import { signUpWithEmail } from "../services/authService";
+import type { UserRole } from "../types";
 
 function MailIcon() {
   return (
@@ -84,6 +85,7 @@ export function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [role, setRole] = useState<UserRole>("JOB_SEEKER");
 
   const [fullName, setFullName] = useState("");
   const [countryCode, setCountryCode] = useState("+91");
@@ -150,6 +152,11 @@ export function RegisterPage() {
   async function onContinue(e: FormEvent) {
     e.preventDefault();
     if (!validateStep1()) return;
+
+    if (role === "RECRUITER") {
+      navigate("/recruiter/register", { replace: true });
+      return;
+    }
 
     setBusy(true);
     setError(null);
@@ -242,6 +249,26 @@ export function RegisterPage() {
             {step === 1 ? (
               <form onSubmit={onContinue} className="mt-5 space-y-4">
                 <label className="auth-field-block">
+                  <span className="auth-label">I AM A...</span>
+                  <div className="auth-role-toggle">
+                    <button
+                      type="button"
+                      className={role === "JOB_SEEKER" ? "active" : ""}
+                      onClick={() => setRole("JOB_SEEKER")}
+                    >
+                      Job Seeker
+                    </button>
+                    <button
+                      type="button"
+                      className={role === "RECRUITER" ? "active" : ""}
+                      onClick={() => setRole("RECRUITER")}
+                    >
+                      Recruiter
+                    </button>
+                  </div>
+                </label>
+
+                <label className="auth-field-block">
                   <span className="auth-label">EMAIL ADDRESS</span>
                   <span className="auth-input-shell">
                     <span className="auth-input-icon" aria-hidden="true"><MailIcon /></span>
@@ -293,7 +320,7 @@ export function RegisterPage() {
                 </label>
 
                 <button type="submit" disabled={busy} className="auth-submit-btn">
-                  {busy ? <span className="auth-spinner" aria-label="Creating account" /> : "Continue"}
+                  {busy ? <span className="auth-spinner" aria-label="Creating account" /> : role === "RECRUITER" ? "Continue as Recruiter" : "Continue"}
                 </button>
 
                 <div className="text-center text-sm text-text-secondary">
