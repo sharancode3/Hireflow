@@ -14,6 +14,16 @@ function isAdminEmail(email) {
   return config.adminEmails.includes(String(email || "").trim().toLowerCase());
 }
 
+function getEmailRedirectUrl(path = "") {
+  if (!config.publicAppUrl) return undefined;
+  const normalizedPath = String(path || "").replace(/^\/+/, "");
+  const base = import.meta.env.BASE_URL || "/";
+  const prefix = base === "/" ? "" : base.replace(/\/$/, "");
+  if (!normalizedPath) return `${config.publicAppUrl}${prefix}`;
+  // Use /?/path for static hosts (GitHub Pages) so SPA route restore works.
+  return `${config.publicAppUrl}${prefix}/?/${normalizedPath}`;
+}
+
 async function ensureProfile(user, metadata = {}) {
   const role = metadata.role === "RECRUITER" ? "RECRUITER" : "JOB_SEEKER";
 
@@ -119,14 +129,16 @@ export async function signInWithEmail(email, password) {
 
 export async function signUpWithEmail(email, password, metadata = {}) {
   const normalizedEmail = String(email || "").trim().toLowerCase();
+  const requestedRole = metadata.role === "RECRUITER" ? "RECRUITER" : "JOB_SEEKER";
 
   const { data, error } = await supabase.auth.signUp({
     email: normalizedEmail,
     password,
     options: {
+      emailRedirectTo: getEmailRedirectUrl("login?verified=1"),
       data: {
         full_name: metadata.fullName || "",
-        role: metadata.role === "RECRUITER" ? "RECRUITER" : "JOB_SEEKER",
+        role: requestedRole,
         phone: metadata.phone || null,
         company_name: metadata.companyName || null,
       },
@@ -141,6 +153,21 @@ export async function signUpWithEmail(email, password, metadata = {}) {
   const session = data.session;
   if (!authUser) {
     throw new Error("Signup succeeded but user is missing. Please try login.");
+  }
+
+  // Email confirmation enabled: user exists but no active session yet.
+  // Avoid profile writes here because anon/RLS may reject unauthenticated upserts.
+  if (!session?.access_token) {
+    return {
+      token: "",
+      user: {
+        id: authUser.id,
+        email: authUser.email,
+        role: requestedRole,
+        isAdmin: isAdminEmail(authUser.email),
+        recruiterApprovalStatus: requestedRole === "RECRUITER" ? "PENDING" : undefined,
+      },
+    };
   }
 
   await ensureProfile(authUser, metadata);

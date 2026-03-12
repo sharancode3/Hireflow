@@ -58,6 +58,8 @@ export function LoginPage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const next = params.get("next") ?? "";
+  const verify = params.get("verify") === "1";
+  const verified = params.get("verified") === "1";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -122,6 +124,18 @@ export function LoginPage() {
               <h2 className="auth-card-title">Welcome back</h2>
               <p className="auth-card-subtitle">Sign in to continue to Hireflow</p>
             </div>
+
+            {verify ? (
+              <div className="card mb-5" style={{ padding: 12 }} role="status">
+                Account created. Please check your email and confirm your address before signing in.
+              </div>
+            ) : null}
+
+            {verified ? (
+              <div className="card mb-5" style={{ padding: 12 }} role="status">
+                Email verified successfully. You can sign in now.
+              </div>
+            ) : null}
 
             {error ? (
               <div className="auth-error-banner mb-5" role="alert">

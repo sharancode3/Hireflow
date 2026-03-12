@@ -15,8 +15,20 @@ function resolveApiBaseUrl() {
   return envUrl;
 }
 
+function resolvePublicAppUrl() {
+  const configured = (import.meta.env.VITE_PUBLIC_APP_URL || "").trim();
+  if (configured) return configured.replace(/\/$/, "");
+
+  if (typeof window !== "undefined") {
+    return `${window.location.origin}${(import.meta.env.BASE_URL || "/").replace(/\/$/, "")}`;
+  }
+
+  return "";
+}
+
 export const config = {
   apiBaseUrl: resolveApiBaseUrl(),
+  publicAppUrl: resolvePublicAppUrl(),
   adminEmails: (import.meta.env.VITE_ADMIN_EMAILS || "Sharan18x@gmail.com")
     .split(",")
     .map((item: string) => item.trim().toLowerCase())

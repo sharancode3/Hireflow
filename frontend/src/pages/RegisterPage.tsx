@@ -162,12 +162,17 @@ export function RegisterPage() {
     setBusy(true);
     setError(null);
     try {
-      await signUpWithEmail(email, password, {
+      const result = await signUpWithEmail(email, password, {
         // TODO: supabase.auth.signUp({ email, password, options: { data: { full_name, role, phone } } })
         fullName,
         role,
         phone: `${countryCode} ${phone}`,
       });
+
+      if (!result.token) {
+        navigate("/login?verify=1", { replace: true });
+        return;
+      }
 
       if (role === "RECRUITER") {
         navigate("/recruiter/pending", { replace: true });
