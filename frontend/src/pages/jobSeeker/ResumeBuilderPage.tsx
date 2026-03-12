@@ -5,7 +5,7 @@ import { Badge } from "../../components/ui/Badge";
 import { Modal } from "../../components/ui/Modal";
 import { ResumePreview } from "../../resume/ResumePreview";
 import { templateCatalog, defaultResumeSettings, SECTION_LABELS } from "../../resume/catalog";
-import { apiJson } from "../../api/client";
+import { ApiError, apiJson } from "../../api/client";
 import { useAuth } from "../../auth/AuthContext";
 import type {
   GeneratedResume,
@@ -211,15 +211,17 @@ function SectionControl({
         {densityOptions.map(d => (
           <button
             key={d}
+            type="button"
             onClick={() => onDensityChange(d)}
             className={`px-1.5 py-0.5 text-[10px] transition-colors ${density === d ? "bg-[var(--accent)] text-white" : "text-[var(--muted)] hover:bg-[var(--surface-raised)]"}`}
             title={d}
+            aria-label={`Set ${SECTION_LABELS[sectionKey]} density to ${d.toLowerCase()}`}
           >
             {d === "COMPACT" ? "C" : d === "NORMAL" ? "N" : "S"}
           </button>
         ))}
       </div>
-      <button onClick={onToggle} className="text-[var(--text-secondary)] hover:text-[var(--text)] transition-colors" title={hidden ? "Show" : "Hide"}>
+      <button type="button" onClick={onToggle} className="text-[var(--text-secondary)] hover:text-[var(--text)] transition-colors" title={hidden ? "Show" : "Hide"} aria-label={`${hidden ? "Show" : "Hide"} ${SECTION_LABELS[sectionKey]} section`}>
         <IconEye off={hidden} />
       </button>
     </div>
@@ -251,10 +253,12 @@ function ColorPicker({ label, value, onChange }: { label: string; value: string;
       <div className="flex flex-wrap gap-1.5">
         {presets.map(c => (
           <button
-            key={c}
+              key={c}
+              type="button"
             onClick={() => onChange(c)}
             className={`h-6 w-6 rounded-full border-2 transition-transform hover:scale-110 ${c === value ? "border-white scale-110" : "border-transparent"}`}
             style={{ background: c }}
+              aria-label={`Set accent color ${c}`}
           />
         ))}
         <label className="flex h-6 w-6 items-center justify-center rounded-full border border-[var(--border)] cursor-pointer text-xs text-[var(--muted)]" title="Custom color">
@@ -279,9 +283,11 @@ function AtsScoreBadge({ score, breakdown }: { score: number; breakdown: { label
   return (
     <div className="relative">
       <button
+        type="button"
         onMouseEnter={() => setShowTip(true)}
         onMouseLeave={() => setShowTip(false)}
         className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 transition-colors hover:border-[var(--border-active)]"
+        aria-label="Show ATS score breakdown"
       >
         <svg width="52" height="52" viewBox="0 0 52 52">
           <circle cx="26" cy="26" r={r} fill="none" stroke="var(--border)" strokeWidth="4" />
@@ -321,6 +327,9 @@ export function ResumeBuilderPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [deletingVersionId, setDeletingVersionId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
   /* Resume settings */
   const [template, setTemplate] = useState<ResumeTemplate>("ATS_PLAIN");
@@ -397,8 +406,10 @@ export function ResumeBuilderPage() {
 
   /* ─── Save / Create version ────────────────────────── */
   async function saveVersion(nameOverride?: string) {
-    if (!token || !profile) return;
+    if (!token || !profile || saving || downloading || deletingVersionId) return false;
     setSaving(true);
+    setActionError(null);
+    setActionSuccess(null);
     try {
       const snap = snapshotFromProfile(profile);
       const finalTitle = (nameOverride ?? title).trim() || "Untitled Resume";
@@ -415,38 +426,56 @@ export function ResumeBuilderPage() {
       });
       setVersions(prev => [res.generatedResume, ...prev]);
       setActiveVersionId(res.generatedResume.id);
+      setActionSuccess("Resume version saved.");
+      return true;
     } catch (err) {
-      console.error(err);
+      if (err instanceof ApiError) setActionError(err.message || "Failed to save resume version.");
+      else setActionError("Failed to save resume version.");
+      return false;
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   }
 
   async function deleteVersion(id: string) {
-    if (!token) return;
-    await apiJson(`/job-seeker/generated-resumes/${id}`, { method: "DELETE", token });
-    setVersions(prev => prev.filter(v => v.id !== id));
-    if (activeVersionId === id) {
-      const remaining = versions.filter(v => v.id !== id);
-      if (remaining.length > 0) activateVersion(remaining[0]);
-      else {
-        setActiveVersionId(null);
-        setTemplate("ATS_PLAIN");
-        setSettings(defaultResumeSettings());
-        setTitle("My Resume");
-        setTags([]);
+    if (!token || saving || downloading) return;
+    setDeletingVersionId(id);
+    setActionError(null);
+    setActionSuccess(null);
+    try {
+      await apiJson(`/job-seeker/generated-resumes/${id}`, { method: "DELETE", token });
+      setVersions(prev => prev.filter(v => v.id !== id));
+      if (activeVersionId === id) {
+        const remaining = versions.filter(v => v.id !== id);
+        if (remaining.length > 0) activateVersion(remaining[0]);
+        else {
+          setActiveVersionId(null);
+          setTemplate("ATS_PLAIN");
+          setSettings(defaultResumeSettings());
+          setTitle("My Resume");
+          setTags([]);
+        }
       }
+      setDeleteConfirmId(null);
+      setActionSuccess("Resume version deleted.");
+    } catch (err) {
+      if (err instanceof ApiError) setActionError(err.message || "Failed to delete resume version.");
+      else setActionError("Failed to delete resume version.");
+    } finally {
+      setDeletingVersionId(null);
     }
-    setDeleteConfirmId(null);
   }
 
   /* ─── PDF download ─────────────────────────────────── */
   async function handleDownload() {
-    if (!profile) return;
+    if (!profile || downloading || saving || !!deletingVersionId) return;
     setDownloading(true);
+    setActionError(null);
+    setActionSuccess(null);
     try {
       const { downloadGeneratedResumePdf } = await import("../../utils/generatedResumePdf");
       const snap = snapshotFromProfile(profile);
-      const fakeResume: GeneratedResume = {
+      const previewResume: GeneratedResume = {
         id: "download",
         userId: profile.userId,
         template,
@@ -456,11 +485,13 @@ export function ResumeBuilderPage() {
         settings,
         tags,
       };
-      await downloadGeneratedResumePdf(fakeResume);
-    } catch (err) {
-      console.error("PDF generation failed", err);
+      await downloadGeneratedResumePdf(previewResume);
+      setActionSuccess("Download started.");
+    } catch {
+      setActionError("PDF generation failed. Please try again.");
+    } finally {
+      setDownloading(false);
     }
-    setDownloading(false);
   }
 
   /* ─── Computed ─────────────────────────────────────── */
@@ -530,6 +561,13 @@ export function ResumeBuilderPage() {
           </div>
         </div>
 
+        {actionError ? (
+          <Card className="mb-4 border-danger/40 bg-danger/10 p-3 text-sm text-danger">{actionError}</Card>
+        ) : null}
+        {actionSuccess ? (
+          <Card className="mb-4 border-[var(--color-success)]/40 bg-[var(--color-success)]/10 p-3 text-sm text-[var(--color-success)]">{actionSuccess}</Card>
+        ) : null}
+
         {/* ── Three-panel layout ────────────────────── */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-[260px_1fr] lg:grid-cols-[260px_1fr_1fr]">
 
@@ -538,6 +576,7 @@ export function ResumeBuilderPage() {
             <div className="border-b border-[var(--border)] px-4 py-3 flex items-center justify-between">
               <span className="text-sm font-semibold text-[var(--text)]">Versions</span>
               <button
+                type="button"
                 onClick={() => { setNewVersionTitle(""); setShowNewVersionModal(true); }}
                 className="flex items-center gap-1 rounded-md bg-[var(--accent)]/10 px-2 py-1 text-xs font-medium text-[var(--accent)] hover:bg-[var(--accent)]/20 transition-colors"
               >
@@ -557,7 +596,8 @@ export function ResumeBuilderPage() {
                 const meta = templateCatalog.find(t => t.id === v.template);
                 return (
                   <button
-                    key={v.id}
+                      key={v.id}
+                      type="button"
                     onClick={() => activateVersion(v)}
                     className={`w-full text-left rounded-lg border p-3 transition-all duration-150 group ${isActive ? "border-[var(--accent)] bg-[var(--accent)]/5" : "border-transparent hover:border-[var(--border)] hover:bg-[var(--surface)]"}`}
                   >
@@ -577,8 +617,8 @@ export function ResumeBuilderPage() {
                     <div className="mt-1.5 flex items-center justify-between">
                       <span className="text-[10px] text-[var(--muted)]">{formatDate(v.createdAt)}</span>
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={(e) => { e.stopPropagation(); /* duplicate logic */ setNewVersionTitle(v.title + " (copy)"); setShowNewVersionModal(true); }} className="text-[var(--muted)] hover:text-[var(--text)] p-0.5" title="Duplicate"><IconCopy /></button>
-                        <button onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(v.id); }} className="text-[var(--muted)] hover:text-[var(--danger)] p-0.5" title="Delete"><IconTrash /></button>
+                        <button type="button" aria-label={`Duplicate version ${v.title}`} onClick={(e) => { e.stopPropagation(); /* duplicate logic */ setNewVersionTitle(v.title + " (copy)"); setShowNewVersionModal(true); }} className="text-[var(--muted)] hover:text-[var(--text)] p-0.5" title="Duplicate"><IconCopy /></button>
+                        <button type="button" aria-label={`Delete version ${v.title}`} onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(v.id); }} className="text-[var(--muted)] hover:text-[var(--danger)] p-0.5" title="Delete"><IconTrash /></button>
                       </div>
                     </div>
                   </button>
@@ -591,6 +631,7 @@ export function ResumeBuilderPage() {
                 variant="primary"
                 className="w-full text-sm"
                 loading={saving}
+                disabled={downloading || !!deletingVersionId}
                 onClick={() => {
                   setNewVersionTitle(title || "My Resume");
                   setShowNewVersionModal(true);
@@ -608,6 +649,7 @@ export function ResumeBuilderPage() {
               {(["templates", "sections", "settings"] as const).map(t => (
                 <button
                   key={t}
+                  type="button"
                   onClick={() => setTab(t)}
                   className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors capitalize ${tab === t ? "bg-[var(--accent)]/10 text-[var(--accent)]" : "text-[var(--muted)] hover:text-[var(--text)]"}`}
                 >
@@ -638,7 +680,7 @@ export function ResumeBuilderPage() {
                       {tags.map(t => (
                         <span key={t} className="flex items-center gap-1 rounded-full bg-[var(--accent)]/10 px-2 py-0.5 text-xs text-[var(--accent)]">
                           {t}
-                          <button onClick={() => setTags(prev => prev.filter(x => x !== t))} className="hover:text-[var(--danger)]">&times;</button>
+                          <button type="button" aria-label={`Remove tag ${t}`} onClick={() => setTags(prev => prev.filter(x => x !== t))} className="hover:text-[var(--danger)]">&times;</button>
                         </span>
                       ))}
                       <input
@@ -699,6 +741,7 @@ export function ResumeBuilderPage() {
                   {/* Add custom section */}
                   {!settings.sectionOrder.includes("CUSTOM") && (
                     <button
+                      type="button"
                       onClick={() => updateSetting("sectionOrder", [...settings.sectionOrder, "CUSTOM"])}
                       className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-[var(--border)] py-2.5 text-xs text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors"
                     >
@@ -849,13 +892,17 @@ export function ResumeBuilderPage() {
               </div>
               <div className="flex items-center gap-2">
                 <button
+                  type="button"
                   onClick={() => setPreviewScale(Math.max(0.3, previewScale - 0.05))}
                   className="rounded px-1.5 py-0.5 text-xs text-[var(--muted)] hover:bg-[var(--surface-raised)]"
+                  aria-label="Zoom out preview"
                 >−</button>
                 <span className="text-xs text-[var(--muted)] w-10 text-center">{Math.round(previewScale * 100)}%</span>
                 <button
+                  type="button"
                   onClick={() => setPreviewScale(Math.min(1, previewScale + 0.05))}
                   className="rounded px-1.5 py-0.5 text-xs text-[var(--muted)] hover:bg-[var(--surface-raised)]"
+                  aria-label="Zoom in preview"
                 >+</button>
               </div>
             </div>
@@ -903,21 +950,31 @@ export function ResumeBuilderPage() {
               placeholder="e.g. Frontend Developer Resume"
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
-                  void saveVersion(newVersionTitle);
-                  setTitle(newVersionTitle.trim() || "Untitled Resume");
-                  setShowNewVersionModal(false);
+                  void (async () => {
+                    const ok = await saveVersion(newVersionTitle);
+                    if (ok) {
+                      setTitle(newVersionTitle.trim() || "Untitled Resume");
+                      setShowNewVersionModal(false);
+                    }
+                  })();
                 }
               }}
             />
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setShowNewVersionModal(false)}>Cancel</Button>
+            <Button variant="ghost" disabled={saving} onClick={() => setShowNewVersionModal(false)}>Cancel</Button>
             <Button
               variant="primary"
+              loading={saving}
+              disabled={downloading || !!deletingVersionId}
               onClick={() => {
-                void saveVersion(newVersionTitle);
-                setTitle(newVersionTitle.trim() || "Untitled Resume");
-                setShowNewVersionModal(false);
+                void (async () => {
+                  const ok = await saveVersion(newVersionTitle);
+                  if (ok) {
+                    setTitle(newVersionTitle.trim() || "Untitled Resume");
+                    setShowNewVersionModal(false);
+                  }
+                })();
               }}
             >
               Save
@@ -931,8 +988,8 @@ export function ResumeBuilderPage() {
         <h2 className="text-lg font-semibold text-[var(--text)] mb-2">Delete Version?</h2>
         <p className="text-sm text-[var(--muted)] mb-6">This action cannot be undone. The resume version will be permanently removed.</p>
         <div className="flex justify-end gap-2">
-          <Button variant="ghost" onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
-          <Button variant="danger" onClick={() => deleteConfirmId && deleteVersion(deleteConfirmId)}>Delete</Button>
+          <Button variant="ghost" disabled={!!deletingVersionId} onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
+          <Button variant="danger" loading={!!deletingVersionId} onClick={() => deleteConfirmId && void deleteVersion(deleteConfirmId)}>Delete</Button>
         </div>
       </Modal>
 
@@ -953,7 +1010,7 @@ export function ResumeBuilderPage() {
                 <Button variant="primary" loading={downloading} onClick={handleDownload}>
                   <IconDownload /> Download PDF
                 </Button>
-                <button onClick={() => setShowFullPreview(false)} className="text-[var(--muted)] hover:text-[var(--text)] text-xl leading-none">&times;</button>
+                <button type="button" aria-label="Close full preview" onClick={() => setShowFullPreview(false)} className="text-[var(--muted)] hover:text-[var(--text)] text-xl leading-none">&times;</button>
               </div>
             </div>
             <div

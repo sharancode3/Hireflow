@@ -75,3 +75,32 @@ Use the included examples:
 
 Copy them to actual `.env` files and fill values for your environment.
 
+## Real-Time External Jobs Integration
+
+Hireflow now supports external real-time jobs ingestion with a hybrid data model:
+
+- PostgreSQL/SQLite via Prisma for core app entities (users, profiles, applications, notifications)
+- MongoDB for high-volume external jobs aggregation (`external_jobs` collection)
+
+### Required Backend Environment Variables
+
+```env
+MONGODB_URI=...
+MONGODB_DB_NAME=hireflow
+JSEARCH_API_KEY=...
+ADZUNA_APP_ID=...
+ADZUNA_APP_KEY=...
+SERPAPI_KEY=...
+```
+
+### New Public API Endpoints
+
+- `GET /external-jobs`
+- `GET /external-jobs/:id`
+- `GET /external-jobs/meta/stats`
+
+### Scheduler
+
+- Full external fetch cycle every 6 hours
+- Expired jobs cleanup every hour
+

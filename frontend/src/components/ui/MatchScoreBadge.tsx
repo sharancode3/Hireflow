@@ -19,6 +19,8 @@ export function MatchScoreBadge({ breakdown }: { breakdown: MatchBreakdown }) {
         onClick={() => setShowTip(!showTip)}
         style={{ width: 48, height: 48 }}
         aria-label={`Match score ${score}%`}
+        aria-expanded={showTip}
+        aria-haspopup="dialog"
       >
         <svg width="48" height="48" viewBox="0 0 48 48">
           <circle cx="24" cy="24" r={r} fill="none" stroke="var(--border)" strokeWidth="3" />
@@ -37,7 +39,7 @@ export function MatchScoreBadge({ breakdown }: { breakdown: MatchBreakdown }) {
 
       {showTip && (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setShowTip(false)} />
+          <button type="button" aria-label="Close match breakdown" className="fixed inset-0 z-40" onClick={() => setShowTip(false)} />
           <div className="absolute top-full mt-2 z-50 w-72 rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] p-4 shadow-lift animate-fade-in text-left">
             <div className="text-xs font-semibold text-[var(--text)] mb-3">Match Breakdown</div>
             <div className="space-y-2 text-xs">

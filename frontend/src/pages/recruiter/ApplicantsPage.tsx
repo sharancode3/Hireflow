@@ -44,6 +44,7 @@ export function RecruiterApplicantsPage() {
   const [loading, setLoading] = useState(false);
   const [schedule, setSchedule] = useState<Record<string, string>>({});
   const [statusFilter, setStatusFilter] = useState<"ALL" | keyof typeof STATUS_BADGE>("ALL");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const jobOptions = useMemo(() => jobs.map((j) => ({ id: j.id, label: `${j.title} (${j.location})` })), [jobs]);
 
@@ -63,6 +64,10 @@ export function RecruiterApplicantsPage() {
     () => (statusFilter === "ALL" ? rows : rows.filter((r) => r.status === statusFilter)),
     [rows, statusFilter],
   );
+
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [selectedJobId, statusFilter, rows.length]);
 
   async function loadJobs() {
     if (!token) return;
@@ -108,6 +113,15 @@ export function RecruiterApplicantsPage() {
       if (e instanceof ApiError) setError(e.message);
       else setError("Failed to update status");
     } finally { setBusy(false); }
+  }
+
+  async function bulkUpdate(status: string) {
+    if (!selectedIds.length) return;
+    for (const id of selectedIds) {
+      // Sequential updates keep UX state deterministic with mock API latency.
+      await updateStatus(id, status);
+    }
+    setSelectedIds([]);
   }
 
   const inputCls = "h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--text)] outline-none focus:border-[var(--accent)] transition-colors";
@@ -169,12 +183,45 @@ export function RecruiterApplicantsPage() {
                 <button
                   key={k}
                   type="button"
+                  aria-pressed={statusFilter === k}
                   className={`btn ${statusFilter === k ? "btn-primary" : ""}`}
                   onClick={() => setStatusFilter(k)}
                 >
                   {k === "ALL" ? "All" : (STATUS_BADGE[k]?.label ?? k)} ({pipelineCounts[k]})
                 </button>
               ))}
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setSelectedIds(visibleRows.map((r) => r.applicationId))}
+              >
+                Select All ({visibleRows.length})
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setSelectedIds([])}
+              >
+                Clear Selection
+              </button>
+              <Button
+                variant="secondary"
+                className="text-xs"
+                disabled={busy || selectedIds.length === 0}
+                onClick={() => void bulkUpdate("SHORTLISTED")}
+              >
+                Bulk Shortlist ({selectedIds.length})
+              </Button>
+              <Button
+                variant="danger"
+                className="text-xs"
+                disabled={busy || selectedIds.length === 0}
+                onClick={() => void bulkUpdate("REJECTED")}
+              >
+                Bulk Reject ({selectedIds.length})
+              </Button>
             </div>
           </Card>
 
@@ -186,6 +233,21 @@ export function RecruiterApplicantsPage() {
                   {/* Candidate info */}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(r.applicationId)}
+                        aria-label={`Select applicant ${r.candidate.fullName}`}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedIds((prev) =>
+                              prev.includes(r.applicationId) ? prev : [...prev, r.applicationId]
+                            );
+                            return;
+                          }
+                          setSelectedIds((prev) => prev.filter((id) => id !== r.applicationId));
+                        }}
+                        className="accent-[var(--accent)]"
+                      />
                       <div className="h-9 w-9 rounded-full bg-[var(--accent)]/10 flex items-center justify-center text-xs font-bold text-[var(--accent)]">
                         {r.candidate.fullName.split(" ").map((n) => n[0]).join("").slice(0, 2)}
                       </div>
@@ -202,10 +264,10 @@ export function RecruiterApplicantsPage() {
                   </div>
 
                   {/* Status + Actions */}
-                  <div className="flex flex-col items-end gap-3 shrink-0">
+                  <div className="flex w-full flex-col items-start gap-3 sm:w-auto sm:items-end sm:shrink-0">
                     <Badge variant={sb.variant}>{sb.label}</Badge>
                     {r.interviewAt && <div className="text-[10px] text-[var(--muted)]">{new Date(r.interviewAt).toLocaleString()}</div>}
-                    <div className="flex gap-2 flex-wrap">
+                    <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
                       {r.candidate.latestResume ? (
                         <Button variant="ghost" className="text-xs" onClick={() => void openResumePreview(r.candidate.latestResume!.id, token!)}>Resume</Button>
                       ) : <span className="text-xs text-[var(--muted)]">No resume</span>}
@@ -213,10 +275,10 @@ export function RecruiterApplicantsPage() {
                       <Button variant="danger" className="text-xs" disabled={busy} onClick={() => void updateStatus(r.applicationId, "REJECTED")}>Reject</Button>
                     </div>
                     {/* Schedule interview */}
-                    <div className="flex flex-wrap gap-2 items-center">
+                    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
                       <input
                         type="datetime-local"
-                        className="h-8 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 text-xs text-[var(--text)] outline-none focus:border-[var(--accent)] min-w-0"
+                        className="h-8 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 text-xs text-[var(--text)] outline-none focus:border-[var(--accent)] min-w-0 sm:w-auto"
                         value={schedule[r.applicationId] ?? ""}
                         onChange={(e) => setSchedule({ ...schedule, [r.applicationId]: e.target.value })}
                       />

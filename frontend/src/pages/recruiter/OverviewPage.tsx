@@ -9,6 +9,7 @@ import { PageSkeleton } from "../../components/ui/PageSkeleton";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { DualLineChart } from "../../components/Charts";
 import { useCountUp } from "../../hooks/useCountUp";
+import type { ApplicationWithJob } from "../../types";
 
 /* ── types ── */
 type Funnel = { applied: number; shortlisted: number; interview: number; offered: number; hired: number };
@@ -148,6 +149,7 @@ export function RecruiterOverviewPage() {
   const GUIDE_KEY = "hireflow_rec_guide_dismissed";
   const LEGACY_GUIDE_KEY = "talvion_rec_guide_dismissed";
   const [overview, setOverview] = useState<Overview | null>(null);
+  const [recentApps, setRecentApps] = useState<ApplicationWithJob[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [showGuide, setShowGuide] = useState(
     () => {
@@ -169,6 +171,8 @@ export function RecruiterOverviewPage() {
         setError(null);
         const data = await apiJson<{ overview: Overview }>("/recruiter/overview", { token });
         setOverview(data.overview);
+        const apps = await apiJson<{ applications: ApplicationWithJob[] }>("/recruiter/applications?status=APPLIED", { token });
+        setRecentApps(apps.applications.slice(0, 6));
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load overview");
       }
@@ -176,6 +180,11 @@ export function RecruiterOverviewPage() {
   }, [token]);
 
   if (!overview && !error) return <PageSkeleton />;
+
+  const totalApplications = overview?.applicationsTotal ?? 0;
+  const shortlistedRate = totalApplications > 0 ? Math.round(((overview?.shortlisted ?? 0) / totalApplications) * 100) : 0;
+  const interviewRate = totalApplications > 0 ? Math.round(((overview?.interviews ?? 0) / totalApplications) * 100) : 0;
+  const hireRate = totalApplications > 0 ? Math.round(((overview?.hired ?? 0) / totalApplications) * 100) : 0;
 
   return (
     <div className="space-y-6">
@@ -191,7 +200,7 @@ export function RecruiterOverviewPage() {
       {showGuide && (
         <Card className="relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-r from-[var(--accent)]/5 to-transparent pointer-events-none" />
-          <div className="relative flex items-start justify-between gap-4 p-5">
+          <div className="relative flex flex-wrap items-start justify-between gap-4 p-5">
             <div>
               <Badge variant="blue" className="mb-2">Getting Started</Badge>
               <ol className="mt-2 space-y-1.5 text-sm text-[var(--text-secondary)]">
@@ -219,6 +228,26 @@ export function RecruiterOverviewPage() {
           {statMeta.map((s) => (
             <StatCard key={s.key} value={overview[s.key]} label={s.label} icon={s.icon} accent={s.accent} gradient={s.gradient} />
           ))}
+        </div>
+      )}
+
+      {overview && (
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Card className="p-4">
+            <div className="text-xs uppercase tracking-[0.12em] text-[var(--muted)]">Shortlist Rate</div>
+            <div className="mt-1 text-2xl font-semibold text-[var(--text)] tabular-nums">{shortlistedRate}%</div>
+            <div className="mt-1 text-xs text-[var(--muted)]">{overview.shortlisted} of {totalApplications} applicants</div>
+          </Card>
+          <Card className="p-4">
+            <div className="text-xs uppercase tracking-[0.12em] text-[var(--muted)]">Interview Rate</div>
+            <div className="mt-1 text-2xl font-semibold text-[var(--text)] tabular-nums">{interviewRate}%</div>
+            <div className="mt-1 text-xs text-[var(--muted)]">{overview.interviews} candidates moved to interviews</div>
+          </Card>
+          <Card className="p-4">
+            <div className="text-xs uppercase tracking-[0.12em] text-[var(--muted)]">Hire Rate</div>
+            <div className="mt-1 text-2xl font-semibold text-[var(--text)] tabular-nums">{hireRate}%</div>
+            <div className="mt-1 text-xs text-[var(--muted)]">{overview.hired} hires from total applications</div>
+          </Card>
         </div>
       )}
 
@@ -315,19 +344,41 @@ export function RecruiterOverviewPage() {
             {[
               { to: "/recruiter/post-job", icon: <IconBriefcase />, label: "Post a Job", sub: "Create new opening", color: "var(--accent)" },
               { to: "/recruiter/applicants", icon: <IconUsers />, label: "View Applicants", sub: "Review candidates", color: "var(--accent-teal)" },
-              { to: "/recruiter/interviews", icon: <IconCalendar />, label: "Interviews", sub: "Manage schedule", color: "var(--accent-purple)" },
+              { to: "/recruiter/listings", icon: <IconCalendar />, label: "Manage Listings", sub: "Update statuses and visibility", color: "var(--accent-purple)" },
             ].map((a) => (
-              <Link key={a.to} to={a.to}>
+              <Link key={a.to} to={a.to} className="min-w-0">
                 <Card className="group flex items-center gap-3 p-4 hover-glow cursor-pointer">
                   <div className="rounded-lg p-2 transition-colors" style={{ background: `color-mix(in srgb, ${a.color} 10%, transparent)`, color: a.color }}>{a.icon}</div>
-                  <div>
+                  <div className="min-w-0">
                     <div className="text-sm font-semibold text-[var(--text)]">{a.label}</div>
-                    <div className="text-xs text-[var(--muted)]">{a.sub}</div>
+                    <div className="truncate text-xs text-[var(--muted)]">{a.sub}</div>
                   </div>
                 </Card>
               </Link>
             ))}
           </div>
+
+          <Card className="p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-[var(--text)]">Recent Activity</h3>
+              <Link to="/recruiter/applicants" className="text-xs text-[var(--accent)] hover:underline">View all applicants</Link>
+            </div>
+            {recentApps.length === 0 ? (
+              <p className="text-sm text-[var(--muted)]">No recent applications yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {recentApps.map((a) => (
+                  <div key={a.id} className="flex items-center justify-between gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm text-[var(--text)]">{a.job.title}</div>
+                      <div className="text-xs text-[var(--muted)]">Applied {new Date(a.createdAt).toLocaleDateString()}</div>
+                    </div>
+                    <Badge variant="blue">{a.status.replace("_", " ")}</Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
         </>
       )}
     </div>

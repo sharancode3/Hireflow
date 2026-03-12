@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { apiJson } from "../api/client";
-import type { Trends } from "../mock/types";
+import type { Trends } from "../types";
 import { Card } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
 import { LineChart } from "../components/Charts";
+import { EmptyState } from "../components/ui/EmptyState";
 import { SALARY_DATA } from "../data/salaryData";
 
 type TrendResponse = { trends: Trends };
@@ -287,6 +288,28 @@ export function HireTrendsPage() {
     );
   }
 
+  const hasTrendData =
+    trends.topRoles.length > 0 ||
+    trends.trendingSkills.length > 0 ||
+    trends.topCompanies.length > 0 ||
+    trends.industryHiring.length > 0 ||
+    trends.growth.length > 0;
+
+  if (!error && !hasTrendData) {
+    return (
+      <div className="flex-1 px-8 py-6">
+        <div className="mx-auto max-w-[1100px]">
+          <Card className="p-6">
+            <EmptyState
+              title="No trend data available yet"
+              description="Analytics will appear here once enough market activity is collected."
+            />
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 px-8 py-6">
       <div className="mx-auto max-w-[1100px] space-y-6">
@@ -301,7 +324,9 @@ export function HireTrendsPage() {
             {(["7d", "30d", "90d"] as const).map(f => (
               <button
                 key={f}
+                type="button"
                 onClick={() => setTimeFilter(f)}
+                aria-pressed={timeFilter === f}
                 className={`px-3 py-1.5 text-xs font-medium transition-colors ${timeFilter === f ? "bg-[var(--accent)] text-white" : "text-[var(--muted)] hover:bg-[var(--surface-raised)]"}`}
               >
                 {f === "7d" ? "7 Days" : f === "30d" ? "30 Days" : "90 Days"}

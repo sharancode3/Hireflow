@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
-import { prisma } from "../../prisma";
+import { User } from "../../models/User";
+import { RecruiterProfile } from "../../models/RecruiterProfile";
 import type { AuthenticatedRequest } from "../../middleware/auth";
 import { HttpError } from "../../utils/httpError";
 
@@ -9,22 +10,13 @@ export const recruiterProfileRouter = Router();
 recruiterProfileRouter.get("/recruiter/profile", async (req, res, next) => {
   try {
     const authed = req as AuthenticatedRequest;
+    const user = await User.findById(authed.auth.userId).select("role email");
+    if (!user || user.role !== "RECRUITER") throw new HttpError(403, "Forbidden");
 
-    const user = await prisma.user.findUnique({
-      where: { id: authed.auth.userId },
-      select: {
-        id: true,
-        email: true,
-        role: true,
-        recruiterProfile: true,
-      },
-    });
+    const profile = await RecruiterProfile.findOne({ userId: user._id });
+    if (!profile) throw new HttpError(404, "Profile not found");
 
-    if (!user || user.role !== "RECRUITER" || !user.recruiterProfile) {
-      throw new HttpError(404, "Recruiter profile not found");
-    }
-
-    res.json({ profile: user.recruiterProfile });
+    res.json({ profile });
   } catch (err) {
     next(err);
   }
@@ -41,28 +33,17 @@ recruiterProfileRouter.patch("/recruiter/profile", async (req, res, next) => {
   try {
     const authed = req as AuthenticatedRequest;
     const body = updateSchema.parse(req.body);
+    const user = await User.findById(authed.auth.userId).select("role");
+    if (!user || user.role !== "RECRUITER") throw new HttpError(403, "Forbidden");
 
-    const user = await prisma.user.findUnique({
-      where: { id: authed.auth.userId },
-      select: { role: true, recruiterProfile: { select: { id: true } } },
-    });
+    const profile = await RecruiterProfile.findOneAndUpdate(
+      { userId: user._id },
+      { $set: body },
+      { new: true }
+    );
+    if (!profile) throw new HttpError(404, "Profile not found");
 
-    if (!user || user.role !== "RECRUITER" || !user.recruiterProfile) {
-      throw new HttpError(403, "Forbidden");
-    }
-
-    const data: Record<string, unknown> = {};
-    if (body.companyName !== undefined) data.companyName = body.companyName;
-    if (body.website !== undefined) data.website = body.website;
-    if (body.location !== undefined) data.location = body.location;
-    if (body.description !== undefined) data.description = body.description;
-
-    const updated = await prisma.recruiterProfile.update({
-      where: { id: user.recruiterProfile.id },
-      data,
-    });
-
-    res.json({ profile: updated });
+    res.json({ profile });
   } catch (err) {
     next(err);
   }

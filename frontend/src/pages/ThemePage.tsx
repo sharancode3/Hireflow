@@ -3,6 +3,7 @@ import { useTheme } from "../theme/ThemeContext";
 
 export function ThemePage() {
   const { theme, setTheme } = useTheme();
+  // TODO: Create a theme audit checklist - walk through every page and component in all 3 themes and flag any element that does not correctly reflect the active theme.
 
   return (
     <div className="grid">

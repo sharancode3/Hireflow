@@ -1,8 +1,11 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { apiJson } from "../api/client";
+import { ApiError, apiJson } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { completeOnboarding } from "../auth/onboarding";
+import { PhonePickerInput } from "../components/ui/PhonePickerInput";
+import { SearchableLocationInput } from "../components/ui/SearchableLocationInput";
+import { composePhoneWithCode } from "../utils/phone";
 
 const statusOptions = ["Student", "Fresher / Entry Level", "Working Professional", "Career Transition", "Other"];
 const lookingFor = ["Full-time job", "Part-time job", "Internship", "Freelance", "Remote only"];
@@ -20,8 +23,11 @@ export function OnboardingPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [done, setDone] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const [fullName, setFullName] = useState("");
+  const [phoneCountryCode, setPhoneCountryCode] = useState("+91");
   const [phone, setPhone] = useState("");
   const [city, setCity] = useState("");
   const [region, setRegion] = useState("");
@@ -61,32 +67,44 @@ export function OnboardingPage() {
 
   async function finish() {
     if (!user) return;
-    if (user.role === "JOB_SEEKER" && token) {
-      const payload = {
-        fullName: fullName || user.email.split("@")[0],
-        phone,
-        location: `${city}${region ? `, ${region}` : ""}`,
-        desiredRole,
-        experienceYears,
-        skills,
-      };
-      await apiJson("/job-seeker/profile", { method: "PATCH", token, body: payload });
-    }
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      if (user.role === "JOB_SEEKER" && token) {
+        const payload = {
+          fullName: fullName || user.email.split("@")[0],
+          phone: composePhoneWithCode(phoneCountryCode, phone),
+          location: `${city}${region ? `, ${region}` : ""}`,
+          desiredRole,
+          experienceYears,
+          skills,
+        };
+        await apiJson("/job-seeker/profile", { method: "PATCH", token, body: payload });
+      }
 
-    completeOnboarding(user.id);
-    setDone(true);
+      completeOnboarding(user.id);
+      setDone(true);
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setSubmitError(error.message || "Unable to complete onboarding right now.");
+      } else {
+        setSubmitError("Unable to complete onboarding right now.");
+      }
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   if (done) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-bg p-6">
         <div className="w-full max-w-lg rounded-2xl border border-border bg-surface p-8 text-center">
-          <h1 className="text-3xl font-bold text-white">You are all set! Welcome to Hireflow.</h1>
+          <h1 className="text-3xl font-bold text-text">You are all set! Welcome to Hireflow.</h1>
           <button
             type="button"
             onClick={() => navigate(user?.role === "JOB_SEEKER" ? "/job-seeker" : "/recruiter")}
-            className="btn-base mt-6 h-11 rounded-lg px-6 font-semibold text-white"
-            style={{ background: "linear-gradient(120deg, #1A73E8, #0D47A1)" }}
+            className="btn-base mt-6 h-11 rounded-lg px-6 font-semibold text-[var(--color-sidebar-active-text)]"
+            style={{ background: "linear-gradient(120deg, var(--color-accent), var(--color-accent-hover))" }}
           >
             Go to Dashboard
           </button>
@@ -99,20 +117,27 @@ export function OnboardingPage() {
     <div className="min-h-screen bg-bg p-4 text-text sm:p-8">
       <div className="mx-auto w-full max-w-3xl rounded-2xl border border-border bg-surface p-6 sm:p-8">
         <div className="mb-6">
-          <div className="mb-3 h-2 w-full rounded-full bg-[#1A1A1A]">
-            <div className="h-full rounded-full bg-gradient-to-r from-[#1A73E8] to-[#0D47A1]" style={{ width: `${progress}%` }} />
+          <div className="mb-3 h-2 w-full rounded-full bg-surface-raised">
+            <div className="h-full rounded-full bg-[linear-gradient(90deg,var(--color-accent),var(--color-accent-hover))]" style={{ width: `${progress}%` }} />
           </div>
           <div className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted">Step {step} of 3</div>
         </div>
 
         {step === 1 ? (
           <div className="space-y-4">
-            <h2 className="text-2xl font-semibold text-white">Personal details</h2>
+            <h2 className="text-2xl font-semibold text-text">Personal details</h2>
             <input className="input" placeholder="Full Name" value={fullName} onChange={(e) => setFullName(e.target.value)} />
             <div className="text-xs text-text-muted">Looks better with a photo! (Photo upload will be added in next milestone.)</div>
-            <input className="input" placeholder="Phone number" value={phone} onChange={(e) => setPhone(e.target.value)} />
+            <PhonePickerInput
+              className="w-full"
+              countryCode={phoneCountryCode}
+              onCountryCodeChange={setPhoneCountryCode}
+              value={phone}
+              onChange={setPhone}
+              placeholder="9876543210"
+            />
             <div className="grid gap-4 sm:grid-cols-2">
-              <input className="input" placeholder="City" value={city} onChange={(e) => setCity(e.target.value)} />
+              <SearchableLocationInput className="input" placeholder="City" value={city} onChange={setCity} />
               <input className="input" placeholder="State / Region" value={region} onChange={(e) => setRegion(e.target.value)} />
             </div>
             <input className="input" type="date" value={dob} onChange={(e) => setDob(e.target.value)} />
@@ -121,7 +146,7 @@ export function OnboardingPage() {
 
         {step === 2 ? (
           <div className="space-y-4">
-            <h2 className="text-2xl font-semibold text-white">Career profile</h2>
+            <h2 className="text-2xl font-semibold text-text">Career profile</h2>
             <input className="input" placeholder="Desired job role" value={desiredRole} onChange={(e) => setDesiredRole(e.target.value)} />
             <select className="select" value={status} onChange={(e) => setStatus(e.target.value)}>
               {statusOptions.map((s) => (
@@ -146,7 +171,7 @@ export function OnboardingPage() {
               />
               <div className="mt-3 flex flex-wrap gap-2">
                 {skills.map((s) => (
-                  <span key={s} className="rounded-full bg-[rgba(26,115,232,0.2)] px-3 py-1 text-xs text-[#8AB4F8]">
+                  <span key={s} className="rounded-full bg-[color:color-mix(in_srgb,var(--color-accent)_20%,transparent)] px-3 py-1 text-xs text-[var(--color-accent)]">
                     {s}
                   </span>
                 ))}
@@ -157,7 +182,7 @@ export function OnboardingPage() {
 
         {step === 3 ? (
           <div className="space-y-4">
-            <h2 className="text-2xl font-semibold text-white">Placement / opportunity preferences</h2>
+            <h2 className="text-2xl font-semibold text-text">Placement / opportunity preferences</h2>
             <div className="grid gap-2 sm:grid-cols-2">
               {lookingFor.map((item) => (
                 <label key={item} className="flex items-center gap-2 text-sm text-text-secondary">
@@ -175,16 +200,16 @@ export function OnboardingPage() {
               ))}
             </div>
             <div>
-              <input
+              <SearchableLocationInput
                 className="input"
                 placeholder="Preferred locations (press Enter)"
                 value={locationInput}
-                onChange={(e) => setLocationInput(e.target.value)}
+                onChange={setLocationInput}
                 onKeyDown={onLocationKeyDown}
               />
               <div className="mt-3 flex flex-wrap gap-2">
                 {preferredLocations.map((s) => (
-                  <span key={s} className="rounded-full bg-[rgba(92,107,192,0.2)] px-3 py-1 text-xs text-[#B1B8ED]">
+                  <span key={s} className="rounded-full bg-[color:color-mix(in_srgb,var(--accent-purple)_20%,transparent)] px-3 py-1 text-xs text-[var(--accent-purple)]">
                     {s}
                   </span>
                 ))}
@@ -207,11 +232,17 @@ export function OnboardingPage() {
           </div>
         ) : null}
 
+        {submitError ? (
+          <div className="mt-5 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
+            {submitError}
+          </div>
+        ) : null}
+
         <div className="mt-8 flex items-center justify-between">
           <button
             type="button"
             onClick={() => setStep((s) => Math.max(1, s - 1))}
-            disabled={step === 1}
+            disabled={step === 1 || submitting}
             className="btn-base rounded-lg border border-border px-4 text-text-secondary disabled:opacity-50"
           >
             Back
@@ -221,8 +252,9 @@ export function OnboardingPage() {
             <button
               type="button"
               onClick={() => setStep((s) => Math.min(3, s + 1))}
-              className="btn-base rounded-lg px-5 font-semibold text-white"
-              style={{ background: "linear-gradient(120deg, #1A73E8, #0D47A1)" }}
+              disabled={submitting}
+              className="btn-base rounded-lg px-5 font-semibold text-[var(--color-sidebar-active-text)]"
+              style={{ background: "linear-gradient(120deg, var(--color-accent), var(--color-accent-hover))" }}
             >
               Next
             </button>
@@ -230,10 +262,11 @@ export function OnboardingPage() {
             <button
               type="button"
               onClick={() => void finish()}
-              className="btn-base rounded-lg px-5 font-semibold text-white"
-              style={{ background: "linear-gradient(120deg, #1A73E8, #0D47A1)" }}
+              disabled={submitting}
+              className="btn-base rounded-lg px-5 font-semibold text-[var(--color-sidebar-active-text)]"
+              style={{ background: "linear-gradient(120deg, var(--color-accent), var(--color-accent-hover))" }}
             >
-              Finish setup
+              {submitting ? "Finishing..." : "Finish setup"}
             </button>
           )}
         </div>

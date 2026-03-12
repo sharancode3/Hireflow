@@ -1,6 +1,6 @@
 import "./App.css";
 import { Navigate, Route, Routes } from "react-router-dom";
-import React, { Suspense, lazy } from "react";
+import { Suspense, lazy } from "react";
 
 import { AuthLayout } from "./components/AuthLayout";
 import { AppLayout } from "./components/AppLayout";
@@ -38,6 +38,7 @@ const RecruiterCommunityModerationPageLazy = lazy(async () => {
   return { default: m.RecruiterCommunityModerationPage };
 });
 import { LoginPage } from "./pages/LoginPage";
+import { RecruiterLoginPage } from "./pages/RecruiterLoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
@@ -67,44 +68,28 @@ import { RecruiterShortlistedPage } from "./pages/recruiter/ShortlistedPage";
 import { RecruiterInterviewSchedulePage } from "./pages/recruiter/InterviewSchedulePage";
 import { RecruiterProfilePage } from "./pages/recruiter/ProfilePage";
 import { RecruiterNotificationsPage } from "./pages/recruiter/NotificationsPage";
-
-class InsightsErrorBoundary extends React.Component<
-  { children: React.ReactNode },
-  { error: Error | null }
-> {
-  state = { error: null as Error | null };
-
-  static getDerivedStateFromError(error: Error) {
-    return { error };
-  }
-
-  override render() {
-    if (this.state.error) {
-      return <div className="card">Insights crashed: {this.state.error.message}</div>;
-    }
-    return this.props.children;
-  }
-}
+import { ErrorBoundary } from "./components/ui/ErrorBoundary";
 
 export default function App() {
   return (
     <>
       <PageTitleSync />
+      <ErrorBoundary title="Application Error" description="Hireflow hit an unexpected error while loading this view.">
       <Routes>
         <Route path="/" element={<RootRedirect />} />
 
       <Route element={<AuthLayout />}>
         <Route element={<RequireGuest />}>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/recruiter/login" element={<RecruiterLoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/recruiter/register" element={<RecruiterRegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         </Route>
       </Route>
 
-      <Route path="/recruiter/pending" element={<RecruiterPendingPage />} />
-
       <Route element={<RequireAuth />}>
+        <Route path="/recruiter/pending" element={<RecruiterPendingPage />} />
         <Route path="/onboarding" element={<OnboardingPage />} />
         <Route element={<AppLayout />}>
           <Route path="/trends" element={<Navigate to="/talent-trends" replace />} />
@@ -180,9 +165,9 @@ export default function App() {
                 path="insights"
                 element={
                   <Suspense fallback={<div className="card">Loading insights…</div>}>
-                    <InsightsErrorBoundary>
+                    <ErrorBoundary title="Insights Error" description="Unable to render trend insights right now.">
                       <HireTrendsPageLazy />
-                    </InsightsErrorBoundary>
+                    </ErrorBoundary>
                   </Suspense>
                 }
               />
@@ -197,6 +182,7 @@ export default function App() {
               <Route path="dashboard" element={<RecruiterOverviewPage />} />
               <Route path="overview" element={<RecruiterOverviewPage />} />
               <Route path="post-job" element={<RecruiterPostJobPage />} />
+              <Route path="listings" element={<RecruiterManageJobsPage />} />
               <Route path="jobs" element={<RecruiterManageJobsPage />} />
               <Route path="applicants" element={<RecruiterApplicantsPage />} />
               <Route path="shortlisted" element={<RecruiterShortlistedPage />} />
@@ -232,9 +218,9 @@ export default function App() {
                 path="insights"
                 element={
                   <Suspense fallback={<div className="card">Loading insights…</div>}>
-                    <InsightsErrorBoundary>
+                    <ErrorBoundary title="Insights Error" description="Unable to render trend insights right now.">
                       <HireTrendsPageLazy />
-                    </InsightsErrorBoundary>
+                    </ErrorBoundary>
                   </Suspense>
                 }
               />
@@ -247,6 +233,7 @@ export default function App() {
 
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
+      </ErrorBoundary>
     </>
   );
 }

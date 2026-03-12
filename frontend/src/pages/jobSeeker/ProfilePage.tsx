@@ -19,6 +19,9 @@ import { Badge } from "../../components/ui/Badge";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { Modal } from "../../components/ui/Modal";
+import { PhonePickerInput } from "../../components/ui/PhonePickerInput";
+import { SearchableLocationInput } from "../../components/ui/SearchableLocationInput";
+import { composePhoneWithCode, splitPhoneWithCode } from "../../utils/phone";
 
 function clampNumber(n: number, min: number, max: number) {
   if (!Number.isFinite(n)) return min;
@@ -242,6 +245,7 @@ export function JobSeekerProfilePage() {
   const [summaryModalOpen, setSummaryModalOpen] = useState(false);
   const [summaryNotes, setSummaryNotes] = useState("");
   const [summaryDraft, setSummaryDraft] = useState("");
+  const [phoneCountryCode, setPhoneCountryCode] = useState("+91");
 
   const hasResume = resumes.length > 0 || generatedResumes.length > 0;
   const completion = useMemo(() => {
@@ -257,6 +261,8 @@ export function JobSeekerProfilePage() {
       apiJson<{ generatedResumes: GeneratedResume[] }>("/job-seeker/generated-resumes", { token }),
     ]);
     setProfile(p.profile);
+    const parsedPhone = splitPhoneWithCode(p.profile.phone, "+91");
+    setPhoneCountryCode(parsedPhone.countryCode);
     setResumes(r.resumes);
     setGeneratedResumes(g.generatedResumes);
   }
@@ -286,6 +292,8 @@ export function JobSeekerProfilePage() {
         body: buildProfilePatch(nextProfile),
       });
       setProfile(updated.profile);
+      const parsedPhone = splitPhoneWithCode(updated.profile.phone, "+91");
+      setPhoneCountryCode(parsedPhone.countryCode);
       lastSavedSnapshot.current = JSON.stringify(buildProfilePatch(updated.profile));
       setSaveState("saved");
       window.setTimeout(() => setSaveState("idle"), 3000);
@@ -456,6 +464,7 @@ export function JobSeekerProfilePage() {
                 <button
                   key={s.key}
                   type="button"
+                  aria-pressed={s.key === step}
                   className={
                     "shrink-0 rounded-full border px-4 py-1.5 text-[13px] font-medium transition " +
                     (s.key === step
@@ -559,11 +568,11 @@ export function JobSeekerProfilePage() {
                   <div className="grid grid-2">
                     <div className="field">
                       <label className="label">Location</label>
-                      <input
+                      <SearchableLocationInput
                         className="input"
                         value={profile.location ?? ""}
-                        onChange={(e) => {
-                          const next = { ...profile, location: e.target.value || null };
+                        onChange={(value) => {
+                          const next = { ...profile, location: value || null };
                           setProfile(next);
                           scheduleSave(next);
                         }}
@@ -608,11 +617,19 @@ export function JobSeekerProfilePage() {
               <div className="grid grid-2">
                 <div className="field">
                   <label className="label">Phone</label>
-                  <input
-                    className="input"
-                    value={profile.phone ?? ""}
-                    onChange={(e) => {
-                      const next = { ...profile, phone: e.target.value || null };
+                  <PhonePickerInput
+                    className="w-full"
+                    countryCode={phoneCountryCode}
+                    onCountryCodeChange={(code) => {
+                      setPhoneCountryCode(code);
+                      const parsedPhone = splitPhoneWithCode(profile.phone, code);
+                      const next = { ...profile, phone: composePhoneWithCode(code, parsedPhone.phone) || null };
+                      setProfile(next);
+                      scheduleSave(next);
+                    }}
+                    value={splitPhoneWithCode(profile.phone, phoneCountryCode).phone}
+                    onChange={(value) => {
+                      const next = { ...profile, phone: composePhoneWithCode(phoneCountryCode, value) || null };
                       setProfile(next);
                       scheduleSave(next);
                     }}
@@ -1412,10 +1429,10 @@ function ExperienceSection({
                     </div>
                     <div className="field">
                       <label className="label">Location</label>
-                      <input
+                      <SearchableLocationInput
                         className="input"
                         value={it.location ?? ""}
-                        onChange={(e) => onChange(items.map((x) => (x.id === it.id ? { ...x, location: e.target.value || null } : x)))}
+                        onChange={(value) => onChange(items.map((x) => (x.id === it.id ? { ...x, location: value || null } : x)))}
                         placeholder="Optional"
                       />
                     </div>
@@ -1739,6 +1756,7 @@ function CertificationsSection({
                       <button
                         type="button"
                         className={`btn ${getMode(it) === "URL" ? "btn-primary" : ""}`}
+                        aria-pressed={getMode(it) === "URL"}
                         onClick={() => setVerificationMode((prev) => ({ ...prev, [it.id]: "URL" }))}
                       >
                         URL
@@ -1746,6 +1764,7 @@ function CertificationsSection({
                       <button
                         type="button"
                         className={`btn ${getMode(it) === "UPLOAD" ? "btn-primary" : ""}`}
+                        aria-pressed={getMode(it) === "UPLOAD"}
                         onClick={() => setVerificationMode((prev) => ({ ...prev, [it.id]: "UPLOAD" }))}
                       >
                         Upload proof

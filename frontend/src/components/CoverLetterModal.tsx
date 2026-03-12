@@ -173,6 +173,7 @@ export function CoverLetterModal({
                   <button
                     key={t}
                     type="button"
+                    aria-pressed={tone === t}
                     className={`rounded-lg border px-3 py-1.5 text-xs capitalize transition ${
                       tone === t
                         ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]"

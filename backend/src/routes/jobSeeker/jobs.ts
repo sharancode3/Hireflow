@@ -1,56 +1,36 @@
 import { Router } from "express";
 import { z } from "zod";
-import { prisma } from "../../prisma";
+import { Job } from "../../models/Job";
+import { SavedJob } from "../../models/SavedJob";
+import { User } from "../../models/User";
+import { JobSeekerProfile } from "../../models/JobSeekerProfile";
 import type { AuthenticatedRequest } from "../../middleware/auth";
 import { HttpError } from "../../utils/httpError";
-import { csvToSkills } from "../../utils/csvSkills";
 
 export const jobSeekerJobsRouter = Router();
 
 jobSeekerJobsRouter.get("/jobs", async (req, res, next) => {
   try {
-    // Public list of jobs, but still fine to be accessed when authenticated
-    const querySchema = z.object({
+    const q = z.object({
       skills: z.string().optional(),
       location: z.string().optional(),
       role: z.string().optional(),
       freshersOnly: z.string().optional(),
-    });
+    }).parse(req.query);
 
-    const q = querySchema.parse(req.query);
+    const filter: Record<string, unknown> = { reviewStatus: "APPROVED" };
+    if (q.location) filter.location = { $regex: q.location, $options: "i" };
+    if (q.role) filter.role = { $regex: q.role, $options: "i" };
+    if (q.freshersOnly === "true") filter.openToFreshers = true;
 
-    const where: any = { reviewStatus: "APPROVED" };
-    if (q.location) where.location = { contains: q.location, mode: "insensitive" };
-    if (q.role) where.role = { contains: q.role, mode: "insensitive" };
-    if (q.freshersOnly === "true") where.openToFreshers = true;
+    let jobs = await Job.find(filter).sort({ createdAt: -1 }).lean();
 
-    const jobs = await prisma.job.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-    });
+    if (q.skills) {
+      const skillsFilter = q.skills.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+      jobs = jobs.filter((j) => skillsFilter.every((s) => j.requiredSkills.map((r) => r.toLowerCase()).includes(s)));
+    }
 
-    const skillsFilter = q.skills
-      ? q.skills
-          .split(",")
-          .map((s) => s.trim().toLowerCase())
-          .filter(Boolean)
-      : [];
-
-    type JobRow = (typeof jobs)[number];
-
-    const filtered = skillsFilter.length
-      ? jobs.filter((j: JobRow) => {
-          const skills = csvToSkills(j.requiredSkillsCsv.toLowerCase());
-          return skillsFilter.every((s) => skills.includes(s));
-        })
-      : jobs;
-
-    res.json({
-      jobs: filtered.map((j: JobRow) => ({
-        ...j,
-        requiredSkills: csvToSkills(j.requiredSkillsCsv),
-      })),
-    });
+    res.json({ jobs });
   } catch (err) {
     next(err);
   }
@@ -58,16 +38,9 @@ jobSeekerJobsRouter.get("/jobs", async (req, res, next) => {
 
 jobSeekerJobsRouter.get("/jobs/:jobId", async (req, res, next) => {
   try {
-    const jobId = z.string().min(1).parse(req.params.jobId);
-    const job = await prisma.job.findFirst({ where: { id: jobId, reviewStatus: "APPROVED" } });
+    const job = await Job.findOne({ _id: req.params.jobId, reviewStatus: "APPROVED" });
     if (!job) throw new HttpError(404, "Job not found");
-
-    res.json({
-      job: {
-        ...job,
-        requiredSkills: csvToSkills(job.requiredSkillsCsv),
-      },
-    });
+    res.json({ job });
   } catch (err) {
     next(err);
   }
@@ -75,31 +48,14 @@ jobSeekerJobsRouter.get("/jobs/:jobId", async (req, res, next) => {
 
 jobSeekerJobsRouter.get("/job-seeker/saved-jobs", async (req, res, next) => {
   try {
-    const authed = req as unknown as AuthenticatedRequest;
+    const authed = req as AuthenticatedRequest;
+    const user = await User.findById(authed.auth.userId).select("role");
+    if (!user || user.role !== "JOB_SEEKER") throw new HttpError(403, "Forbidden");
+    const profile = await JobSeekerProfile.findOne({ userId: user._id });
+    if (!profile) throw new HttpError(403, "Forbidden");
 
-    const user = await prisma.user.findUnique({
-      where: { id: authed.auth.userId },
-      select: { role: true, jobSeekerProfile: { select: { id: true } } },
-    });
-
-    if (!user || user.role !== "JOB_SEEKER" || !user.jobSeekerProfile) {
-      throw new HttpError(403, "Forbidden");
-    }
-
-    const saved = await prisma.savedJob.findMany({
-      where: { jobSeekerId: user.jobSeekerProfile.id },
-      include: { job: true },
-      orderBy: { createdAt: "desc" },
-    });
-
-    type SavedRow = (typeof saved)[number];
-
-    res.json({
-      savedJobs: saved.map((s: SavedRow) => ({
-        ...s,
-        job: { ...s.job, requiredSkills: csvToSkills(s.job.requiredSkillsCsv) },
-      })),
-    });
+    const saved = await SavedJob.find({ jobSeekerId: profile._id }).populate("jobId").sort({ createdAt: -1 });
+    res.json({ savedJobs: saved });
   } catch (err) {
     next(err);
   }
@@ -107,26 +63,18 @@ jobSeekerJobsRouter.get("/job-seeker/saved-jobs", async (req, res, next) => {
 
 jobSeekerJobsRouter.post("/job-seeker/saved-jobs", async (req, res, next) => {
   try {
-    const authed = req as unknown as AuthenticatedRequest;
+    const authed = req as AuthenticatedRequest;
     const body = z.object({ jobId: z.string().min(1) }).parse(req.body);
+    const user = await User.findById(authed.auth.userId).select("role");
+    if (!user || user.role !== "JOB_SEEKER") throw new HttpError(403, "Forbidden");
+    const profile = await JobSeekerProfile.findOne({ userId: user._id });
+    if (!profile) throw new HttpError(403, "Forbidden");
 
-    const user = await prisma.user.findUnique({
-      where: { id: authed.auth.userId },
-      select: { role: true, jobSeekerProfile: { select: { id: true } } },
-    });
-
-    if (!user || user.role !== "JOB_SEEKER" || !user.jobSeekerProfile) {
-      throw new HttpError(403, "Forbidden");
-    }
-
-    await prisma.savedJob.upsert({
-      where: {
-        jobId_jobSeekerId: { jobId: body.jobId, jobSeekerId: user.jobSeekerProfile.id },
-      },
-      update: {},
-      create: { jobId: body.jobId, jobSeekerId: user.jobSeekerProfile.id },
-    });
-
+    await SavedJob.findOneAndUpdate(
+      { jobId: body.jobId, jobSeekerId: profile._id },
+      { jobId: body.jobId, jobSeekerId: profile._id },
+      { upsert: true }
+    );
     res.status(201).json({ ok: true });
   } catch (err) {
     next(err);
@@ -136,21 +84,12 @@ jobSeekerJobsRouter.post("/job-seeker/saved-jobs", async (req, res, next) => {
 jobSeekerJobsRouter.delete("/job-seeker/saved-jobs/:jobId", async (req, res, next) => {
   try {
     const authed = req as unknown as AuthenticatedRequest;
-    const jobId = req.params.jobId;
+    const user = await User.findById(authed.auth.userId).select("role");
+    if (!user || user.role !== "JOB_SEEKER") throw new HttpError(403, "Forbidden");
+    const profile = await JobSeekerProfile.findOne({ userId: user._id });
+    if (!profile) throw new HttpError(403, "Forbidden");
 
-    const user = await prisma.user.findUnique({
-      where: { id: authed.auth.userId },
-      select: { role: true, jobSeekerProfile: { select: { id: true } } },
-    });
-
-    if (!user || user.role !== "JOB_SEEKER" || !user.jobSeekerProfile) {
-      throw new HttpError(403, "Forbidden");
-    }
-
-    await prisma.savedJob.deleteMany({
-      where: { jobId, jobSeekerId: user.jobSeekerProfile.id },
-    });
-
+    await SavedJob.deleteMany({ jobId: req.params.jobId, jobSeekerId: profile._id });
     res.json({ ok: true });
   } catch (err) {
     next(err);

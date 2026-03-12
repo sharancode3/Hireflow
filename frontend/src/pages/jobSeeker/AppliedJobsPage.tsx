@@ -184,7 +184,7 @@ export function AppliedJobsPage() {
                   Close
                 </Button>
                 <Button variant="danger" onClick={() => setSelected(null)}>
-                  Withdraw (mock)
+                  Withdraw Application
                 </Button>
               </div>
             </div>

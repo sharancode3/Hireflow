@@ -6,7 +6,7 @@ export type User = {
   id: string;
   email: string;
   role: UserRole;
-  recruiterApprovalStatus?: "PENDING" | "APPROVED";
+  recruiterApprovalStatus?: "PENDING" | "APPROVED" | "REJECTED";
 };
 
 export type Job = {
@@ -184,6 +184,14 @@ export type NotificationItem = {
   message: string;
   isRead: boolean;
   createdAt: string;
+};
+
+export type Trends = {
+  topRoles: Array<{ label: string; value: number }>;
+  industryHiring: Array<{ label: string; value: number }>;
+  trendingSkills: Array<{ label: string; value: number }>;
+  topCompanies: Array<{ label: string; value: number }>;
+  growth: Array<{ label: string; value: number }>;
 };
 
 export type Resume = {

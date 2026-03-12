@@ -2,22 +2,32 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
+import { GoogleOAuthProvider } from '@react-oauth/google'
 
 import { BrowserRouter } from 'react-router-dom'
 import { AuthProvider } from './auth/AuthContext'
 import { ThemeProvider } from './theme/ThemeContext'
-import { initMockDb } from './mock/storage'
+import { applyTheme, loadTheme } from './theme/theme'
+import { config } from './config'
 
-initMockDb()
+applyTheme(loadTheme())
+
+const appTree = (
+  <ThemeProvider>
+    <AuthProvider>
+      <BrowserRouter basename="/Hireflow">
+        <App />
+      </BrowserRouter>
+    </AuthProvider>
+  </ThemeProvider>
+)
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ThemeProvider>
-      <AuthProvider>
-        <BrowserRouter basename="/Hireflow">
-          <App />
-        </BrowserRouter>
-      </AuthProvider>
-    </ThemeProvider>
+    {config.googleClientId ? (
+      <GoogleOAuthProvider clientId={config.googleClientId}>{appTree}</GoogleOAuthProvider>
+    ) : (
+      appTree
+    )}
   </StrictMode>,
 )

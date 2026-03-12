@@ -1,80 +1,82 @@
 import { Router } from "express";
 import { z } from "zod";
-import { prisma } from "../../prisma";
+import { User } from "../../models/User";
+import { RecruiterProfile } from "../../models/RecruiterProfile";
+import { Application } from "../../models/Application";
+import { Job } from "../../models/Job";
+import { JobSeekerProfile } from "../../models/JobSeekerProfile";
+import { Resume } from "../../models/Resume";
 import type { AuthenticatedRequest } from "../../middleware/auth";
 import { HttpError } from "../../utils/httpError";
-import { csvToSkills } from "../../utils/csvSkills";
 
 export const recruiterApplicationsRouter = Router();
 
 recruiterApplicationsRouter.get("/recruiter/applications", async (req, res, next) => {
   try {
-    const authed = req as unknown as AuthenticatedRequest;
+    const authed = req as AuthenticatedRequest;
     const q = z
       .object({
-        status: z
-          .enum(["APPLIED", "SHORTLISTED", "REJECTED", "INTERVIEW_SCHEDULED", "OFFERED", "HIRED"])
-          .optional(),
+        status: z.enum(["APPLIED", "SHORTLISTED", "REJECTED", "INTERVIEW_SCHEDULED", "OFFERED", "HIRED"]).optional(),
       })
       .parse(req.query);
 
-    const user = await prisma.user.findUnique({
-      where: { id: authed.auth.userId },
-      select: { role: true, recruiterProfile: { select: { id: true } } },
+    const user = await User.findById(authed.auth.userId).select("role");
+    if (!user || user.role !== "RECRUITER") throw new HttpError(403, "Forbidden");
+
+    const recruiter = await RecruiterProfile.findOne({ userId: user._id });
+    if (!recruiter) throw new HttpError(403, "Forbidden");
+
+    const recruiterJobs = await Job.find({ recruiterId: recruiter._id }).select("_id title companyName location role requiredSkills");
+    const recruiterJobIdSet = new Set(recruiterJobs.map((j) => String(j._id)));
+
+    const applications = await Application.find({ ...(q.status ? { status: q.status } : {}) })
+      .populate("jobId")
+      .populate("jobSeekerId")
+      .sort({ createdAt: -1 });
+
+    const filtered = applications.filter((a) => {
+      const job = a.jobId as any;
+      return recruiterJobIdSet.has(String(job?._id));
     });
 
-    if (!user || user.role !== "RECRUITER" || !user.recruiterProfile) {
-      throw new HttpError(403, "Forbidden");
-    }
+    const mapped = await Promise.all(
+      filtered.map(async (a) => {
+        const job = a.jobId as any;
+        const candidate = a.jobSeekerId as any;
+        const latestResume = await Resume.findOne({ jobSeekerId: candidate._id }).sort({ createdAt: -1 });
 
-    const recruiterId = user.recruiterProfile.id;
-
-    const applications = await prisma.application.findMany({
-      where: {
-        ...(q.status ? { status: q.status } : {}),
-        job: { recruiterId },
-      },
-      include: {
-        job: true,
-        jobSeeker: {
-          include: {
-            resumes: { orderBy: { createdAt: "desc" }, take: 1 },
+        return {
+          id: String(a._id),
+          applicationId: String(a._id),
+          status: a.status,
+          interviewAt: a.interviewAt,
+          createdAt: a.createdAt,
+          job: {
+            id: String(job._id),
+            title: job.title,
+            companyName: job.companyName,
+            location: job.location,
+            role: job.role,
+            requiredSkills: job.requiredSkills,
           },
-        },
-      },
-      orderBy: [{ status: "asc" }, { createdAt: "desc" }],
-    });
+          candidate: {
+            id: String(candidate._id),
+            fullName: candidate.fullName,
+            location: candidate.location,
+            skills: candidate.skills ?? [],
+            experienceYears: candidate.experienceYears ?? 0,
+            latestResume: latestResume
+              ? {
+                  id: String(latestResume._id),
+                  originalName: latestResume.originalName,
+                }
+              : null,
+          },
+        };
+      })
+    );
 
-    type Row = (typeof applications)[number];
-
-    res.json({
-      applications: applications.map((a: Row) => ({
-        applicationId: a.id,
-        status: a.status,
-        interviewAt: a.interviewAt,
-        job: {
-          id: a.job.id,
-          title: a.job.title,
-          companyName: a.job.companyName,
-          location: a.job.location,
-          role: a.job.role,
-          requiredSkills: csvToSkills(a.job.requiredSkillsCsv),
-        },
-        candidate: {
-          id: a.jobSeeker.id,
-          fullName: a.jobSeeker.fullName,
-          location: a.jobSeeker.location,
-          skills: csvToSkills(a.jobSeeker.skillsCsv),
-          experienceYears: a.jobSeeker.experienceYears,
-          latestResume: a.jobSeeker.resumes[0]
-            ? {
-                id: a.jobSeeker.resumes[0].id,
-                originalName: a.jobSeeker.resumes[0].originalName,
-              }
-            : null,
-        },
-      })),
-    });
+    res.json({ applications: mapped });
   } catch (err) {
     next(err);
   }

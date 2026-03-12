@@ -1,11 +1,13 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { GoogleLogin, type CredentialResponse } from "@react-oauth/google";
 import { ApiError, apiJson } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import type { User } from "../types";
 import { Logo } from "../components/Logo";
 import { AuthSplitLayout } from "../components/AuthLayout";
+import { config } from "../config";
 
 function IconMail() {
   return (
@@ -108,6 +110,26 @@ export function LoginPage() {
     }
   }
 
+  async function onGoogleSignIn(response: CredentialResponse) {
+    setBusy(true);
+    setError(null);
+
+    try {
+      if (!response.credential) throw new ApiError(400, "Missing Google credential");
+      const data = await apiJson<{ token: string; user: User }>("/auth/google", {
+        method: "POST",
+        body: { credential: response.credential },
+      });
+      login({ token: data.token, user: data.user });
+      navigate(next || "/", { replace: true });
+    } catch (err) {
+      if (err instanceof ApiError) setError(err.message);
+      else setError("Google sign-in failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <AuthSplitLayout
       pageClassName="text-text"
@@ -189,7 +211,7 @@ export function LoginPage() {
                   className="h-full w-full border-0 bg-transparent text-sm text-text outline-none"
                   placeholder="Enter your password"
                 />
-                <button type="button" onClick={() => setShowPassword((v) => !v)} className="text-xs text-text-secondary hover:text-text">
+                <button type="button" aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} onClick={() => setShowPassword((v) => !v)} className="text-xs text-text-secondary hover:text-text">
                   {showPassword ? "Hide" : "Show"}
                 </button>
               </span>
@@ -206,13 +228,32 @@ export function LoginPage() {
             <div className="h-px flex-1 bg-border" />
           </div>
 
-          <button
-            type="button"
-            className="btn-base h-11 w-full justify-center gap-2 rounded-lg border border-border bg-[#1A1A26] text-sm text-white hover:border-[#1A73E8]"
-          >
-            <IconGoogle />
-            Continue with Google
-          </button>
+          {config.googleClientId ? (
+            <div className="flex w-full items-center justify-center rounded-lg border border-border bg-[#1A1A26] p-2">
+              <GoogleLogin
+                onSuccess={(response) => {
+                  void onGoogleSignIn(response);
+                }}
+                onError={() => setError("Google sign-in failed")}
+                theme="filled_black"
+                shape="pill"
+                text="continue_with"
+                size="large"
+                width="340"
+                useOneTap={false}
+              />
+            </div>
+          ) : (
+            <button
+              type="button"
+              disabled
+              className="btn-base h-11 w-full justify-center gap-2 rounded-lg border border-border bg-[#1A1A26] text-sm text-text-muted"
+              title="Set VITE_GOOGLE_CLIENT_ID to enable Google sign-in"
+            >
+              <IconGoogle />
+              Google sign-in not configured
+            </button>
+          )}
 
           <div className="mt-6 flex items-center justify-between text-sm text-text-secondary">
             <Link to="/register" className="hover:text-white">New to Hireflow? Create an account</Link>

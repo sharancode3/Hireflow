@@ -16,11 +16,11 @@ function formatAgo(value: string) {
 
 function typeColor(type: string) {
   const t = type.toLowerCase();
-  if (t.includes("application")) return "#1A73E8";
-  if (t.includes("deadline")) return "#FB8C00";
-  if (t.includes("match")) return "#2E7D32";
-  if (t.includes("admin")) return "#7E57C2";
-  return "#9AA0A6";
+  if (t.includes("application")) return "var(--color-accent)";
+  if (t.includes("deadline")) return "var(--color-warning)";
+  if (t.includes("match")) return "var(--color-success)";
+  if (t.includes("admin")) return "var(--accent-purple)";
+  return "var(--color-text-secondary)";
 }
 
 export function AppTopBar({
@@ -69,7 +69,7 @@ export function AppTopBar({
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-[rgba(10,10,15,0.8)] backdrop-blur-[12px]">
+      <header className="sticky top-0 z-40 border-b border-[var(--color-border)] bg-[var(--color-topbar-bg)] backdrop-blur-[12px]">
         <div className="mx-auto flex h-16 max-w-[1320px] items-center justify-between px-4 lg:px-8">
           <div className="flex items-center gap-2">
             <button
@@ -84,7 +84,8 @@ export function AppTopBar({
               type="button"
               className="hidden h-9 w-9 items-center justify-center rounded-lg border border-border text-text-secondary hover:bg-surface-raised lg:flex"
               onClick={onSidebarToggle}
-              aria-label="Toggle sidebar"
+              aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              aria-pressed={!sidebarCollapsed}
               title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
               {sidebarCollapsed ? (
@@ -118,6 +119,8 @@ export function AppTopBar({
               className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-border text-text-secondary hover:bg-surface-raised"
               onClick={() => setOpen(true)}
               aria-label="Open notifications"
+              aria-haspopup="dialog"
+              aria-expanded={open}
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M8 2a3 3 0 00-3 3v1.4c0 .8-.2 1.6-.6 2.3L3.5 10h9l-.9-1.3A4.7 4.7 0 0111 6.4V5a3 3 0 00-3-3z" />
@@ -128,7 +131,7 @@ export function AppTopBar({
 
             <details className="relative">
               <summary className="flex cursor-pointer list-none items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-raised text-xs font-semibold ring-2 ring-[#1A73E8]">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-raised text-xs font-semibold ring-2 ring-[var(--color-accent)]">
                   {(user?.email?.slice(0, 2) ?? "HF").toUpperCase()}
                 </div>
               </summary>
@@ -139,7 +142,7 @@ export function AppTopBar({
                     Settings
                   </NavLink>
                   <button
-                    className="rounded-lg bg-gradient-to-r from-[#1A73E8] to-[#0D47A1] px-3 py-2 text-sm font-medium text-white"
+                    className="rounded-lg bg-[linear-gradient(90deg,var(--color-accent),var(--color-accent-hover))] px-3 py-2 text-sm font-medium text-[var(--color-sidebar-active-text)]"
                     onClick={logout}
                     type="button"
                   >
@@ -154,11 +157,11 @@ export function AppTopBar({
 
       {open ? (
         <>
-          <button type="button" className="fixed inset-0 z-40 bg-black/50" onClick={() => setOpen(false)} aria-label="Close notifications" />
-          <aside className="fixed right-0 top-0 z-50 h-full w-[88vw] max-w-[340px] animate-slide-in-right-spring border-l border-border bg-[#111111] p-4 sm:w-[320px]">
+          <button type="button" className="fixed inset-0 z-40 bg-[var(--color-overlay)]" onClick={() => setOpen(false)} aria-label="Close notifications" />
+          <aside className="fixed right-0 top-0 z-50 h-full w-[88vw] max-w-[340px] animate-slide-in-right-spring border-l border-border bg-[var(--color-bg-secondary)] p-4 sm:w-[320px]">
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-white">Notifications</h3>
-              <button type="button" className="text-xs text-[#8AB4F8] hover:text-white" onClick={() => void markAllRead()}>
+              <h3 className="text-lg font-semibold text-text">Notifications</h3>
+              <button type="button" className="text-xs text-[var(--color-accent)] hover:text-text" onClick={() => void markAllRead()}>
                 Mark all as read
               </button>
             </div>
@@ -173,7 +176,7 @@ export function AppTopBar({
                   className={`w-full rounded-xl border p-3 text-left transition hover:border-border-active ${
                     n.isRead
                       ? "border-border bg-surface"
-                      : "border-[#1A73E8]/40 bg-[rgba(26,115,232,0.08)]"
+                      : "border-[color:color-mix(in_srgb,var(--color-accent)_40%,transparent)] bg-[color:color-mix(in_srgb,var(--color-accent)_12%,transparent)]"
                   }`}
                 >
                   <div className="mb-1 flex items-center justify-between gap-2">
@@ -185,7 +188,7 @@ export function AppTopBar({
               ))}
             </div>
 
-            <NavLink to={fullNotificationsPath} className="mt-3 block text-sm font-medium text-[#8AB4F8] hover:text-white" onClick={() => setOpen(false)}>
+            <NavLink to={fullNotificationsPath} className="mt-3 block text-sm font-medium text-[var(--color-accent)] hover:text-text" onClick={() => setOpen(false)}>
               View all notifications
             </NavLink>
           </aside>

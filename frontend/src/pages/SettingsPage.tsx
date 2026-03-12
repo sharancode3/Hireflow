@@ -42,7 +42,7 @@ function Toggle({ checked, onChange, label, desc }: { checked: boolean; onChange
         <div className="text-sm text-[var(--text)] group-hover:text-[var(--accent)] transition-colors">{label}</div>
         {desc && <div className="text-[10px] text-[var(--muted)] mt-0.5">{desc}</div>}
       </div>
-      <button type="button" onClick={() => onChange(!checked)} className="relative shrink-0">
+      <button type="button" onClick={() => onChange(!checked)} className="relative shrink-0" role="switch" aria-checked={checked} aria-label={label}>
         <div className={`h-5 w-9 rounded-full transition-colors ${checked ? "bg-[var(--accent)]" : "bg-[var(--border)]"}`} />
         <div className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-4" : ""}`} />
       </button>
@@ -64,6 +64,7 @@ function SettingsSection({ icon, title, desc, children, defaultOpen = false }: {
       <button
         type="button"
         onClick={() => setOpen(!open)}
+        aria-expanded={open}
         className="flex w-full items-center gap-3 p-5 text-left hover:bg-[var(--surface-raised)]/50 transition-colors"
       >
         <div className="rounded-lg p-2 bg-[var(--accent)]/10 text-[var(--accent)]">{icon}</div>
@@ -190,7 +191,9 @@ export function SettingsPage() {
             {themes.map(t => (
               <button
                 key={t.value}
+                type="button"
                 onClick={() => { setTheme(t.value); updateSettings(s => ({ ...s, theme: t.value })); }}
+                aria-pressed={theme === t.value}
                 className={`rounded-xl border p-3 transition-all text-left ${theme === t.value ? "border-[var(--accent)] bg-[var(--accent)]/5 ring-1 ring-[var(--accent)]/30" : "border-[var(--border)] hover:border-[var(--border-active)]"}`}
               >
                 <div className="text-sm font-medium text-[var(--text)]">{t.label}</div>
@@ -331,7 +334,7 @@ export function SettingsPage() {
         <SettingsSection icon={<IconLink />} title="Integrations" desc="Connect external services">
           <div className="space-y-3">
             {[
-              { name: "LinkedIn", desc: "Import profile data (mock)", connected: false },
+              { name: "LinkedIn", desc: "Import profile data", connected: false },
               { name: "GitHub", desc: "Show repositories & contributions", connected: false },
               { name: "Portfolio", desc: "Link your personal website", connected: false },
             ].map(int => (

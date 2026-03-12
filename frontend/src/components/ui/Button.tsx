@@ -13,8 +13,8 @@ const variantClasses: Record<ButtonVariant, string> = {
   primary:
     "btn-primary relative overflow-hidden text-white before:absolute before:inset-y-0 before:left-0 before:w-1/3 before:-translate-x-full before:bg-white/20 before:blur-md before:transition-transform before:duration-300 hover:before:translate-x-[320%]",
   secondary:
-    "border border-[#2A2A3A] bg-transparent text-[#CCCCCC] hover:border-[#1A73E8] hover:text-white",
-  ghost: "border border-[#2A2A3A] bg-transparent text-[#CCCCCC] hover:border-[#1A73E8] hover:text-white",
+    "border border-border bg-transparent text-text-secondary hover:border-[var(--color-accent)] hover:text-text",
+  ghost: "border border-border bg-transparent text-text-secondary hover:border-[var(--color-accent)] hover:text-text",
   danger: "border border-danger text-danger hover:bg-danger hover:text-white",
 };
 
@@ -30,7 +30,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       disabled={isDisabled}
       {...props}
     >
-      {loading ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#0B1530]/35 border-t-[#0B1530]" /> : null}
+      {loading ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-[color:color-mix(in_srgb,var(--color-accent)_30%,transparent)] border-t-[var(--color-accent)]" /> : null}
       {children}
     </button>
   );

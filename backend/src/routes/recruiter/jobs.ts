@@ -1,10 +1,13 @@
 import { Router } from "express";
 import { z } from "zod";
-import { prisma } from "../../prisma";
+import { User } from "../../models/User";
+import { RecruiterProfile } from "../../models/RecruiterProfile";
+import { JobSeekerProfile } from "../../models/JobSeekerProfile";
+import { Job } from "../../models/Job";
+import { Application } from "../../models/Application";
+import { Notification } from "../../models/Notification";
 import type { AuthenticatedRequest } from "../../middleware/auth";
 import { HttpError } from "../../utils/httpError";
-import { csvToSkills, skillsToCsv } from "../../utils/csvSkills";
-import { sendTransactionalEmail } from "../../utils/emailAutomation";
 
 export const recruiterJobsRouter = Router();
 
@@ -24,53 +27,30 @@ recruiterJobsRouter.post("/recruiter/jobs", async (req, res, next) => {
   try {
     const authed = req as unknown as AuthenticatedRequest;
     const body = jobCreateSchema.parse(req.body);
+    const user = await User.findById(authed.auth.userId).select("role email");
+    if (!user || user.role !== "RECRUITER") throw new HttpError(403, "Forbidden");
 
-    const user = await prisma.user.findUnique({
-      where: { id: authed.auth.userId },
-      select: { role: true, recruiterProfile: { select: { id: true, companyName: true } } },
-    });
+    const recruiter = await RecruiterProfile.findOne({ userId: user._id });
+    if (!recruiter) throw new HttpError(403, "Forbidden");
 
-    if (!user || user.role !== "RECRUITER" || !user.recruiterProfile) {
-      throw new HttpError(403, "Forbidden");
-    }
+    const createBody: Record<string, unknown> = {
+      recruiterId: recruiter._id,
+      companyName: recruiter.companyName,
+      title: body.title,
+      location: body.location,
+      role: body.role,
+      requiredSkills: body.requiredSkills,
+      description: body.description,
+      openToFreshers: body.openToFreshers,
+      jobType: body.jobType,
+      minExperienceYears: body.minExperienceYears,
+      reviewStatus: "PENDING_REVIEW",
+    };
+    if (body.applicationDeadline) createBody.applicationDeadline = new Date(body.applicationDeadline);
 
-    const job = await prisma.job.create({
-      data: {
-        recruiterId: user.recruiterProfile.id,
-        companyName: user.recruiterProfile.companyName,
-        title: body.title,
-        location: body.location,
-        role: body.role,
-        requiredSkillsCsv: skillsToCsv(body.requiredSkills),
-        description: body.description,
-        openToFreshers: body.openToFreshers,
-        jobType: body.jobType,
-        minExperienceYears: body.minExperienceYears,
-        applicationDeadline: body.applicationDeadline ? new Date(body.applicationDeadline) : null,
-        reviewStatus: "PENDING_REVIEW",
-      },
-    });
+    const job = await Job.create(createBody);
 
-    const recruiterAuthUser = await prisma.user.findUnique({
-      where: { id: authed.auth.userId },
-      select: { email: true },
-    });
-    if (recruiterAuthUser?.email) {
-      await sendTransactionalEmail({
-        to: recruiterAuthUser.email,
-        category: "JOB_POSTED",
-        subject: `Job posted: ${job.title}`,
-        text: [
-          `Your role "${job.title}" is now live on Hireflow.`,
-          `Location: ${job.location}`,
-          "You can edit this listing from the Recruiter dashboard.",
-        ].join("\n"),
-      });
-    }
-
-    res.status(201).json({
-      job: { ...job, requiredSkills: csvToSkills(job.requiredSkillsCsv) },
-    });
+    res.status(201).json({ job });
   } catch (err) {
     next(err);
   }
@@ -78,75 +58,38 @@ recruiterJobsRouter.post("/recruiter/jobs", async (req, res, next) => {
 
 recruiterJobsRouter.get("/recruiter/jobs", async (req, res, next) => {
   try {
-    const authed = req as unknown as AuthenticatedRequest;
+    const authed = req as AuthenticatedRequest;
+    const user = await User.findById(authed.auth.userId).select("role");
+    if (!user || user.role !== "RECRUITER") throw new HttpError(403, "Forbidden");
 
-    const user = await prisma.user.findUnique({
-      where: { id: authed.auth.userId },
-      select: { role: true, recruiterProfile: { select: { id: true } } },
-    });
+    const recruiter = await RecruiterProfile.findOne({ userId: user._id });
+    if (!recruiter) throw new HttpError(403, "Forbidden");
 
-    if (!user || user.role !== "RECRUITER" || !user.recruiterProfile) {
-      throw new HttpError(403, "Forbidden");
-    }
-
-    const jobs = await prisma.job.findMany({
-      where: { recruiterId: user.recruiterProfile.id },
-      orderBy: { createdAt: "desc" },
-    });
-
-    type JobRow = (typeof jobs)[number];
-    res.json({
-      jobs: jobs.map((j: JobRow) => ({ ...j, requiredSkills: csvToSkills(j.requiredSkillsCsv) })),
-    });
+    const jobs = await Job.find({ recruiterId: recruiter._id }).sort({ createdAt: -1 });
+    res.json({ jobs });
   } catch (err) {
     next(err);
   }
 });
 
-const jobUpdateSchema = jobCreateSchema.partial();
-
 recruiterJobsRouter.patch("/recruiter/jobs/:jobId", async (req, res, next) => {
   try {
     const authed = req as unknown as AuthenticatedRequest;
-    const jobId = z.string().min(1).parse(req.params.jobId);
-    const body = jobUpdateSchema.parse(req.body);
+    const body = jobCreateSchema.partial().parse(req.body);
+    const user = await User.findById(authed.auth.userId).select("role");
+    if (!user || user.role !== "RECRUITER") throw new HttpError(403, "Forbidden");
 
-    const user = await prisma.user.findUnique({
-      where: { id: authed.auth.userId },
-      select: { role: true, recruiterProfile: { select: { id: true, companyName: true } } },
-    });
+    const recruiter = await RecruiterProfile.findOne({ userId: user._id });
+    if (!recruiter) throw new HttpError(403, "Forbidden");
 
-    if (!user || user.role !== "RECRUITER" || !user.recruiterProfile) {
-      throw new HttpError(403, "Forbidden");
-    }
+    const job = await Job.findOneAndUpdate(
+      { _id: req.params.jobId, recruiterId: recruiter._id },
+      { $set: { ...body, reviewStatus: "PENDING_REVIEW", adminFeedback: undefined, reviewedAt: undefined } },
+      { new: true }
+    );
+    if (!job) throw new HttpError(404, "Job not found");
 
-    const existing = await prisma.job.findUnique({ where: { id: jobId } });
-    if (!existing || existing.recruiterId !== user.recruiterProfile.id) {
-      throw new HttpError(404, "Job not found");
-    }
-
-    const data: Record<string, unknown> = {
-      companyName: user.recruiterProfile.companyName,
-    };
-    if (body.title !== undefined) data.title = body.title;
-    if (body.location !== undefined) data.location = body.location;
-    if (body.role !== undefined) data.role = body.role;
-    if (body.description !== undefined) data.description = body.description;
-    if (body.openToFreshers !== undefined) data.openToFreshers = body.openToFreshers;
-    if (body.jobType !== undefined) data.jobType = body.jobType;
-    if (body.minExperienceYears !== undefined) data.minExperienceYears = body.minExperienceYears;
-    if (body.applicationDeadline !== undefined) data.applicationDeadline = body.applicationDeadline ? new Date(body.applicationDeadline) : null;
-    if (body.requiredSkills !== undefined) data.requiredSkillsCsv = skillsToCsv(body.requiredSkills);
-    data.reviewStatus = "PENDING_REVIEW";
-    data.adminFeedback = null;
-    data.reviewedAt = null;
-
-    const updated = await prisma.job.update({
-      where: { id: jobId },
-      data,
-    });
-
-    res.json({ job: { ...updated, requiredSkills: csvToSkills(updated.requiredSkillsCsv) } });
+    res.json({ job });
   } catch (err) {
     next(err);
   }
@@ -155,23 +98,14 @@ recruiterJobsRouter.patch("/recruiter/jobs/:jobId", async (req, res, next) => {
 recruiterJobsRouter.delete("/recruiter/jobs/:jobId", async (req, res, next) => {
   try {
     const authed = req as unknown as AuthenticatedRequest;
-    const jobId = z.string().min(1).parse(req.params.jobId);
+    const user = await User.findById(authed.auth.userId).select("role");
+    if (!user || user.role !== "RECRUITER") throw new HttpError(403, "Forbidden");
 
-    const user = await prisma.user.findUnique({
-      where: { id: authed.auth.userId },
-      select: { role: true, recruiterProfile: { select: { id: true } } },
-    });
+    const recruiter = await RecruiterProfile.findOne({ userId: user._id });
+    if (!recruiter) throw new HttpError(403, "Forbidden");
 
-    if (!user || user.role !== "RECRUITER" || !user.recruiterProfile) {
-      throw new HttpError(403, "Forbidden");
-    }
-
-    const existing = await prisma.job.findUnique({ where: { id: jobId } });
-    if (!existing || existing.recruiterId !== user.recruiterProfile.id) {
-      throw new HttpError(404, "Job not found");
-    }
-
-    await prisma.job.delete({ where: { id: jobId } });
+    const deleted = await Job.findOneAndDelete({ _id: req.params.jobId, recruiterId: recruiter._id });
+    if (!deleted) throw new HttpError(404, "Job not found");
 
     res.json({ ok: true });
   } catch (err) {
@@ -182,145 +116,84 @@ recruiterJobsRouter.delete("/recruiter/jobs/:jobId", async (req, res, next) => {
 recruiterJobsRouter.get("/recruiter/jobs/:jobId/applicants", async (req, res, next) => {
   try {
     const authed = req as unknown as AuthenticatedRequest;
-    const jobId = z.string().min(1).parse(req.params.jobId);
-    const q = z.object({ skill: z.string().optional() }).parse(req.query);
+    const user = await User.findById(authed.auth.userId).select("role");
+    if (!user || user.role !== "RECRUITER") throw new HttpError(403, "Forbidden");
 
-    const user = await prisma.user.findUnique({
-      where: { id: authed.auth.userId },
-      select: { role: true, recruiterProfile: { select: { id: true } } },
-    });
+    const recruiter = await RecruiterProfile.findOne({ userId: user._id });
+    if (!recruiter) throw new HttpError(403, "Forbidden");
 
-    if (!user || user.role !== "RECRUITER" || !user.recruiterProfile) {
-      throw new HttpError(403, "Forbidden");
-    }
+    const job = await Job.findOne({ _id: req.params.jobId, recruiterId: recruiter._id });
+    if (!job) throw new HttpError(404, "Job not found");
 
-    const job = await prisma.job.findUnique({ where: { id: jobId } });
-    if (!job || job.recruiterId !== user.recruiterProfile.id) {
-      throw new HttpError(404, "Job not found");
-    }
+    const apps = await Application.find({ jobId: job._id })
+      .populate("jobSeekerId")
+      .sort({ createdAt: -1 });
 
-    const apps = await prisma.application.findMany({
-      where: { jobId },
-      include: {
-        jobSeeker: {
-          include: {
-            resumes: { orderBy: { createdAt: "desc" }, take: 1 },
+    const applicants = await Promise.all(
+      apps.map(async (a) => {
+        const profile = a.jobSeekerId as any;
+        const latestResume = await import("../../models/Resume").then(({ Resume }) =>
+          Resume.findOne({ jobSeekerId: profile._id }).sort({ createdAt: -1 })
+        );
+        return {
+          applicationId: a._id,
+          status: a.status,
+          interviewAt: a.interviewAt,
+          candidate: {
+            id: profile._id,
+            fullName: profile.fullName,
+            skills: profile.skills ?? [],
+            experienceYears: profile.experienceYears ?? 0,
+            latestResume: latestResume
+              ? {
+                  id: latestResume._id,
+                  originalName: latestResume.originalName,
+                }
+              : null,
           },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+        };
+      })
+    );
 
-    const skill = q.skill?.trim().toLowerCase();
-
-    type AppRow = (typeof apps)[number];
-    const filtered = skill
-      ? apps.filter((a: AppRow) =>
-          a.jobSeeker.skillsCsv
-            .toLowerCase()
-            .split(",")
-            .map((s: string) => s.trim())
-            .includes(skill),
-        )
-      : apps;
-
-    res.json({
-      applicants: filtered.map((a: AppRow) => ({
-        applicationId: a.id,
-        status: a.status,
-        interviewAt: a.interviewAt,
-        candidate: {
-          id: a.jobSeeker.id,
-          fullName: a.jobSeeker.fullName,
-          location: a.jobSeeker.location,
-          skills: csvToSkills(a.jobSeeker.skillsCsv),
-          isFresher: a.jobSeeker.isFresher,
-          experienceYears: a.jobSeeker.experienceYears,
-          visibility: a.jobSeeker.visibility,
-          latestResume: a.jobSeeker.resumes[0]
-            ? {
-                id: a.jobSeeker.resumes[0].id,
-                originalName: a.jobSeeker.resumes[0].originalName,
-              }
-            : null,
-        },
-      })),
-    });
+    res.json({ applicants });
   } catch (err) {
     next(err);
   }
 });
 
-const statusSchema = z.object({
-  status: z.enum(["SHORTLISTED", "REJECTED", "INTERVIEW_SCHEDULED", "OFFERED", "HIRED"]),
-  interviewAt: z.string().datetime().optional().nullable(),
-});
-
 recruiterJobsRouter.patch("/recruiter/applications/:applicationId", async (req, res, next) => {
   try {
     const authed = req as unknown as AuthenticatedRequest;
-    const applicationId = z.string().min(1).parse(req.params.applicationId);
-    const body = statusSchema.parse(req.body);
+    const body = z.object({
+      status: z.enum(["SHORTLISTED", "REJECTED", "INTERVIEW_SCHEDULED", "OFFERED", "HIRED"]),
+      interviewAt: z.string().datetime().optional().nullable(),
+    }).parse(req.body);
 
-    const user = await prisma.user.findUnique({
-      where: { id: authed.auth.userId },
-      select: { role: true, recruiterProfile: { select: { id: true } } },
-    });
+    const user = await User.findById(authed.auth.userId).select("role");
+    if (!user || user.role !== "RECRUITER") throw new HttpError(403, "Forbidden");
 
-    if (!user || user.role !== "RECRUITER" || !user.recruiterProfile) {
-      throw new HttpError(403, "Forbidden");
-    }
+    const app = await Application.findById(req.params.applicationId);
+    if (!app) throw new HttpError(404, "Application not found");
 
-    const app = await prisma.application.findUnique({
-      where: { id: applicationId },
-      include: { job: true },
-    });
-
-    if (!app || app.job.recruiterId !== user.recruiterProfile.id) {
-      throw new HttpError(404, "Application not found");
-    }
-
-    const updated = await prisma.application.update({
-      where: { id: applicationId },
-      data: {
-        status: body.status,
-        interviewAt: body.interviewAt ? new Date(body.interviewAt) : body.status === "INTERVIEW_SCHEDULED" ? new Date() : null,
-      },
-    });
-
-    // Notify job seeker
-    const seekerUser = await prisma.jobSeekerProfile.findUnique({
-      where: { id: app.jobSeekerId },
-      select: { userId: true, fullName: true, user: { select: { email: true } } },
-    });
-    if (seekerUser) {
-      const statusMessage =
-        body.status === "INTERVIEW_SCHEDULED"
-          ? `Interview scheduled for ${app.job.title}`
-          : `Application status updated to ${body.status} for ${app.job.title}`;
-
-      await prisma.notification.create({
-        data: {
-          userId: seekerUser.userId,
-          type: "STATUS",
-          message: statusMessage,
+    const updated = await Application.findByIdAndUpdate(
+      app._id,
+      {
+        $set: {
+          status: body.status,
+          interviewAt: body.interviewAt ? new Date(body.interviewAt) : undefined,
         },
-      });
+      },
+      { new: true }
+    );
 
-      if (seekerUser.user?.email) {
-        await sendTransactionalEmail({
-          to: seekerUser.user.email,
-          category: "APPLICATION_STATUS_UPDATED",
-          subject: `Application update: ${app.job.title}`,
-          text: [
-            `Hi ${seekerUser.fullName},`,
-            `Your application status is now: ${body.status}.`,
-            body.status === "INTERVIEW_SCHEDULED" && body.interviewAt
-              ? `Interview time: ${new Date(body.interviewAt).toLocaleString()}`
-              : "Please check Hireflow for full details.",
-          ].join("\n"),
-        });
-      }
+    const seeker = await JobSeekerProfile.findById(app.jobSeekerId).populate<{ userId: { _id: string; email: string } }>("userId");
+    if (seeker) {
+      const seekerUserId = (seeker.userId as any)?._id ?? seeker.userId;
+      await Notification.create({
+        userId: seekerUserId,
+        type: "STATUS",
+        message: `Application status updated to ${body.status}`,
+      });
     }
 
     res.json({ application: updated });

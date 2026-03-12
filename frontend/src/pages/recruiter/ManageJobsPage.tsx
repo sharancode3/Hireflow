@@ -26,6 +26,10 @@ type EditState = {
   openToFreshers: boolean;
 };
 
+type ListingStage = "DRAFT" | "PENDING" | "ACTIVE" | "PAUSED" | "CLOSED";
+
+const STAGE_STORAGE_KEY = "hireflow_recruiter_listing_stage";
+
 const JOB_TYPE_LABEL: Record<string, string> = {
   FULL_TIME: "Full-time",
   PART_TIME: "Part-time",
@@ -55,6 +59,22 @@ export function RecruiterManageJobsPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [listingStages, setListingStages] = useState<Record<string, ListingStage>>({});
+  const [stageFilter, setStageFilter] = useState<"ALL" | ListingStage>("ALL");
+
+  useEffect(() => {
+    const raw = window.localStorage.getItem(STAGE_STORAGE_KEY);
+    if (!raw) return;
+    try {
+      setListingStages(JSON.parse(raw) as Record<string, ListingStage>);
+    } catch {
+      window.localStorage.removeItem(STAGE_STORAGE_KEY);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(STAGE_STORAGE_KEY, JSON.stringify(listingStages));
+  }, [listingStages]);
 
   async function load() {
     if (!token) return;
@@ -118,19 +138,34 @@ export function RecruiterManageJobsPage() {
       job.location.toLowerCase().includes(q) ||
       job.role.toLowerCase().includes(q);
     const matchesType = filterType === "ALL" || job.jobType === filterType;
-    return matchesQuery && matchesType;
+    const stage = listingStages[job.id] ?? (job.reviewStatus === "APPROVED" ? "ACTIVE" : "PENDING");
+    const matchesStage = stageFilter === "ALL" || stage === stageFilter;
+    return matchesQuery && matchesType && matchesStage;
   });
+
+  const stageCounts = (jobs ?? []).reduce(
+    (acc, job) => {
+      const stage = listingStages[job.id] ?? (job.reviewStatus === "APPROVED" ? "ACTIVE" : "PENDING");
+      acc[stage] += 1;
+      return acc;
+    },
+    { DRAFT: 0, PENDING: 0, ACTIVE: 0, PAUSED: 0, CLOSED: 0 }
+  );
+
+  function setStage(jobId: string, stage: ListingStage) {
+    setListingStages((prev) => ({ ...prev, [jobId]: stage }));
+  }
 
   if (jobs === null && !error) return <PageSkeleton />;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-[var(--text)]">Manage Jobs</h1>
           <p className="mt-1 text-sm text-[var(--muted)]">Edit or remove your job openings.</p>
         </div>
-        <Link to="/recruiter/post-job"><Button variant="primary" className="text-sm">+ Post Job</Button></Link>
+        <Link to="/recruiter/post-job" className="w-full sm:w-auto"><Button variant="primary" className="w-full text-sm sm:w-auto">+ Post Job</Button></Link>
       </div>
 
       {error && <Card className="border-[var(--danger)]/30 p-4 text-sm text-[var(--danger)]">{error}</Card>}
@@ -166,6 +201,19 @@ export function RecruiterManageJobsPage() {
             <option value="PART_TIME">Part-time</option>
           </select>
         </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {(["ALL", "DRAFT", "PENDING", "ACTIVE", "PAUSED", "CLOSED"] as const).map((stage) => (
+            <button
+              key={stage}
+              type="button"
+              onClick={() => setStageFilter(stage)}
+              aria-pressed={stageFilter === stage}
+              className={`btn ${stageFilter === stage ? "btn-primary" : ""}`}
+            >
+              {stage === "ALL" ? "All" : stage} ({stage === "ALL" ? totalJobs : stageCounts[stage]})
+            </button>
+          ))}
+        </div>
       </Card>
 
       {jobs && jobs.length === 0 ? (
@@ -183,6 +231,9 @@ export function RecruiterManageJobsPage() {
         <div className="space-y-3 stagger-list">
           {filteredJobs.map((job) => (
             <Card key={job.id} className="p-5">
+              {(() => {
+                const stage = listingStages[job.id] ?? (job.reviewStatus === "APPROVED" ? "ACTIVE" : "PENDING");
+                return (
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -190,6 +241,9 @@ export function RecruiterManageJobsPage() {
                     <Badge variant="blue">{JOB_TYPE_LABEL[job.jobType] ?? job.jobType}</Badge>
                     {job.openToFreshers && <Badge variant="teal">Freshers OK</Badge>}
                     {reviewBadge(job.reviewStatus)}
+                    <Badge variant={stage === "ACTIVE" ? "green" : stage === "PAUSED" ? "amber" : stage === "CLOSED" ? "red" : "purple"}>
+                      {stage}
+                    </Badge>
                   </div>
                   <p className="mt-1 text-xs text-[var(--muted)]">
                     {job.companyName} &middot; {job.location} &middot; {job.role}
@@ -209,6 +263,16 @@ export function RecruiterManageJobsPage() {
                   <Link to={`/recruiter/applicants?jobId=${job.id}`}>
                     <Button variant="secondary" className="text-xs">Applicants</Button>
                   </Link>
+                  {stage === "ACTIVE" ? (
+                    <Button variant="ghost" className="text-xs" onClick={() => setStage(job.id, "PAUSED")}>Pause</Button>
+                  ) : stage === "PAUSED" ? (
+                    <Button variant="secondary" className="text-xs" onClick={() => setStage(job.id, "ACTIVE")}>Resume</Button>
+                  ) : stage === "DRAFT" ? (
+                    <Button variant="secondary" className="text-xs" onClick={() => setStage(job.id, "PENDING")}>Submit</Button>
+                  ) : null}
+                  {stage !== "CLOSED" && (
+                    <Button variant="danger" className="text-xs" onClick={() => setStage(job.id, "CLOSED")}>Close</Button>
+                  )}
                   <Button variant="ghost" className="text-xs" onClick={() => setEdit({
                     jobId: job.id, title: job.title, location: job.location, role: job.role,
                     requiredSkills: job.requiredSkills.join(", "), jobType: job.jobType,
@@ -218,6 +282,8 @@ export function RecruiterManageJobsPage() {
                   <Button variant="danger" className="text-xs" onClick={() => setDeleteId(job.id)}>Delete</Button>
                 </div>
               </div>
+                );
+              })()}
             </Card>
           ))}
         </div>

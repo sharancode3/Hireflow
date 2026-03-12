@@ -56,6 +56,10 @@ export function RegisterPage() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
+    if (!fullName.trim() || !currentStatus.trim() || !desiredRole.trim()) {
+      setError("Please complete all required profile details before creating your account.");
+      return;
+    }
     setBusy(true);
     setError(null);
 
@@ -171,6 +175,8 @@ export function RegisterPage() {
                       type="button"
                       onClick={() => setShowPassword((v) => !v)}
                       className="text-xs text-text-secondary hover:text-text"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      aria-pressed={showPassword}
                     >
                       {showPassword ? "Hide" : "Show"}
                     </button>
@@ -196,6 +202,7 @@ export function RegisterPage() {
                   className="h-12"
                   value={currentStatus}
                   onChange={(e) => setCurrentStatus(e.target.value)}
+                  required
                   label="Current status"
                 />
                 <FloatingInput
@@ -203,6 +210,7 @@ export function RegisterPage() {
                   className="h-12"
                   value={desiredRole}
                   onChange={(e) => setDesiredRole(e.target.value)}
+                  required
                   label="Desired role"
                 />
 

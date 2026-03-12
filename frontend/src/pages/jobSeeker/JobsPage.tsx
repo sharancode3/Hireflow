@@ -1,13 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { apiJson, ApiError } from "../../api/client";
-import { useAuth } from "../../auth/AuthContext";
-import type { Job, JobType, JobSeekerProfile } from "../../types";
 import { Badge } from "../../components/ui/Badge";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
-import { Drawer } from "../../components/ui/Drawer";
+import { QuickViewModal } from "../../components/jobs/QuickViewModal";
+import { SearchableLocationInput } from "../../components/ui/SearchableLocationInput";
+import { useExternalJobs } from "../../hooks/useExternalJobs";
+import {
+  formatDeadline,
+  formatLocation,
+  formatPostedAt,
+  formatSalary,
+  getJobTypeBadge,
+  getSourceLabel,
+} from "../../utils/jobDisplay";
 
 type Props = {
   freshersOnly?: boolean;
@@ -21,18 +28,26 @@ function splitSkills(input: string) {
 }
 
 export function JobSeekerJobsPage({ freshersOnly }: Props) {
-  const { token } = useAuth();
   const GUIDE_KEY = "hireflow_js_guide_dismissed";
   const LEGACY_GUIDE_KEY = "talvion_js_guide_dismissed";
+  const SAVED_KEY = "hireflow_external_saved_job_ids";
 
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [savedJobIds, setSavedJobIds] = useState<Set<string>>(new Set());
+  const [savedJobIds, setSavedJobIds] = useState<Set<string>>(() => {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(SAVED_KEY) || "[]") as string[];
+      return new Set(parsed);
+    } catch {
+      return new Set();
+    }
+  });
 
   const [skills, setSkills] = useState<string>("");
   const [location, setLocation] = useState<string>("");
   const [role, setRole] = useState<string>("");
   const [q, setQ] = useState<string>("");
-  const [jobType, setJobType] = useState<JobType | "">("");
+  const [jobType, setJobType] = useState<string>("any");
+  const [experienceLevel, setExperienceLevel] = useState<string>(freshersOnly ? "fresher" : "any");
+  const [isRemote, setIsRemote] = useState<boolean>(false);
   const [minExp, setMinExp] = useState<string>("");
   const [showGuide, setShowGuide] = useState<boolean>(() => {
     const current = localStorage.getItem(GUIDE_KEY);
@@ -45,110 +60,57 @@ export function JobSeekerJobsPage({ freshersOnly }: Props) {
     return true;
   });
 
-  const [activeJob, setActiveJob] = useState<Job | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-
-  const [profile, setProfile] = useState<JobSeekerProfile | null>(null);
-
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState<boolean>(false);
+  const [quickViewJobId, setQuickViewJobId] = useState<string | null>(null);
+  const [filters, setFilters] = useState({
+    q: "",
+    jobType: freshersOnly ? "internship" : "any",
+    location: "",
+    skills: "",
+    experienceLevel: freshersOnly ? "fresher" : "any",
+    isRemote: false,
+    page: 1,
+  });
 
   const skillsCsv = useMemo(() => splitSkills(skills).join(","), [skills]);
 
-  async function load() {
-    if (!token) return;
-    const query = new URLSearchParams();
-    if (q.trim()) query.set("q", q.trim());
-    if (skillsCsv) query.set("skills", skillsCsv);
-    if (location) query.set("location", location);
-    if (role) query.set("role", role);
-    if (jobType) query.set("jobType", jobType);
-    if (minExp.trim()) query.set("minExp", minExp.trim());
-    if (freshersOnly) query.set("freshersOnly", "true");
+  const { jobs, loading, error, pagination } = useExternalJobs(filters);
 
-    const data = await apiJson<{ jobs: Job[] }>(`/jobs?${query.toString()}`, { token });
-    setJobs(data.jobs);
-
-    const p = await apiJson<{ profile: JobSeekerProfile }>("/job-seeker/profile", { token });
-    setProfile(p.profile);
-
-    const saved = await apiJson<{ savedJobs: Array<{ job: Job }> }>("/job-seeker/saved-jobs", { token });
-    setSavedJobIds(new Set(saved.savedJobs.map((s) => s.job.id)));
-  }
-
-  const profileSkills = useMemo(
-    () => new Set((profile?.skills ?? []).map((s) => s.toLowerCase())),
-    [profile],
-  );
-
-  function matchFor(job: Job) {
-    const required = job.requiredSkills.map((s) => s.toLowerCase());
-    if (required.length === 0) return { pct: 0, missing: [] as string[] };
-    const hits = required.filter((s) => profileSkills.has(s)).length;
-    const pct = Math.round((hits / required.length) * 100);
-    const missing = job.requiredSkills.filter((s) => !profileSkills.has(s.toLowerCase()));
-    return { pct, missing };
-  }
-
-  function openJob(job: Job) {
-    setActiveJob(job);
-    setDrawerOpen(true);
-  }
+  const visibleJobs = useMemo(() => {
+    if (!minExp.trim()) return jobs;
+    const maxYears = Number(minExp.trim());
+    if (!Number.isFinite(maxYears)) return jobs;
+    return jobs.filter((job) => job.minExperienceYears <= maxYears);
+  }, [jobs, minExp]);
 
   useEffect(() => {
-    (async () => {
-      try {
-        setError(null);
-        await load();
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to load jobs");
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, freshersOnly]);
+    localStorage.setItem(SAVED_KEY, JSON.stringify(Array.from(savedJobIds)));
+  }, [savedJobIds]);
 
   async function onFilter(e: FormEvent) {
     e.preventDefault();
-    try {
-      setError(null);
-      await load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to filter jobs");
-    }
+    const queryParts = [q.trim(), role.trim()].filter(Boolean).join(" ");
+    setFilters({
+      q: queryParts,
+      jobType,
+      location,
+      skills: skillsCsv,
+      experienceLevel,
+      isRemote,
+      page: 1,
+    });
   }
 
-  async function apply(jobId: string) {
-    if (!token) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await apiJson("/job-seeker/applications", { method: "POST", token, body: { jobId } });
-      await load();
-    } catch (e) {
-      if (e instanceof ApiError) setError(e.message);
-      else setError("Failed to apply");
-    } finally {
-      setBusy(false);
-    }
+  function handleApplyNow(applyUrl: string) {
+    window.open(applyUrl, "_blank", "noopener,noreferrer");
   }
 
-  async function toggleSave(jobId: string) {
-    if (!token) return;
-    setBusy(true);
-    setError(null);
-    try {
-      if (savedJobIds.has(jobId)) {
-        await apiJson(`/job-seeker/saved-jobs/${jobId}`, { method: "DELETE", token });
-      } else {
-        await apiJson("/job-seeker/saved-jobs", { method: "POST", token, body: { jobId } });
-      }
-      await load();
-    } catch (e) {
-      if (e instanceof ApiError) setError(e.message);
-      else setError("Failed to update saved jobs");
-    } finally {
-      setBusy(false);
-    }
+  function toggleSave(jobId: string) {
+    setSavedJobIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(jobId)) next.delete(jobId);
+      else next.add(jobId);
+      return next;
+    });
   }
 
   return (
@@ -214,29 +176,39 @@ export function JobSeekerJobsPage({ freshersOnly }: Props) {
           </div>
           <div className="flex-1">
             <label className="label">Location</label>
-            <input
+            <SearchableLocationInput
               className="input"
               value={location}
-              onChange={(e) => setLocation(e.target.value)}
+              onChange={setLocation}
               placeholder="e.g., Mumbai"
             />
           </div>
           <div className="flex gap-2">
-            <Button type="submit" variant="primary" disabled={busy}>
+            <Button type="submit" variant="primary" disabled={loading}>
               Search
             </Button>
             <Button
               type="button"
               variant="secondary"
-              disabled={busy}
+              disabled={loading}
               onClick={() => {
                 setQ("");
                 setLocation("");
                 setRole("");
                 setSkills("");
-                setJobType("");
+                setJobType(freshersOnly ? "internship" : "any");
+                setExperienceLevel(freshersOnly ? "fresher" : "any");
+                setIsRemote(false);
                 setMinExp("");
-                void load();
+                setFilters({
+                  q: "",
+                  jobType: freshersOnly ? "internship" : "any",
+                  location: "",
+                  skills: "",
+                  experienceLevel: freshersOnly ? "fresher" : "any",
+                  isRemote: false,
+                  page: 1,
+                });
               }}
             >
               Reset
@@ -268,12 +240,24 @@ export function JobSeekerJobsPage({ freshersOnly }: Props) {
               </div>
               <div className="field">
                 <label className="label">Job type</label>
-                <select className="select" value={jobType} onChange={(e) => setJobType(e.target.value as any)}>
-                  <option value="">Any</option>
-                  <option value="FULL_TIME">Full-time</option>
-                  <option value="INTERNSHIP">Internship</option>
-                  <option value="CONTRACT">Contract</option>
-                  <option value="PART_TIME">Part-time</option>
+                <select className="select" value={jobType} onChange={(e) => setJobType(e.target.value)}>
+                  <option value="any">Any</option>
+                  <option value="full_time">Full-time</option>
+                  <option value="internship">Internship</option>
+                  <option value="contract">Contract</option>
+                  <option value="part_time">Part-time</option>
+                  <option value="freelance">Freelance</option>
+                </select>
+              </div>
+              <div className="field">
+                <label className="label">Experience level</label>
+                <select className="select" value={experienceLevel} onChange={(e) => setExperienceLevel(e.target.value)}>
+                  <option value="any">Any</option>
+                  <option value="fresher">Fresher</option>
+                  <option value="junior">Junior</option>
+                  <option value="mid">Mid</option>
+                  <option value="senior">Senior</option>
+                  <option value="lead">Lead</option>
                 </select>
               </div>
               <div className="field">
@@ -289,17 +273,31 @@ export function JobSeekerJobsPage({ freshersOnly }: Props) {
               <label className="flex items-center gap-2 text-xs text-text-secondary">
                 <input
                   type="checkbox"
+                  checked={isRemote}
+                  onChange={(e) => setIsRemote(e.target.checked)}
+                  className="h-4 w-4 rounded border-border"
+                />
+                Show only remote roles
+              </label>
+              <label className="flex items-center gap-2 text-xs text-text-secondary">
+                <input
+                  type="checkbox"
                   checked={freshersOnly ?? false}
                   readOnly
                   className="h-4 w-4 rounded border-border"
                 />
-                Show only fresher-friendly roles
+                Fresher mode page
               </label>
             </div>
           </Card>
 
           <div className="space-y-4">
-            {jobs.length === 0 ? (
+            {loading ? (
+              <Card>
+                <div className="text-sm font-semibold">Loading jobs</div>
+                <div className="mt-2 text-xs text-text-muted">Fetching latest listings from live sources.</div>
+              </Card>
+            ) : visibleJobs.length === 0 ? (
               <Card>
                 <div className="text-sm font-semibold">No jobs found</div>
                 <div className="mt-2 text-xs text-text-muted">
@@ -307,119 +305,99 @@ export function JobSeekerJobsPage({ freshersOnly }: Props) {
                 </div>
               </Card>
             ) : (
-              jobs.map((job) => {
-                const match = profile ? matchFor(job) : { pct: 0, missing: [] as string[] };
+              visibleJobs.map((job) => {
+                const badge = getJobTypeBadge(job.jobType);
                 return (
-                  <Card key={job.id} className="card-hover space-y-4">
+                  <Card key={job._id} className="card-hover space-y-4">
                     <div className="flex flex-wrap items-start justify-between gap-4">
                       <div>
                         <div className="text-lg font-semibold">{job.title}</div>
                         <div className="text-sm text-text-secondary">
-                          {job.companyName} · {job.location}
+                          {job.company} · {formatLocation(job.location)}
                         </div>
                         <div className="mt-2 text-xs text-text-muted">
-                          {job.jobType.replace("_", " ")} · {job.minExperienceYears}+ yrs
+                          {badge.label} · {job.minExperienceYears}+ yrs · {formatPostedAt(job.postedAt)}
                         </div>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        {job.openToFreshers ? <Badge variant="teal">Freshers</Badge> : null}
-                        <Badge variant="blue">{job.requiredSkills.length} skills</Badge>
+                        {job.experienceLevel === "fresher" ? <Badge variant="teal">Freshers</Badge> : null}
+                        <Badge variant="blue">{job.skills.length} skills</Badge>
+                        <Badge variant="amber">{getSourceLabel(job.source)}</Badge>
                         <button
                           type="button"
                           className="text-xs text-text-secondary hover:text-text"
-                          onClick={() => void toggleSave(job.id)}
-                          disabled={busy}
+                          onClick={() => toggleSave(job._id)}
+                          disabled={loading}
                         >
-                          {savedJobIds.has(job.id) ? "Saved" : "Save"}
+                          {savedJobIds.has(job._id) ? "Saved" : "Save"}
                         </button>
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <div className="text-xs text-text-muted">Skill match</div>
-                      <div className="h-2 w-full rounded-full bg-border">
-                        <div
-                          className={
-                            "h-2 rounded-full " +
-                            (match.pct >= 70 ? "bg-accent-teal" : match.pct >= 40 ? "bg-accent-amber" : "bg-danger")
-                          }
-                          style={{ width: `${match.pct}%` }}
-                        />
+                      <div className="text-xs text-text-muted">Compensation</div>
+                      <div className="text-sm text-text-secondary">
+                        {formatSalary(job.salaryMin, job.salaryMax, job.salaryCurrency)}
                       </div>
-                      <div className="text-xs text-text-secondary">{match.pct}% match</div>
+                      <div className="text-xs text-text-muted">{formatDeadline(job.applicationDeadline)}</div>
                     </div>
 
                     <div className="flex flex-wrap gap-2">
-                      {job.requiredSkills.slice(0, 6).map((s) => (
+                      {job.skills.slice(0, 6).map((s) => (
                         <Badge key={s} variant="blue">
                           {s}
                         </Badge>
                       ))}
-                      {job.requiredSkills.length > 6 ? (
-                        <span className="text-xs text-text-muted">+{job.requiredSkills.length - 6} more</span>
+                      {job.skills.length > 6 ? (
+                        <span className="text-xs text-text-muted">+{job.skills.length - 6} more</span>
                       ) : null}
                     </div>
 
                     <div className="flex flex-wrap gap-2">
-                      <Button type="button" variant="secondary" onClick={() => openJob(job)}>
+                      <Button type="button" variant="secondary" onClick={() => setQuickViewJobId(job._id)}>
                         Quick View
                       </Button>
-                      <Link to={`/job-seeker/jobs/${job.id}`}>
-                        <Button type="button" variant="primary">Apply Now</Button>
-                      </Link>
+                      <Button type="button" variant="primary" onClick={() => handleApplyNow(job.applyUrl)}>
+                        Apply Now
+                      </Button>
                     </div>
                   </Card>
                 );
               })
             )}
+
+            {pagination.pages > 1 ? (
+              <Card className="flex items-center justify-between">
+                <div className="text-xs text-text-muted">
+                  Page {pagination.page} of {pagination.pages}
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={loading || pagination.page <= 1}
+                    onClick={() => setFilters((prev) => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={loading || !pagination.hasMore}
+                    onClick={() => setFilters((prev) => ({ ...prev, page: prev.page + 1 }))}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </Card>
+            ) : null}
           </div>
         </div>
       </form>
 
-      <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)}>
-        {activeJob ? (
-          <div className="space-y-4">
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="text-xl font-semibold">{activeJob.title}</div>
-                <div className="text-sm text-text-secondary">
-                  {activeJob.companyName} · {activeJob.location} · {activeJob.role}
-                </div>
-                <div className="mt-2 text-xs text-text-muted">
-                  {activeJob.jobType.replace("_", " ")} · {activeJob.minExperienceYears}+ yrs
-                </div>
-              </div>
-              {activeJob.openToFreshers ? <Badge variant="teal">Freshers</Badge> : null}
-            </div>
-
-            <div>
-              <div className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted">Required skills</div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {activeJob.requiredSkills.map((s) => (
-                  <Badge key={s} variant="blue">{s}</Badge>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <div className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted">Description</div>
-              <div className="mt-2 whitespace-pre-wrap text-sm text-text-secondary">{activeJob.description}</div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="primary" disabled={busy} onClick={() => void apply(activeJob.id)}>
-                Quick apply
-              </Button>
-              <Button type="button" variant="secondary" onClick={() => void toggleSave(activeJob.id)} disabled={busy}>
-                {savedJobIds.has(activeJob.id) ? "Unsave" : "Save"}
-              </Button>
-              <Link to={`/job-seeker/jobs/${activeJob.id}`}>
-                <Button type="button" variant="ghost">Open full page</Button>
-              </Link>
-            </div>
-          </div>
-        ) : null}
-      </Drawer>
+      {quickViewJobId ? (
+        <QuickViewModal jobId={quickViewJobId} onClose={() => setQuickViewJobId(null)} onApply={handleApplyNow} />
+      ) : null}
     </div>
   );
 }

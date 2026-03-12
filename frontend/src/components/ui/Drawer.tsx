@@ -18,7 +18,7 @@ export function Drawer({
       <button
         type="button"
         aria-label="Close drawer"
-        className="absolute inset-0 bg-black/50 backdrop-blur"
+        className="absolute inset-0 bg-[var(--color-overlay)] backdrop-blur"
         onClick={onClose}
       />
       <div

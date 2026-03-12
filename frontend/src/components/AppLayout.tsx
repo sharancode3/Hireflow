@@ -20,7 +20,7 @@ export function AppLayout() {
   }, []);
 
   return (
-    <div className="page-shell">
+    <div className="page-shell min-h-screen bg-[var(--color-bg-primary)]">
       <AppTopBar
         onMenuToggle={toggleMobileNav}
         onSidebarToggle={toggleDesktopSidebar}
@@ -44,9 +44,9 @@ export function AppLayout() {
         </>
       )}
 
-      <div className="flex">
+      <div className="flex min-h-[calc(100vh-64px)] bg-[var(--color-bg-primary)]">
         <AppSidebar collapsed={sidebarCollapsed} />
-        <main className="flex-1 px-4 py-6 pb-24 transition-all duration-300 ease-in-out lg:px-8 lg:pb-6">
+        <main className="flex-1 bg-[var(--color-bg-primary)] px-4 py-6 pb-24 transition-all duration-300 ease-in-out lg:px-8 lg:pb-6">
           <div className="mx-auto max-w-[1100px] animate-page-enter">
             <Outlet />
           </div>

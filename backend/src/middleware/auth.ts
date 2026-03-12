@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 import { z } from "zod";
 import { env } from "../env";
 import { HttpError } from "../utils/httpError";
-import { prisma } from "../prisma";
+import { User } from "../models/User";
 
 const tokenPayloadSchema = z.object({
   userId: z.string().min(1),
@@ -48,10 +48,7 @@ export function requireRole(role: "JOB_SEEKER" | "RECRUITER") {
 export function requireAdmin() {
   return async (req: Request, _res: Response, next: NextFunction) => {
     const anyReq = req as AuthenticatedRequest;
-    const user = await prisma.user.findUnique({
-      where: { id: anyReq.auth.userId },
-      select: { email: true },
-    });
+    const user = await User.findById(anyReq.auth.userId).select("email");
 
     if (!user) {
       return next(new HttpError(401, "User not found"));

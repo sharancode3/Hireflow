@@ -19,7 +19,7 @@ const SEEKER_ROUTES = [
 const RECRUITER_ROUTES = [
   { path: "/recruiter/overview", label: "Dashboard", group: "Navigate", keywords: "home overview" },
   { path: "/recruiter/post-job", label: "Post a Job", group: "Actions", keywords: "create new" },
-  { path: "/recruiter/jobs", label: "Manage Jobs", group: "Navigate", keywords: "edit delete" },
+  { path: "/recruiter/listings", label: "Manage Listings", group: "Navigate", keywords: "jobs edit delete" },
   { path: "/recruiter/applicants", label: "Applicants", group: "Navigate", keywords: "candidates" },
   { path: "/recruiter/shortlisted", label: "Shortlisted", group: "Navigate", keywords: "favorites" },
   { path: "/recruiter/interviews", label: "Interview Schedule", group: "Navigate", keywords: "calendar" },
@@ -141,11 +141,11 @@ export function CommandPalette() {
   let flatIdx = 0;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[20vh]">
+    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[20vh]" role="dialog" aria-modal="true" aria-label="Command palette">
       {/* Overlay */}
       <button
         type="button"
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        className="absolute inset-0 bg-[var(--color-overlay)] backdrop-blur-sm"
         onClick={() => setOpen(false)}
         aria-label="Close command palette"
       />
@@ -163,6 +163,7 @@ export function CommandPalette() {
             onKeyDown={onInputKeyDown}
             placeholder="Type a command or search..."
             className="flex-1 bg-transparent text-sm text-[var(--text)] outline-none placeholder:text-[var(--muted)]"
+            aria-label="Search commands"
           />
           <kbd className="hidden sm:inline-flex items-center rounded border border-[var(--border)] bg-[var(--surface-raised)] px-1.5 py-0.5 text-[10px] text-[var(--muted)]">
             ESC
@@ -170,7 +171,7 @@ export function CommandPalette() {
         </div>
 
         {/* Results */}
-        <div ref={listRef} className="max-h-[300px] overflow-y-auto py-2">
+        <div ref={listRef} className="max-h-[300px] overflow-y-auto py-2" role="listbox" aria-label="Command results">
           {flatList.length === 0 ? (
             <div className="px-4 py-6 text-center text-sm text-[var(--muted)]">No results for "{query}"</div>
           ) : (
@@ -188,6 +189,8 @@ export function CommandPalette() {
                       type="button"
                       onClick={() => execute(item)}
                       onMouseEnter={() => setActive(idx)}
+                      role="option"
+                      aria-selected={idx === active}
                       className={`flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left text-sm transition-colors ${
                         idx === active
                           ? "bg-[var(--accent)]/8 text-[var(--text)]"
