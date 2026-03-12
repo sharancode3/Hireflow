@@ -10,10 +10,16 @@ import { applyTheme, loadTheme } from './theme/theme'
 
 applyTheme(loadTheme())
 
+const routerBase = (() => {
+  const rawBase = (import.meta.env.BASE_URL || "/").trim();
+  if (rawBase === "/") return "/";
+  return rawBase.replace(/\/+$/, "");
+})();
+
 const appTree = (
   <ThemeProvider>
     <AuthProvider>
-      <BrowserRouter basename={import.meta.env.BASE_URL}>
+      <BrowserRouter basename={routerBase}>
         <App />
       </BrowserRouter>
     </AuthProvider>
