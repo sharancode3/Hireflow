@@ -1,14 +1,11 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ApiError, apiJson } from "../api/client";
-import { useAuth } from "../auth/AuthContext";
-import type { User } from "../types";
 import { AuthSplitLayout } from "../components/AuthLayout";
+import { signInWithEmail } from "../services/authService";
 
 export function RecruiterLoginPage() {
   const navigate = useNavigate();
-  const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -21,11 +18,12 @@ export function RecruiterLoginPage() {
     setError(null);
 
     try {
-      const data = await apiJson<{ token: string; user: User }>("/auth/login", {
-        method: "POST",
-        body: { email, password, role: "RECRUITER" },
-      });
-      login({ token: data.token, user: data.user });
+      const data = await signInWithEmail(email, password);
+
+      if (data.user.role !== "RECRUITER") {
+        setError("This account is not registered as a recruiter.");
+        return;
+      }
 
       if (data.user.recruiterApprovalStatus === "PENDING") {
         navigate("/recruiter/pending", { replace: true });
@@ -34,9 +32,8 @@ export function RecruiterLoginPage() {
       } else {
         navigate("/recruiter/dashboard", { replace: true });
       }
-    } catch (err) {
-      if (err instanceof ApiError) setError(err.message);
-      else setError("Sign in failed");
+    } catch {
+      setError("Incorrect email or password. Please try again.");
     } finally {
       setBusy(false);
     }

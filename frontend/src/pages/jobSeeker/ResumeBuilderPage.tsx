@@ -7,6 +7,7 @@ import { ResumePreview } from "../../resume/ResumePreview";
 import { templateCatalog, defaultResumeSettings, SECTION_LABELS } from "../../resume/catalog";
 import { ApiError, apiJson } from "../../api/client";
 import { useAuth } from "../../auth/AuthContext";
+import { useNavigate } from "react-router-dom";
 import type {
   GeneratedResume,
   JobSeekerProfile,
@@ -319,6 +320,7 @@ function AtsScoreBadge({ score, breakdown }: { score: number; breakdown: { label
 /* ═══════════════════════════════════════════════════════ */
 export function ResumeBuilderPage() {
   const { token } = useAuth();
+  const navigate = useNavigate();
 
   /* State */
   const [profile, setProfile] = useState<JobSeekerProfile | null>(null);
@@ -354,10 +356,22 @@ export function ResumeBuilderPage() {
 
   /* ─── Load data ────────────────────────────────────── */
   useEffect(() => {
-    if (!token) return;
+    if (!token) {
+      setLoading(false);
+      return;
+    }
     Promise.all([
       apiJson<{ profile: JobSeekerProfile }>("/job-seeker/profile", { token }),
-      apiJson<{ generatedResumes: GeneratedResume[] }>("/job-seeker/generated-resumes", { token }),
+      (async () => {
+        try {
+          return await apiJson<{ generatedResumes: GeneratedResume[] }>("/job-seeker/generated-resumes", { token });
+        } catch (err) {
+          if (err instanceof ApiError && (err.status === 404 || err.status === 405)) {
+            return { generatedResumes: [] as GeneratedResume[] };
+          }
+          throw err;
+        }
+      })(),
     ]).then(([pRes, rRes]) => {
       setProfile(pRes.profile);
       setVersions(rRes.generatedResumes);
@@ -367,7 +381,14 @@ export function ResumeBuilderPage() {
         activateVersion(first);
       }
       setLoading(false);
-    }).catch(() => setLoading(false));
+    }).catch((err) => {
+      if (err instanceof ApiError) {
+        setActionError(err.message || "Failed to load resume builder data.");
+      } else {
+        setActionError("Failed to load resume builder data.");
+      }
+      setLoading(false);
+    });
   }, [token]);
 
   /* ─── Helpers ──────────────────────────────────────── */
@@ -532,7 +553,7 @@ export function ResumeBuilderPage() {
           <div className="text-6xl mb-4">📄</div>
           <h2 className="text-xl font-semibold text-[var(--text)]">Complete your profile first</h2>
           <p className="mt-2 text-sm text-[var(--muted)]">Add your skills, experience, and education before building a resume.</p>
-          <Button variant="primary" className="mt-6" onClick={() => window.location.href = "/job-seeker/profile"}>Go to Profile</Button>
+          <Button variant="primary" className="mt-6" onClick={() => navigate("/job-seeker/profile")}>Go to Profile</Button>
         </div>
       </div>
     );

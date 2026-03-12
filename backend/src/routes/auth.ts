@@ -2,7 +2,6 @@ import { Router } from "express";
 import bcrypt from "bcrypt";
 import { z } from "zod";
 import jwt from "jsonwebtoken";
-import { OAuth2Client } from "google-auth-library";
 import { User } from "../models/User";
 import { JobSeekerProfile } from "../models/JobSeekerProfile";
 import { RecruiterProfile } from "../models/RecruiterProfile";
@@ -56,55 +55,6 @@ authRouter.post("/auth/register", async (req, res, next) => {
 
     const token = signAccessToken(user._id.toString());
     res.status(201).json({ token, user: { id: user._id, email: user.email, role: user.role } });
-  } catch (err) {
-    next(err);
-  }
-});
-
-const googleAuthSchema = z.object({
-  credential: z.string().min(10, "Invalid Google credential"),
-});
-
-authRouter.post("/auth/google", async (req, res, next) => {
-  try {
-    const body = googleAuthSchema.parse(req.body ?? {});
-
-    if (!env.GOOGLE_CLIENT_ID) {
-      throw new HttpError(503, "Google sign-in is not configured on server");
-    }
-
-    const clientIds = env.GOOGLE_CLIENT_ID.split(",").map((item) => item.trim()).filter(Boolean);
-    const oauthClient = new OAuth2Client();
-
-    const ticket = await oauthClient.verifyIdToken({
-      idToken: body.credential,
-      audience: clientIds,
-    });
-
-    const payload = ticket.getPayload();
-    if (!payload?.email) throw new HttpError(401, "Google account email is missing");
-
-    const email = payload.email.toLowerCase();
-    const fullName = payload.name?.trim() || "Google User";
-
-
-    let user = await User.findOne({ email });
-
-    if (!user) {
-      user = await User.create({
-        email,
-        passwordHash: "google-oauth-account",
-        role: "JOB_SEEKER",
-      });
-
-      await JobSeekerProfile.create({
-        userId: user._id,
-        fullName,
-      });
-    }
-
-    const token = signAccessToken(user._id.toString());
-    res.json({ token, user: { id: user._id, email: user.email, role: user.role } });
   } catch (err) {
     next(err);
   }

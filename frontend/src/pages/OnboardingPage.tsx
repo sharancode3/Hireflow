@@ -18,6 +18,10 @@ function addTag(list: string[], value: string) {
   return [...list, clean];
 }
 
+function isOptionalProfileSyncError(error: unknown) {
+  return error instanceof ApiError && (error.status === 404 || error.status === 405);
+}
+
 export function OnboardingPage() {
   const { user, token } = useAuth();
   const navigate = useNavigate();
@@ -79,7 +83,14 @@ export function OnboardingPage() {
           experienceYears,
           skills,
         };
-        await apiJson("/job-seeker/profile", { method: "PATCH", token, body: payload });
+        try {
+          await apiJson("/job-seeker/profile", { method: "PATCH", token, body: payload });
+        } catch (error) {
+          // Backend is currently in migration mode and may not expose this endpoint yet.
+          if (!isOptionalProfileSyncError(error)) {
+            throw error;
+          }
+        }
       }
 
       completeOnboarding(user.id);

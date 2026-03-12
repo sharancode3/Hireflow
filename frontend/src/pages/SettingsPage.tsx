@@ -120,6 +120,10 @@ export function SettingsPage() {
           setRecProfile(p.profile);
         }
       } catch (e) {
+        if (e instanceof ApiError && (e.status === 404 || e.status === 405)) {
+          setError(null);
+          return;
+        }
         setError(e instanceof Error ? e.message : "Failed to load settings");
       }
     })();
@@ -142,6 +146,10 @@ export function SettingsPage() {
       });
       setJsProfile(updated.profile);
     } catch (e) {
+      if (e instanceof ApiError && (e.status === 404 || e.status === 405)) {
+        setJsProfile((prev) => (prev ? { ...prev, visibility: next } : prev));
+        return;
+      }
       if (e instanceof ApiError) setError(e.message);
       else setError("Failed to update visibility");
     } finally {

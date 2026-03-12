@@ -32,6 +32,22 @@ async function parseResponse(response: Response): Promise<any> {
   return text ? { message: text } : {};
 }
 
+function isLikelyHtml(payload: unknown): boolean {
+  if (typeof payload !== "string") return false;
+  const sample = payload.trim().slice(0, 300).toLowerCase();
+  return sample.includes("<html") || sample.includes("<body") || sample.includes("<!doctype html");
+}
+
+function getFriendlyHttpErrorMessage(status: number): string {
+  if (status === 405) {
+    return "API endpoint rejected this request (405). Check that VITE_API_URL points to your backend API.";
+  }
+  if (status >= 500) {
+    return "Server error. Please try again in a moment.";
+  }
+  return `Request failed (${status})`;
+}
+
 export async function apiJson<T>(path: string, options: ApiOptions = {}): Promise<T> {
   const method = options.method ?? "GET";
   const token = options.token ?? null;
@@ -63,10 +79,12 @@ export async function apiJson<T>(path: string, options: ApiOptions = {}): Promis
   const data = await parseResponse(response);
 
   if (!response.ok) {
+    const rawMessage = typeof data?.message === "string" ? data.message : null;
+    const htmlLikeMessage = isLikelyHtml(rawMessage);
     const message =
-      (typeof data?.message === "string" && data.message) ||
+      (!htmlLikeMessage && rawMessage) ||
       (typeof data?.error === "string" && data.error) ||
-      `Request failed (${response.status})`;
+      getFriendlyHttpErrorMessage(response.status);
     throw new ApiError(response.status, message);
   }
 

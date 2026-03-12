@@ -7,6 +7,7 @@ const titleMap: Array<{ test: RegExp; title: string }> = [
   { test: /^\/recruiter\/register$/, title: "Recruiter Register | Hireflow" },
   { test: /^\/recruiter\/pending$/, title: "Recruiter Pending | Hireflow" },
   { test: /^\/forgot-password$/, title: "Forgot Password | Hireflow" },
+  { test: /^\/reset-password$/, title: "Reset Password | Hireflow" },
   { test: /^\/onboarding$/, title: "Onboarding | Hireflow" },
   { test: /^\/job-seeker\/dashboard$/, title: "Dashboard | Hireflow" },
   { test: /^\/job-seeker\/profile$/, title: "Profile Builder | Hireflow" },
@@ -29,6 +30,9 @@ const titleMap: Array<{ test: RegExp; title: string }> = [
   { test: /^\/recruiter\/notifications$/, title: "Notifications | Hireflow" },
   { test: /^\/job-seeker\/jobs\/.+/, title: "Job Details | Hireflow" },
   { test: /^\/admin\/job-review$/, title: "Admin Job Review | Hireflow" },
+  { test: /^\/admin$/, title: "Admin Dashboard | Hireflow" },
+  { test: /^\/admin\/recruiters$/, title: "Recruiter Verification | Hireflow" },
+  { test: /^\/admin\/applicants$/, title: "Applicant Management | Hireflow" },
 ];
 
 export function PageTitleSync() {

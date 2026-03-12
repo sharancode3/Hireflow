@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { apiJson } from "../api/client";
 import type { User, UserRole } from "../types";
+import { getCurrentSession, getCurrentUser, onAuthStateChange, signOut as signOutUser } from "../services/authService";
 
 type AuthState = {
   token: string | null;
@@ -19,23 +19,7 @@ const LEGACY_TOKEN_KEY_2 = "talvion_token";
 const LEGACY_TOKEN_KEY = "hirehub_token";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [token, setToken] = useState<string | null>(() => {
-    const current = localStorage.getItem(TOKEN_KEY);
-    if (current) return current;
-    const legacy2 = localStorage.getItem(LEGACY_TOKEN_KEY_2);
-    if (legacy2) {
-      localStorage.setItem(TOKEN_KEY, legacy2);
-      localStorage.removeItem(LEGACY_TOKEN_KEY_2);
-      return legacy2;
-    }
-    const legacy = localStorage.getItem(LEGACY_TOKEN_KEY);
-    if (legacy) {
-      localStorage.setItem(TOKEN_KEY, legacy);
-      localStorage.removeItem(LEGACY_TOKEN_KEY);
-      return legacy;
-    }
-    return null;
-  });
+  const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
@@ -43,6 +27,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(LEGACY_TOKEN_KEY_2);
     localStorage.removeItem(LEGACY_TOKEN_KEY);
+    void signOutUser();
     setToken(null);
     setUser(null);
   }, []);
@@ -54,25 +39,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refreshMe = useCallback(async () => {
-    if (!token) {
-      setUser(null);
-      return;
-    }
-
     try {
-      const data = await apiJson<{ user: User }>("/auth/me", { token });
-      setUser(data.user);
+      const session = await getCurrentSession();
+      const currentUser = await getCurrentUser();
+      setToken(session.token);
+      setUser(currentUser);
+      if (session.token) localStorage.setItem(TOKEN_KEY, session.token);
+      else localStorage.removeItem(TOKEN_KEY);
     } catch {
-      logout();
+      setToken(null);
+      setUser(null);
     }
-  }, [token, logout]);
+  }, []);
 
   useEffect(() => {
-    (async () => {
+    const bootstrap = async () => {
       setIsLoading(true);
       await refreshMe();
       setIsLoading(false);
-    })();
+    };
+
+    void bootstrap();
+
+    const unsubscribe = onAuthStateChange((nextUser) => {
+      setUser(nextUser);
+      void getCurrentSession().then((session) => {
+        setToken(session.token);
+        if (session.token) localStorage.setItem(TOKEN_KEY, session.token);
+        else localStorage.removeItem(TOKEN_KEY);
+      });
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, [refreshMe]);
 
   const value = useMemo<AuthState>(

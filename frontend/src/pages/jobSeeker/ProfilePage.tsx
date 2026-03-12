@@ -48,6 +48,10 @@ function removeCaseInsensitive(list: string[], value: string) {
   return list.filter((s) => s.toLowerCase() !== value.toLowerCase());
 }
 
+function isOptionalEndpointError(error: unknown) {
+  return error instanceof ApiError && (error.status === 404 || error.status === 405);
+}
+
 function computeProfileCompletion(profile: JobSeekerProfile, hasResume: boolean) {
   const parts: Array<{ ok: boolean; weight: number }> = [
     { ok: profile.fullName.trim().length >= 2, weight: 10 },
@@ -219,11 +223,13 @@ function ProfilePreviewCard({
 }
 
 export function JobSeekerProfilePage() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [profile, setProfile] = useState<JobSeekerProfile | null>(null);
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [generatedResumes, setGeneratedResumes] = useState<GeneratedResume[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [localOnlyMode, setLocalOnlyMode] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const saveTimer = useRef<number | null>(null);
   const lastSavedSnapshot = useRef<string>("");
@@ -247,6 +253,54 @@ export function JobSeekerProfilePage() {
   const [summaryDraft, setSummaryDraft] = useState("");
   const [phoneCountryCode, setPhoneCountryCode] = useState("+91");
 
+  function localDraftKey() {
+    return `hireflow_local_profile:${user?.id ?? "job_seeker"}`;
+  }
+
+  function fallbackProfile(): JobSeekerProfile {
+    return {
+      id: `local_${user?.id ?? "job_seeker"}`,
+      userId: user?.id ?? "job_seeker",
+      fullName: (user?.email?.split("@")[0] ?? "Job Seeker").trim(),
+      phone: null,
+      location: null,
+      headline: null,
+      about: null,
+      experienceYears: 0,
+      desiredRole: null,
+      skills: [],
+      skillLevels: {},
+      interests: [],
+      education: [],
+      experience: [],
+      projects: [],
+      certifications: [],
+      achievements: [],
+      languages: [],
+      isFresher: true,
+      visibility: "PUBLIC",
+      activeGeneratedResumeId: null,
+    };
+  }
+
+  function loadLocalDraft(): JobSeekerProfile | null {
+    try {
+      const raw = localStorage.getItem(localDraftKey());
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") {
+        return parsed as JobSeekerProfile;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  function saveLocalDraft(nextProfile: JobSeekerProfile) {
+    localStorage.setItem(localDraftKey(), JSON.stringify(nextProfile));
+  }
+
   const hasResume = resumes.length > 0 || generatedResumes.length > 0;
   const completion = useMemo(() => {
     if (!profile) return 0;
@@ -254,14 +308,41 @@ export function JobSeekerProfilePage() {
   }, [profile, hasResume]);
 
   async function load() {
-    if (!token) return;
-    const [p, r, g] = await Promise.all([
-      apiJson<{ profile: JobSeekerProfile }>("/job-seeker/profile", { token }),
-      apiJson<{ resumes: Resume[] }>("/job-seeker/resume", { token }),
-      apiJson<{ generatedResumes: GeneratedResume[] }>("/job-seeker/generated-resumes", { token }),
+    if (!token || !user) return;
+
+    let resolvedProfile: JobSeekerProfile;
+    try {
+      const p = await apiJson<{ profile: JobSeekerProfile }>("/job-seeker/profile", { token });
+      resolvedProfile = p.profile;
+      setLocalOnlyMode(false);
+      lastSavedSnapshot.current = JSON.stringify(buildProfilePatch(p.profile));
+    } catch (e) {
+      if (!isOptionalEndpointError(e)) throw e;
+      resolvedProfile = loadLocalDraft() ?? fallbackProfile();
+      setLocalOnlyMode(true);
+    }
+
+    const [r, g] = await Promise.all([
+      (async () => {
+        try {
+          return await apiJson<{ resumes: Resume[] }>("/job-seeker/resume", { token });
+        } catch (e) {
+          if (isOptionalEndpointError(e)) return { resumes: [] as Resume[] };
+          throw e;
+        }
+      })(),
+      (async () => {
+        try {
+          return await apiJson<{ generatedResumes: GeneratedResume[] }>("/job-seeker/generated-resumes", { token });
+        } catch (e) {
+          if (isOptionalEndpointError(e)) return { generatedResumes: [] as GeneratedResume[] };
+          throw e;
+        }
+      })(),
     ]);
-    setProfile(p.profile);
-    const parsedPhone = splitPhoneWithCode(p.profile.phone, "+91");
+
+    setProfile(resolvedProfile);
+    const parsedPhone = splitPhoneWithCode(resolvedProfile.phone, "+91");
     setPhoneCountryCode(parsedPhone.countryCode);
     setResumes(r.resumes);
     setGeneratedResumes(g.generatedResumes);
@@ -269,21 +350,36 @@ export function JobSeekerProfilePage() {
 
   useEffect(() => {
     (async () => {
-      if (!token) return;
+      if (!token) {
+        setIsLoading(false);
+        return;
+      }
       try {
+        setIsLoading(true);
         setError(null);
         await load();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load profile");
+      } finally {
+        setIsLoading(false);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [token, user]);
 
   async function saveNow(nextProfile: JobSeekerProfile) {
     if (!token) return;
     setSaveState("saving");
     setError(null);
+
+    if (localOnlyMode) {
+      saveLocalDraft(nextProfile);
+      setProfile(nextProfile);
+      lastSavedSnapshot.current = JSON.stringify(buildProfilePatch(nextProfile));
+      setSaveState("saved");
+      window.setTimeout(() => setSaveState("idle"), 3000);
+      return;
+    }
 
     try {
       const updated = await apiJson<{ profile: JobSeekerProfile }>("/job-seeker/profile", {
@@ -298,6 +394,15 @@ export function JobSeekerProfilePage() {
       setSaveState("saved");
       window.setTimeout(() => setSaveState("idle"), 3000);
     } catch (e) {
+      if (isOptionalEndpointError(e)) {
+        setLocalOnlyMode(true);
+        saveLocalDraft(nextProfile);
+        setProfile(nextProfile);
+        lastSavedSnapshot.current = JSON.stringify(buildProfilePatch(nextProfile));
+        setSaveState("saved");
+        window.setTimeout(() => setSaveState("idle"), 3000);
+        return;
+      }
       setSaveState("error");
       if (e instanceof ApiError) setError(e.message);
       else setError("Failed to update profile");
@@ -385,10 +490,18 @@ export function JobSeekerProfilePage() {
     scheduleSave(next);
   }
 
-  if (!profile) {
+  if (isLoading) {
     return (
       <div className="grid">
         <div className="card">Loading profile...</div>
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="grid gap-4">
+        <div className="card border-danger/60 bg-danger/10 text-danger">{error ?? "Profile not found."}</div>
       </div>
     );
   }
@@ -453,6 +566,12 @@ export function JobSeekerProfilePage() {
           </div>
         ) : null}
       </Card>
+
+      {localOnlyMode ? (
+        <Card className="border-amber-500/50 bg-amber-500/10 text-amber-300">
+          Profile sync service is being upgraded. Your edits are saved locally for now.
+        </Card>
+      ) : null}
 
       {error ? <Card className="border-danger/60 bg-danger/10 text-danger">{error}</Card> : null}
 

@@ -16,6 +16,10 @@ export function RoleRedirect(props: { jobSeekerTo: string; recruiterTo: string }
     return <Navigate to="/login" replace />;
   }
 
+  if (user.isAdmin) {
+    return <Navigate to="/admin" replace />;
+  }
+
   if (user.role === "RECRUITER" && user.recruiterApprovalStatus === "PENDING") {
     return <Navigate to="/recruiter/pending" replace />;
   }

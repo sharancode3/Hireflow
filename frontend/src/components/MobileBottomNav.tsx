@@ -1,6 +1,7 @@
 import { Bell, Briefcase, House, Rss, UserCircle } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { config } from "../config";
 
 type Item = { to: string; label: string; icon: typeof House };
 
@@ -8,7 +9,19 @@ export function MobileBottomNav() {
   const { user } = useAuth();
   if (!user) return null;
 
-  const items: Item[] = user.role === "RECRUITER"
+  const isAdmin = config.adminEmails.includes(user.email.trim().toLowerCase());
+
+  const adminItems: Item[] = [
+    { to: "/admin", label: "Home", icon: House },
+    { to: "/admin/recruiters", label: "Recruiters", icon: UserCircle },
+    { to: "/admin/applicants", label: "Applicants", icon: Briefcase },
+    { to: "/admin/job-review", label: "Jobs", icon: Rss },
+    { to: "/job-seeker/settings", label: "Settings", icon: Bell },
+  ];
+
+  const items: Item[] = isAdmin
+    ? adminItems
+    : user.role === "RECRUITER"
     ? [
         { to: "/recruiter/dashboard", label: "Home", icon: House },
         { to: "/recruiter/listings", label: "Jobs", icon: Briefcase },

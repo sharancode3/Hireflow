@@ -17,5 +17,8 @@ function resolveApiBaseUrl() {
 
 export const config = {
   apiBaseUrl: resolveApiBaseUrl(),
-  googleClientId: (import.meta.env.VITE_GOOGLE_CLIENT_ID || "").trim(),
+  adminEmails: (import.meta.env.VITE_ADMIN_EMAILS || "Sharan18x@gmail.com")
+    .split(",")
+    .map((item: string) => item.trim().toLowerCase())
+    .filter(Boolean),
 } as const;

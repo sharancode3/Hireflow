@@ -1,17 +1,21 @@
 import { NavLink } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
 import {
+  ClipboardCheck,
   Bookmark,
   Briefcase,
+  Building2,
   FileEdit,
   FileText,
   Flag,
   LayoutDashboard,
+  ShieldCheck,
   MessageSquare,
   Rss,
   Settings,
   UserCircle,
 } from "lucide-react";
+import { config } from "../config";
 import { useAuth } from "../auth/AuthContext";
 
 type NavItem = { to: string; label: string; icon: LucideIcon };
@@ -80,6 +84,22 @@ const recruiterNav: NavGroup[] = [
   },
 ];
 
+const adminNav: NavGroup[] = [
+  {
+    group: "ADMIN",
+    items: [
+      { to: "/admin", label: "Dashboard", icon: LayoutDashboard },
+      { to: "/admin/recruiters", label: "Recruiter Verification", icon: ShieldCheck },
+      { to: "/admin/applicants", label: "Applicant Management", icon: ClipboardCheck },
+      { to: "/admin/job-review", label: "Job Review", icon: Building2 },
+    ],
+  },
+  {
+    group: "ACCOUNT",
+    items: [{ to: "/job-seeker/settings", label: "Settings", icon: Settings }],
+  },
+];
+
 export function AppSidebar({
   mobile,
   onNavigate,
@@ -90,7 +110,8 @@ export function AppSidebar({
   collapsed?: boolean;
 } = {}) {
   const { user } = useAuth();
-  const groups = user?.role === "RECRUITER" ? recruiterNav : jobSeekerNav;
+  const isAdmin = Boolean(user?.email && config.adminEmails.includes(user.email.trim().toLowerCase()));
+  const groups = isAdmin ? adminNav : (user?.role === "RECRUITER" ? recruiterNav : jobSeekerNav);
 
   const baseClass = mobile
     ? "flex flex-col gap-6"

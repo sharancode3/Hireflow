@@ -1,26 +1,11 @@
 import { useEffect, useState } from "react";
-import { apiJson } from "../../api/client";
-import { useAuth } from "../../auth/AuthContext";
+import { fetchReviewJobs, reviewJob, type ReviewJobItem } from "../../admin/adminData";
 import { Badge } from "../../components/ui/Badge";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { Modal } from "../../components/ui/Modal";
 
-type ReviewJob = {
-  id: string;
-  title: string;
-  companyName: string;
-  location: string;
-  role: string;
-  description: string;
-  reviewStatus: "PENDING_REVIEW" | "APPROVED" | "REJECTED" | "NEEDS_REVISION";
-  adminFeedback: string | null;
-  reviewedAt: string | null;
-  createdAt: string;
-  recruiter: { companyName: string; email: string };
-};
-
-function statusBadge(status: ReviewJob["reviewStatus"]) {
+function statusBadge(status: ReviewJobItem["reviewStatus"]) {
   if (status === "APPROVED") return <Badge variant="green">Approved</Badge>;
   if (status === "REJECTED") return <Badge variant="red">Rejected</Badge>;
   if (status === "NEEDS_REVISION") return <Badge variant="amber">Needs Revision</Badge>;
@@ -28,33 +13,26 @@ function statusBadge(status: ReviewJob["reviewStatus"]) {
 }
 
 export function AdminJobReviewPage() {
-  const { token } = useAuth();
-  const [jobs, setJobs] = useState<ReviewJob[]>([]);
+  const [jobs, setJobs] = useState<ReviewJobItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [modal, setModal] = useState<{ jobId: string; action: "REJECT" | "REQUEST_REVISION" } | null>(null);
   const [feedback, setFeedback] = useState("");
 
   async function load() {
-    if (!token) return;
-    const data = await apiJson<{ jobs: ReviewJob[] }>("/admin/job-review", { token });
-    setJobs(data.jobs);
+    const data = await fetchReviewJobs();
+    setJobs(data);
   }
 
   useEffect(() => {
     void load();
-  }, [token]);
+  }, []);
 
   async function review(jobId: string, action: "APPROVE" | "REJECT" | "REQUEST_REVISION", note?: string) {
-    if (!token) return;
     setBusy(true);
     setError(null);
     try {
-      await apiJson(`/admin/job-review/${jobId}`, {
-        method: "PATCH",
-        token,
-        body: (note ? { action, feedback: note } : { action }) as any,
-      });
+      await reviewJob(jobId, action, note);
       setModal(null);
       setFeedback("");
       await load();

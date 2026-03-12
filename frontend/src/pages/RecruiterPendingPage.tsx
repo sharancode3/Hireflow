@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import { useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
@@ -6,7 +5,7 @@ import { apiJson, ApiError } from "../api/client";
 import { useState } from "react";
 
 export function RecruiterPendingPage() {
-  const { user, refreshMe, token } = useAuth();
+  const { user, refreshMe, token, logout } = useAuth();
   const navigate = useNavigate();
   const [resendBusy, setResendBusy] = useState(false);
   const [resendMessage, setResendMessage] = useState<string | null>(null);
@@ -54,6 +53,11 @@ export function RecruiterPendingPage() {
     } finally {
       setResendBusy(false);
     }
+  }
+
+  function onSwitchAccount() {
+    logout();
+    navigate("/recruiter/login", { replace: true });
   }
 
   return (
@@ -129,9 +133,13 @@ export function RecruiterPendingPage() {
               >
                 {resendBusy ? "Sending..." : "Resend Verification Email"}
               </button>
-              <Link to="/recruiter/login" className="text-sm text-[var(--color-accent)] hover:text-text">
-                Back to Recruiter Login
-              </Link>
+              <button
+                type="button"
+                onClick={onSwitchAccount}
+                className="text-sm text-[var(--color-accent)] hover:text-text"
+              >
+                Log out and go to Recruiter Login
+              </button>
             </div>
           </div>
         </section>

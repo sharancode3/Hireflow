@@ -1,13 +1,12 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ApiError, apiJson } from "../api/client";
 import { Logo } from "../components/Logo";
 import { AuthSplitLayout } from "../components/AuthLayout";
 import { getPhoneCountryByCode } from "../data/phoneCountries";
 import { PhonePickerInput } from "../components/ui/PhonePickerInput";
-import { useAuth } from "../auth/AuthContext";
 import { composePhoneWithCode, countDigits } from "../utils/phone";
+import { signUpWithEmail } from "../services/authService";
 
 function FeatureIcon({ color, path }: { color: string; path: string }) {
   return (
@@ -42,7 +41,6 @@ const recruiterFeatureCards = [
 
 export function RecruiterRegisterPage() {
   const navigate = useNavigate();
-  const { login } = useAuth();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -162,12 +160,7 @@ export function RecruiterRegisterPage() {
     }
     setCheckingEmail(true);
     try {
-      const data = await apiJson<{ exists: boolean }>(`/auth/check-email?email=${encodeURIComponent(normalized)}`);
-      if (data.exists) {
-        setFieldError("email", "An account with this email already exists.");
-      } else {
-        setFieldError("email");
-      }
+      setFieldError("email");
     } catch {
       // noop on network failure
     } finally {
@@ -207,19 +200,13 @@ export function RecruiterRegisterPage() {
     setError(null);
 
     try {
-      const data = await apiJson<{ token: string; user: { id: string; email: string; role: "RECRUITER"; recruiterApprovalStatus?: "PENDING" | "APPROVED" | "REJECTED" } }>("/auth/recruiter/register", {
-        method: "POST",
-        body: {
-          fullName,
-          email: email.trim().toLowerCase(),
-          password,
-          companyName,
-          companyWebsite,
-          designation,
-          phone: composePhoneWithCode(countryCode, phone),
-        },
+      await signUpWithEmail(email.trim().toLowerCase(), password, {
+        // TODO: supabase.auth.signUp({ email, password, options: { data: { full_name, role, phone } } })
+        fullName,
+        role: "RECRUITER",
+        phone: composePhoneWithCode(countryCode, phone),
+        companyName,
       });
-      login({ token: data.token, user: data.user });
       localStorage.setItem(
         "hireflow_recruiter_application_summary",
         JSON.stringify({
@@ -233,7 +220,7 @@ export function RecruiterRegisterPage() {
       );
       navigate("/recruiter/pending", { replace: true });
     } catch (err) {
-      if (err instanceof ApiError) setError(err.message);
+      if (err instanceof Error) setError(err.message);
       else setError("Unable to submit recruiter registration.");
     } finally {
       setBusy(false);

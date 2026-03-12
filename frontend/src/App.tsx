@@ -5,6 +5,7 @@ import { Suspense, lazy } from "react";
 import { AuthLayout } from "./components/AuthLayout";
 import { AppLayout } from "./components/AppLayout";
 import { RequireAuth } from "./auth/RequireAuth";
+import { RequireAdmin } from "./auth/RequireAdmin";
 import { RequireGuest } from "./auth/RequireGuest";
 
 import { RootRedirect } from "./pages/RootRedirect";
@@ -41,6 +42,7 @@ import { LoginPage } from "./pages/LoginPage";
 import { RecruiterLoginPage } from "./pages/RecruiterLoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
+import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { ThemePage } from "./pages/ThemePage";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -49,6 +51,9 @@ import { RecruiterRegisterPage } from "./pages/RecruiterRegisterPage";
 import { RecruiterPendingPage } from "./pages/RecruiterPendingPage";
 import { PageTitleSync } from "./components/PageTitleSync";
 import { AdminJobReviewPage } from "./pages/admin/JobReviewPage";
+import { AdminDashboardPage } from "./pages/admin/AdminDashboardPage";
+import { RecruiterVerificationPage } from "./pages/admin/RecruiterVerificationPage";
+import { ApplicantManagementPage } from "./pages/admin/ApplicantManagementPage";
 
 import { JobSeekerLayout } from "./pages/jobSeeker/JobSeekerLayout";
 import { JobSeekerDashboardPage } from "./pages/jobSeeker/DashboardPage";
@@ -79,6 +84,7 @@ export default function App() {
         <Route path="/" element={<RootRedirect />} />
 
       <Route element={<AuthLayout />}>
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route element={<RequireGuest />}>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/recruiter/login" element={<RecruiterLoginPage />} />
@@ -107,7 +113,12 @@ export default function App() {
             element={<RoleRedirect jobSeekerTo="/job-seeker/settings" recruiterTo="/recruiter/settings" />}
           />
 
-          <Route path="/admin/job-review" element={<AdminJobReviewPage />} />
+          <Route element={<RequireAdmin />}>
+            <Route path="/admin" element={<AdminDashboardPage />} />
+            <Route path="/admin/recruiters" element={<RecruiterVerificationPage />} />
+            <Route path="/admin/applicants" element={<ApplicantManagementPage />} />
+            <Route path="/admin/job-review" element={<AdminJobReviewPage />} />
+          </Route>
 
           <Route element={<RequireAuth role="JOB_SEEKER" />}>
             <Route path="/job-seeker" element={<JobSeekerLayout />}>

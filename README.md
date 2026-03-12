@@ -46,7 +46,6 @@ Backend:
 ```bash
 cd backend
 npm install
-npm run prisma:migrate
 npm run dev
 ```
 
@@ -75,32 +74,16 @@ Use the included examples:
 
 Copy them to actual `.env` files and fill values for your environment.
 
-## Real-Time External Jobs Integration
+## Supabase Migration Readiness
 
-Hireflow now supports external real-time jobs ingestion with a hybrid data model:
+Backend is prepared for Supabase client wiring.
 
-- PostgreSQL/SQLite via Prisma for core app entities (users, profiles, applications, notifications)
-- MongoDB for high-volume external jobs aggregation (`external_jobs` collection)
-
-### Required Backend Environment Variables
+Required backend environment variables:
 
 ```env
-MONGODB_URI=...
-MONGODB_DB_NAME=hireflow
-JSEARCH_API_KEY=...
-ADZUNA_APP_ID=...
-ADZUNA_APP_KEY=...
-SERPAPI_KEY=...
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=...
 ```
 
-### New Public API Endpoints
-
-- `GET /external-jobs`
-- `GET /external-jobs/:id`
-- `GET /external-jobs/meta/stats`
-
-### Scheduler
-
-- Full external fetch cycle every 6 hours
-- Expired jobs cleanup every hour
+Current migration mode keeps core server middleware/health active while DB-backed APIs are being ported.
 

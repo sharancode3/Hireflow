@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import { apiJson } from "../../api/client";
+import { ApiError, apiJson } from "../../api/client";
 import { useAuth } from "../../auth/AuthContext";
 import type { ApplicationStatus, ApplicationWithJob } from "../../types";
 import { Badge } from "../../components/ui/Badge";
@@ -59,7 +59,7 @@ export function AppliedJobsPage() {
   const { token } = useAuth();
   const [apps, setApps] = useState<ApplicationWithJob[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [view, setView] = useState<"kanban" | "list">("kanban");
+  const [view, setView] = useState<"kanban" | "list">("list");
   const [selected, setSelected] = useState<ApplicationWithJob | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
 
@@ -71,6 +71,11 @@ export function AppliedJobsPage() {
         const data = await apiJson<{ applications: ApplicationWithJob[] }>("/job-seeker/applications", { token });
         setApps(data.applications);
       } catch (e) {
+        if (e instanceof ApiError && (e.status === 404 || e.status === 405)) {
+          setApps([]);
+          setError(null);
+          return;
+        }
         setError(e instanceof Error ? e.message : "Failed to load applications");
       }
     })();
@@ -99,7 +104,7 @@ export function AppliedJobsPage() {
         </div>
         <div className="flex gap-2">
           <Button variant={view === "kanban" ? "primary" : "secondary"} onClick={showKanban}>
-            Kanban
+            Pipeline
           </Button>
           <Button variant={view === "list" ? "primary" : "secondary"} onClick={showList}>
             List

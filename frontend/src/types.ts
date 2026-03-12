@@ -6,6 +6,7 @@ export type User = {
   id: string;
   email: string;
   role: UserRole;
+  isAdmin?: boolean;
   recruiterApprovalStatus?: "PENDING" | "APPROVED" | "REJECTED";
 };
 

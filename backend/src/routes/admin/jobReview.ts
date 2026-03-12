@@ -6,7 +6,7 @@ import { RecruiterProfile } from "../../models/RecruiterProfile";
 
 export const adminJobReviewRouter = Router();
 
-adminJobReviewRouter.get("/admin/job-review", async (req, res, next) => {
+adminJobReviewRouter.get("/job-review", async (req, res, next) => {
   try {
     const query = z.object({
       status: z.enum(["PENDING_REVIEW", "APPROVED", "REJECTED", "NEEDS_REVISION"]).optional(),
@@ -21,7 +21,7 @@ adminJobReviewRouter.get("/admin/job-review", async (req, res, next) => {
   }
 });
 
-adminJobReviewRouter.patch("/admin/job-review/:jobId", async (req, res, next) => {
+adminJobReviewRouter.patch("/job-review/:jobId", async (req, res, next) => {
   try {
     const { jobId } = z.object({ jobId: z.string().min(1) }).parse(req.params);
     const body = z.object({

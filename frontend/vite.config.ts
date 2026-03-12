@@ -2,8 +2,9 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
-export default defineConfig({
-  base: '/Hireflow/',
+export default defineConfig(({ command }) => ({
+  // Use root path in dev to avoid '/Hireflow/' URL warnings on localhost.
+  base: command === 'serve' ? '/' : '/Hireflow/',
   plugins: [react()],
   server: {
     proxy: {
@@ -26,4 +27,4 @@ export default defineConfig({
       },
     },
   },
-})
+}))

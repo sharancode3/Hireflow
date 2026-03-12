@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { apiJson } from "../../api/client";
+import { ApiError, apiJson } from "../../api/client";
 import { useAuth } from "../../auth/AuthContext";
 import type {
   ApplicationWithJob,
@@ -80,28 +80,58 @@ function sparklinePoints(values: number[]) {
 }
 
 export function JobSeekerDashboardPage() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
 
   const [profile, setProfile] = useState<JobSeekerProfile | null>(null);
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [generatedResumes, setGeneratedResumes] = useState<GeneratedResume[]>([]);
   const [applications, setApplications] = useState<ApplicationWithJob[]>([]);
-  const [savedJobs, setSavedJobs] = useState<Array<{ job: Job }>>([]);
+  const [savedJobs, setSavedJobs] = useState<Array<{ job?: Job; jobId?: Job | string }>>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  function fallbackProfile(): JobSeekerProfile {
+    return {
+      id: `local_${user?.id ?? "job_seeker"}`,
+      userId: user?.id ?? "job_seeker",
+      fullName: (user?.email?.split("@")[0] ?? "Job Seeker").trim(),
+      phone: null,
+      location: null,
+      experienceYears: 0,
+      desiredRole: null,
+      skills: [],
+      isFresher: true,
+      visibility: "PUBLIC",
+    };
+  }
+
+  async function optionalApi<T>(path: string, fallback: T): Promise<T> {
+    try {
+      return await apiJson<T>(path, { token: token ?? undefined });
+    } catch (e) {
+      if (e instanceof ApiError && (e.status === 404 || e.status === 405)) return fallback;
+      throw e;
+    }
+  }
 
   useEffect(() => {
     (async () => {
-      if (!token) return;
+      if (!token) {
+        setIsLoading(false);
+        setProfile(null);
+        return;
+      }
       try {
+        setIsLoading(true);
         setError(null);
         const [p, r, g, a, s, n] = await Promise.all([
-          apiJson<{ profile: JobSeekerProfile }>("/job-seeker/profile", { token }),
-          apiJson<{ resumes: Resume[] }>("/job-seeker/resume", { token }),
-          apiJson<{ generatedResumes: GeneratedResume[] }>("/job-seeker/generated-resumes", { token }),
-          apiJson<{ applications: ApplicationWithJob[] }>("/job-seeker/applications", { token }),
-          apiJson<{ savedJobs: Array<{ job: Job }> }>("/job-seeker/saved-jobs", { token }),
-          apiJson<{ notifications: NotificationItem[] }>("/notifications", { token }),
+          optionalApi<{ profile: JobSeekerProfile }>("/job-seeker/profile", { profile: fallbackProfile() }),
+          optionalApi<{ resumes: Resume[] }>("/job-seeker/resume", { resumes: [] }),
+          optionalApi<{ generatedResumes: GeneratedResume[] }>("/job-seeker/generated-resumes", { generatedResumes: [] }),
+          optionalApi<{ applications: ApplicationWithJob[] }>("/job-seeker/applications", { applications: [] }),
+          optionalApi<{ savedJobs: Array<{ job?: Job; jobId?: Job | string }> }>("/job-seeker/saved-jobs", { savedJobs: [] }),
+          optionalApi<{ notifications: NotificationItem[] }>("/notifications", { notifications: [] }),
         ]);
 
         setProfile(p.profile);
@@ -112,9 +142,11 @@ export function JobSeekerDashboardPage() {
         setNotifications(n.notifications);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load dashboard");
+      } finally {
+        setIsLoading(false);
       }
     })();
-  }, [token]);
+  }, [token, user?.email, user?.id]);
 
   const unreadNotifications = useMemo(() => notifications.filter((x) => !x.isRead).length, [notifications]);
   const interviewCalls = useMemo(() => applications.filter((x) => x.status === "INTERVIEW_SCHEDULED").length, [applications]);
@@ -157,7 +189,11 @@ export function JobSeekerDashboardPage() {
 
   const recommendedJobs = useMemo(() => {
     const byId = new Map<string, Job>();
-    for (const s of savedJobs) byId.set(s.job.id, s.job);
+    for (const s of savedJobs) {
+      const candidate = s.job ?? (typeof s.jobId === "object" ? s.jobId : null);
+      if (!candidate?.id) continue;
+      byId.set(candidate.id, candidate);
+    }
     for (const a of applications) byId.set(a.job.id, a.job);
     return Array.from(byId.values()).slice(0, 8);
   }, [applications, savedJobs]);
@@ -168,7 +204,8 @@ export function JobSeekerDashboardPage() {
   const completionCount = useCountUp(completion, 800);
   const firstName = useMemo(() => profile?.fullName?.trim().split(/\s+/)[0] ?? "there", [profile?.fullName]);
 
-  if (!profile) return <Card>Loading dashboard...</Card>;
+  if (isLoading) return <Card>Loading dashboard...</Card>;
+  if (!profile) return <Card className="border-danger/50 bg-danger/10 text-danger">{error ?? "Profile not found."}</Card>;
 
   return (
     <div className="space-y-6">

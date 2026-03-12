@@ -4,34 +4,12 @@ import cors from "cors";
 import helmet from "helmet";
 
 import { env } from "./env";
-import { connectMongoDB } from "./mongodb";
 import { notFound } from "./middleware/notFound";
 import { errorHandler } from "./middleware/errorHandler";
-import { requireAdmin, requireAuth } from "./middleware/auth";
-import { loadUserRole } from "./middleware/loadUserRole";
 
 import { healthRouter } from "./routes/health";
-import { authRouter } from "./routes/auth";
-import { trendsRouter } from "./routes/trends";
-import { notificationsRouter } from "./routes/notifications";
-import { externalJobsRouter } from "./routes/externalJobs";
-
-import { jobSeekerProfileRouter } from "./routes/jobSeeker/profile";
-import { jobSeekerJobsRouter } from "./routes/jobSeeker/jobs";
-import { jobSeekerApplicationsRouter } from "./routes/jobSeeker/applications";
-import { jobSeekerResumeRouter } from "./routes/jobSeeker/resume";
-
-import { recruiterProfileRouter } from "./routes/recruiter/profile";
-import { recruiterJobsRouter } from "./routes/recruiter/jobs";
-import { recruiterOverviewRouter } from "./routes/recruiter/overview";
-import { recruiterApplicationsRouter } from "./routes/recruiter/applications";
-import { adminJobReviewRouter } from "./routes/admin/jobReview";
-
-// import { startJobFetchScheduler } from "./jobs/jobFetcher";
 
 async function bootstrap() {
-  await connectMongoDB();
-
   const app = express();
 
   const configuredOrigins = env.CORS_ORIGIN
@@ -57,27 +35,9 @@ async function bootstrap() {
   app.use(express.json({ limit: "1mb" }));
 
   app.use(healthRouter);
-  app.use(authRouter);
-  app.use(trendsRouter);
-  app.use(externalJobsRouter);
 
-  app.use(requireAuth);
-  app.use(loadUserRole);
-
-  app.use(notificationsRouter);
-
-  app.use(jobSeekerProfileRouter);
-  app.use(jobSeekerJobsRouter);
-  app.use(jobSeekerApplicationsRouter);
-  app.use(jobSeekerResumeRouter);
-
-  app.use(recruiterProfileRouter);
-  app.use(recruiterJobsRouter);
-  app.use(recruiterOverviewRouter);
-  app.use(recruiterApplicationsRouter);
-
-  app.use(requireAdmin());
-  app.use(adminJobReviewRouter);
+  // Supabase migration mode: MongoDB-backed routes are intentionally disabled.
+  // Keep only health/CORS/middleware so frontend can run while data APIs are migrated.
 
   app.use(notFound);
   app.use(errorHandler);
@@ -85,8 +45,6 @@ async function bootstrap() {
   app.listen(env.PORT, () => {
     console.log(`[Server] Running on port ${env.PORT}`);
   });
-
-  // startJobFetchScheduler();
 }
 
 bootstrap().catch((err) => {

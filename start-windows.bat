@@ -49,9 +49,14 @@ if errorlevel 1 (
 echo [1/4] Creating backend .env if missing...
 if not exist "backend\.env" (
   (
-    echo DATABASE_URL="file:./dev.db"
+    echo PORT=4000
     echo JWT_SECRET="change_this_to_a_long_random_secret_1234567890"
     echo CORS_ORIGIN="http://localhost:5173"
+    echo SUPABASE_URL=""
+    echo SUPABASE_SERVICE_ROLE_KEY=""
+    echo EMAIL_MODE="log"
+    echo EMAIL_FROM="no-reply@hireflow.local"
+    echo ADMIN_EMAILS="admin@hireflow.local"
   ) > "backend\.env"
   echo   Created backend\.env
   echo Created backend\.env>> "%LOG%"
@@ -61,12 +66,10 @@ if not exist "backend\.env" (
 )
 
 echo.
-echo [2/4] Installing backend deps + migrating DB...
-echo [INFO] Step 2: backend install+migrate>> "%LOG%"
+echo [2/4] Installing backend deps...
+echo [INFO] Step 2: backend install>> "%LOG%"
 pushd "backend" >nul
 call npm install
-if errorlevel 1 goto :fail
-call npm run prisma:migrate
 if errorlevel 1 goto :fail
 popd >nul
 

@@ -19,6 +19,16 @@ export function RequireAuth({ role }: { role?: UserRole }) {
     return <Navigate to={`/login?next=${encodeURIComponent(location.pathname)}`} replace />;
   }
 
+  if (user.isAdmin) {
+    if (role && role !== user.role) {
+      return <Navigate to="/admin" replace />;
+    }
+    if (location.pathname === "/onboarding") {
+      return <Navigate to="/admin" replace />;
+    }
+    return <Outlet />;
+  }
+
   if (user.role === "RECRUITER" && user.recruiterApprovalStatus === "PENDING" && location.pathname !== "/recruiter/pending") {
     return <Navigate to="/recruiter/pending" replace />;
   }
