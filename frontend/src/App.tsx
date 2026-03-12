@@ -42,6 +42,7 @@ import { LoginPage } from "./pages/LoginPage";
 import { RecruiterLoginPage } from "./pages/RecruiterLoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { VerifyEmailPage } from "./pages/VerifyEmailPage";
+import { AuthCallbackPage } from "./pages/AuthCallbackPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
@@ -85,6 +86,8 @@ export default function App() {
         <Route path="/" element={<RootRedirect />} />
 
       <Route element={<AuthLayout />}>
+        <Route path="/auth/callback" element={<AuthCallbackPage />} />
+        <Route path="/auth/confirm" element={<AuthCallbackPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route element={<RequireGuest />}>
           <Route path="/login" element={<LoginPage />} />

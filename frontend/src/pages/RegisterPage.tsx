@@ -6,8 +6,8 @@ import { Logo } from "../components/Logo";
 import { PhonePickerInput } from "../components/ui/PhonePickerInput";
 import { getPhoneCountryByCode } from "../data/phoneCountries";
 import { countDigits } from "../utils/phone";
+import { savePendingRegistration } from "../auth/pendingRegistration";
 import { signUpWithEmail } from "../services/authService";
-import type { UserRole } from "../types";
 
 function MailIcon() {
   return (
@@ -86,7 +86,6 @@ export function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
 
   const [fullName, setFullName] = useState("");
-  const [role, setRole] = useState<UserRole>("JOB_SEEKER");
   const [countryCode, setCountryCode] = useState("+91");
   const [phone, setPhone] = useState("");
 
@@ -148,37 +147,17 @@ export function RegisterPage() {
     return !fullNameErr && !phoneErr;
   }
 
-  function onContinue(e: FormEvent) {
+  async function onContinue(e: FormEvent) {
     e.preventDefault();
     if (!validateStep1()) return;
-    setError(null);
-    setStep(2);
-  }
-
-  async function onCreateAccount(e: FormEvent) {
-    e.preventDefault();
-    if (!validateStep2()) return;
 
     setBusy(true);
     setError(null);
+
     try {
-      const result = await signUpWithEmail(email, password, {
-        // TODO: supabase.auth.signUp({ email, password, options: { data: { full_name, role, phone } } })
-        fullName,
-        role,
-        phone: `${countryCode} ${phone}`,
-      });
-
-      if (!result.token) {
-        navigate(`/verify-email?email=${encodeURIComponent(email.trim().toLowerCase())}`, { replace: true });
-        return;
-      }
-
-      if (role === "RECRUITER") {
-        navigate("/recruiter/pending", { replace: true });
-      } else {
-        navigate("/job-seeker/dashboard", { replace: true });
-      }
+      await signUpWithEmail(email.trim().toLowerCase(), password, { role: "JOB_SEEKER" });
+      savePendingRegistration({ email: email.trim().toLowerCase(), role: "JOB_SEEKER" });
+      setStep(2);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unable to create account right now.";
       setError(message);
@@ -187,7 +166,24 @@ export function RegisterPage() {
     }
   }
 
-  const step1Fill = step === 1 ? "50%" : "100%";
+  function onStep2Continue(e: FormEvent) {
+    e.preventDefault();
+    if (!validateStep2()) return;
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const mobile = `${countryCode} ${phone}`.trim();
+
+    savePendingRegistration({
+      email: normalizedEmail,
+      fullName: fullName.trim(),
+      mobile,
+      role: "JOB_SEEKER",
+    });
+
+    navigate(`/verify-email?email=${encodeURIComponent(normalizedEmail)}`, { replace: true });
+  }
+
+  const progressFill = step === 1 ? "50%" : "100%";
 
   return (
     <AuthSplitLayout
@@ -235,12 +231,12 @@ export function RegisterPage() {
             <div className="mb-4">
               <h2 className="auth-card-title">{step === 1 ? "Register" : "Almost there."}</h2>
               <p className="auth-card-subtitle">
-                {step === 1 ? "Step 1 of 2 - create your account." : "Step 2 of 2 - a few more details."}
+                {step === 1 ? "Step 1 of 2 - create your account." : "Step 2 of 2 - your details before confirmation."}
               </p>
             </div>
 
             <div className="auth-progress-track" aria-label="Registration progress">
-              <span className="auth-progress-fill" style={{ width: step1Fill }} />
+              <span className="auth-progress-fill" style={{ width: progressFill }} />
             </div>
 
             {step === 1 ? (
@@ -296,14 +292,16 @@ export function RegisterPage() {
                   {fieldErrors.password ? <span className="auth-field-error">{fieldErrors.password}</span> : null}
                 </label>
 
-                <button type="submit" className="auth-submit-btn">Continue</button>
+                <button type="submit" disabled={busy} className="auth-submit-btn">
+                  {busy ? <span className="auth-spinner" aria-label="Creating account" /> : "Continue"}
+                </button>
 
                 <div className="text-center text-sm text-text-secondary">
                   Already have an account? <Link to="/login" className="auth-inline-link">Sign in</Link>
                 </div>
               </form>
             ) : (
-              <form onSubmit={onCreateAccount} className="mt-5 space-y-4">
+              <form onSubmit={onStep2Continue} className="mt-5 space-y-4">
                 <label className="auth-field-block">
                   <span className="auth-label">FULL NAME</span>
                   <span className="auth-input-shell">
@@ -322,26 +320,6 @@ export function RegisterPage() {
                   </span>
                   {fieldErrors.fullName ? <span className="auth-field-error">{fieldErrors.fullName}</span> : null}
                 </label>
-
-                <div className="auth-field-block">
-                  <span className="auth-label">I AM A...</span>
-                  <div className="auth-role-toggle">
-                    <button
-                      type="button"
-                      className={role === "JOB_SEEKER" ? "active" : ""}
-                      onClick={() => setRole("JOB_SEEKER")}
-                    >
-                      Job Seeker
-                    </button>
-                    <button
-                      type="button"
-                      className={role === "RECRUITER" ? "active" : ""}
-                      onClick={() => setRole("RECRUITER")}
-                    >
-                      Recruiter
-                    </button>
-                  </div>
-                </div>
 
                 <label className="auth-field-block">
                   <span className="auth-label">PHONE NUMBER</span>
@@ -363,9 +341,7 @@ export function RegisterPage() {
                   {fieldErrors.phone ? <span className="auth-field-error">{fieldErrors.phone}</span> : null}
                 </label>
 
-                <button type="submit" disabled={busy} className="auth-submit-btn">
-                  {busy ? <span className="auth-spinner" aria-label="Creating account" /> : "Create Account"}
-                </button>
+                <button type="submit" className="auth-submit-btn">Continue</button>
 
                 <button type="button" className="auth-back-link" onClick={() => setStep(1)}>
                   Back

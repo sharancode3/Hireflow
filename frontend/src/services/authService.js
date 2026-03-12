@@ -150,7 +150,7 @@ export async function signUpWithEmail(email, password, metadata = {}) {
     email: normalizedEmail,
     password,
     options: {
-      emailRedirectTo: getEmailRedirectUrl("login?verified=1"),
+      emailRedirectTo: getEmailRedirectUrl("auth/callback"),
       data: {
         full_name: metadata.fullName || "",
         role: requestedRole,
@@ -196,7 +196,7 @@ export async function resendVerificationEmail(email) {
     type: "signup",
     email: normalizedEmail,
     options: {
-      emailRedirectTo: getEmailRedirectUrl("login?verified=1"),
+      emailRedirectTo: getEmailRedirectUrl("auth/callback"),
     },
   });
 

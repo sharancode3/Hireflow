@@ -6,6 +6,7 @@ import { AuthSplitLayout } from "../components/AuthLayout";
 import { getPhoneCountryByCode } from "../data/phoneCountries";
 import { PhonePickerInput } from "../components/ui/PhonePickerInput";
 import { composePhoneWithCode, countDigits } from "../utils/phone";
+import { savePendingRegistration } from "../auth/pendingRegistration";
 import { signUpWithEmail } from "../services/authService";
 
 function FeatureIcon({ color, path }: { color: string; path: string }) {
@@ -218,6 +219,13 @@ export function RecruiterRegisterPage() {
           submittedAt: new Date().toISOString(),
         }),
       );
+      savePendingRegistration({
+        email: email.trim().toLowerCase(),
+        fullName: fullName.trim(),
+        mobile: composePhoneWithCode(countryCode, phone),
+        role: "RECRUITER",
+        companyName: companyName.trim(),
+      });
       navigate(`/verify-email?email=${encodeURIComponent(email.trim().toLowerCase())}`, { replace: true });
     } catch (err) {
       if (err instanceof Error) setError(err.message);

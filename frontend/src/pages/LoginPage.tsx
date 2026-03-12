@@ -3,7 +3,7 @@ import type { FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { AuthSplitLayout } from "../components/AuthLayout";
 import { Logo } from "../components/Logo";
-import { signInWithEmail } from "../services/authService";
+import { resendVerificationEmail, signInWithEmail } from "../services/authService";
 
 function MailIcon() {
   return (
@@ -60,11 +60,14 @@ export function LoginPage() {
   const next = params.get("next") ?? "";
   const verify = params.get("verify") === "1";
   const verified = params.get("verified") === "1";
+  const callbackError = params.get("error") === "confirmation_failed";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resent, setResent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function onSubmit(e: FormEvent) {
@@ -79,6 +82,23 @@ export function LoginPage() {
       setError(err instanceof Error ? err.message : "Unable to sign in right now.");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function onResendConfirmation() {
+    if (!email.trim()) {
+      setError("Enter your email above, then click resend confirmation.");
+      return;
+    }
+    setResending(true);
+    setResent(false);
+    try {
+      await resendVerificationEmail(email.trim());
+      setResent(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to resend confirmation email right now.");
+    } finally {
+      setResending(false);
     }
   }
 
@@ -137,6 +157,12 @@ export function LoginPage() {
               </div>
             ) : null}
 
+            {callbackError ? (
+              <div className="card mb-5" style={{ padding: 12 }} role="alert">
+                We could not confirm your email link. Please request a new confirmation email and try again.
+              </div>
+            ) : null}
+
             {error ? (
               <div className="auth-error-banner mb-5" role="alert">
                 <span>{error}</span>
@@ -148,6 +174,12 @@ export function LoginPage() {
                 >
                   x
                 </button>
+              </div>
+            ) : null}
+
+            {resent ? (
+              <div className="card mb-5" style={{ padding: 12 }} role="status">
+                Confirmation email resent. Check inbox and spam folder.
               </div>
             ) : null}
 
@@ -195,6 +227,12 @@ export function LoginPage() {
               <div className="text-right">
                 <Link to="/forgot-password" className="auth-inline-link">Forgot password?</Link>
               </div>
+
+              {error?.toLowerCase().includes("verify your email") ? (
+                <button type="button" className="auth-inline-link" onClick={onResendConfirmation} disabled={resending}>
+                  {resending ? "Resending..." : "Resend confirmation email"}
+                </button>
+              ) : null}
 
               <button type="submit" disabled={busy} className="auth-submit-btn">
                 {busy ? <span className="auth-spinner" aria-label="Signing in" /> : "Sign in"}
