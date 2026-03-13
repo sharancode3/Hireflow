@@ -6,8 +6,10 @@ import helmet from "helmet";
 import { env } from "./env";
 import { notFound } from "./middleware/notFound";
 import { errorHandler } from "./middleware/errorHandler";
+import { requireAuth } from "./middleware/auth";
 
 import { healthRouter } from "./routes/health";
+import { recruiterSupabaseRouter } from "./routes/recruiter/supabaseRecruiter";
 
 async function bootstrap() {
   const app = express();
@@ -35,9 +37,7 @@ async function bootstrap() {
   app.use(express.json({ limit: "1mb" }));
 
   app.use(healthRouter);
-
-  // Supabase migration mode: MongoDB-backed routes are intentionally disabled.
-  // Keep only health/CORS/middleware so frontend can run while data APIs are migrated.
+  app.use(requireAuth, recruiterSupabaseRouter);
 
   app.use(notFound);
   app.use(errorHandler);

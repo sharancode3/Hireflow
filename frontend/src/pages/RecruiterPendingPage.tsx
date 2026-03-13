@@ -1,11 +1,11 @@
 import { useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
-import { apiJson, ApiError } from "../api/client";
+import { resendVerificationEmail } from "../services/authService";
 import { useState } from "react";
 
 export function RecruiterPendingPage() {
-  const { user, refreshMe, token, logout } = useAuth();
+  const { user, refreshMe, logout } = useAuth();
   const navigate = useNavigate();
   const [resendBusy, setResendBusy] = useState(false);
   const [resendMessage, setResendMessage] = useState<string | null>(null);
@@ -37,18 +37,15 @@ export function RecruiterPendingPage() {
   }, [status, refreshMe, navigate]);
 
   async function onResendVerification() {
-    if (!token || resendBusy || status !== "PENDING") return;
+    if (!user?.email || resendBusy || status !== "PENDING") return;
     setResendBusy(true);
     setResendMessage(null);
     setResendError(null);
     try {
-      const response = await apiJson<{ ok: boolean; message: string }>("/auth/recruiter/resend-verification", {
-        method: "POST",
-        token,
-      });
-      setResendMessage(response.message || "Verification email resent.");
+      await resendVerificationEmail(user.email);
+      setResendMessage("Verification email resent.");
     } catch (err) {
-      if (err instanceof ApiError) setResendError(err.message);
+      if (err instanceof Error) setResendError(err.message);
       else setResendError("Unable to resend verification email.");
     } finally {
       setResendBusy(false);

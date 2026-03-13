@@ -25,5 +25,9 @@ export function RootRedirect() {
     return <Navigate to="/recruiter/pending" replace />;
   }
 
+  if (user.role === "RECRUITER" && user.recruiterApprovalStatus === "REJECTED") {
+    return <Navigate to="/recruiter/login" replace />;
+  }
+
   return <Navigate to={user.role === "JOB_SEEKER" ? "/job-seeker" : "/recruiter/dashboard"} replace />;
 }

@@ -87,3 +87,22 @@ SUPABASE_SERVICE_ROLE_KEY=...
 
 Current migration mode keeps core server middleware/health active while DB-backed APIs are being ported.
 
+## Recruiter Approval And Access Flow
+
+- Recruiter accounts are stored in `profiles` with `role = 'RECRUITER'`.
+- Admin approval is stored in `profiles.recruiter_approval_status`.
+- Recruiters with status `APPROVED` can post jobs, manage applicants, and schedule interviews.
+- Recruiters with status `PENDING` are redirected to the pending page until approved.
+
+## New Integrity Migration
+
+Run the migration `supabase/migrations/20260313_role_integrity_and_recruiter_flow.sql`.
+
+It adds:
+
+- Role/status integrity checks for recruiter vs job-seeker profiles.
+- Trigger-based relationship checks for `jobs` and `applications`.
+- Recruiter visibility into job seeker profiles only for applicants to their jobs.
+- Admin visibility policy for job seeker profiles.
+- `admin_user_directory` view for cross-role admin monitoring.
+

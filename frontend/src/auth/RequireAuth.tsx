@@ -29,22 +29,20 @@ export function RequireAuth({ role }: { role?: UserRole }) {
     return <Outlet />;
   }
 
-  if (user.role === "RECRUITER" && user.recruiterApprovalStatus === "PENDING" && location.pathname !== "/recruiter/pending") {
-    return <Navigate to="/recruiter/pending" replace />;
-  }
+  if (user.role === "RECRUITER") {
+    const status = user.recruiterApprovalStatus ?? "PENDING";
 
-  // TODO: Implement auth guard middleware that checks recruiter approval status on every route - redirect unapproved recruiters to /recruiter/pending.
+    if (status === "PENDING" && location.pathname !== "/recruiter/pending") {
+      return <Navigate to="/recruiter/pending" replace />;
+    }
 
-  if (user.role === "RECRUITER" && user.recruiterApprovalStatus === "REJECTED" && location.pathname !== "/recruiter/login") {
-    return <Navigate to="/recruiter/login" replace />;
-  }
+    if (status === "REJECTED") {
+      return <Navigate to="/recruiter/login" replace />;
+    }
 
-  if (user.role === "RECRUITER" && user.recruiterApprovalStatus === "APPROVED" && location.pathname === "/recruiter/pending") {
-    return <Navigate to="/recruiter/dashboard" replace />;
-  }
-
-  if (user.role === "RECRUITER" && user.recruiterApprovalStatus === "PENDING" && location.pathname === "/recruiter/pending") {
-    return <Outlet />;
+    if (status === "APPROVED" && location.pathname === "/recruiter/pending") {
+      return <Navigate to="/recruiter/dashboard" replace />;
+    }
   }
 
   const isOnboardingRoute = location.pathname === "/onboarding";

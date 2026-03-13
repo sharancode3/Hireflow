@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { User, UserRole } from "../types";
 import { getCurrentSession, getCurrentUser, onAuthStateChange, signOut as signOutUser } from "../services/authService";
+import { isSupabaseConfigured, supabase } from "../lib/supabaseClient";
 
 type AuthState = {
   token: string | null;
@@ -74,6 +75,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       unsubscribe();
     };
   }, [refreshMe]);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured || !user?.id) return;
+
+    const channel = supabase
+      .channel(`profile:${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "profiles",
+          filter: `id=eq.${user.id}`,
+        },
+        () => {
+          void refreshMe();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [user?.id, refreshMe]);
 
   const value = useMemo<AuthState>(
     () => ({
