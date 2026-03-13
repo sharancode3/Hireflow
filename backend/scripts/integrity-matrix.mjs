@@ -132,6 +132,7 @@ async function run() {
         email: seekerEmail,
         role: "JOB_SEEKER",
         full_name: "Integrity Seeker",
+        recruiter_approval_status: null,
       }, { onConflict: "id" }),
       "upsert seeker profile",
     );
