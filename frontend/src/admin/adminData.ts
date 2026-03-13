@@ -214,13 +214,27 @@ export async function fetchRecruiters(status: "ALL" | RecruiterApprovalStatus, s
 }
 
 export async function updateRecruiterStatus(userId: string, status: RecruiterApprovalStatus) {
-  const { error } = await supabase
-    .from("profiles")
-    .update({ recruiter_approval_status: status, updated_at: new Date().toISOString() })
-    .eq("id", userId)
-    .eq("role", "RECRUITER");
+  const rpcResult = await supabase.rpc("admin_set_recruiter_approval", {
+    p_recruiter_user_id: userId,
+    p_next_status: status,
+    p_reason: null,
+  });
 
-  if (error) throw error;
+  if (!rpcResult.error) return;
+
+  // Backward-compatible fallback for environments where migration is not applied yet.
+  if (rpcResult.error.code === "PGRST202") {
+    const { error } = await supabase
+      .from("profiles")
+      .update({ recruiter_approval_status: status, updated_at: new Date().toISOString() })
+      .eq("id", userId)
+      .eq("role", "RECRUITER");
+
+    if (error) throw error;
+    return;
+  }
+
+  throw rpcResult.error;
 }
 
 export async function fetchApplicants(status: "ALL" | ApplicationStatus, search: string): Promise<ApplicantItem[]> {

@@ -106,3 +106,15 @@ It adds:
 - Admin visibility policy for job seeker profiles.
 - `admin_user_directory` view for cross-role admin monitoring.
 
+## Advanced Data Governance Migration
+
+Run the migration `supabase/migrations/20260313_state_machine_audit_and_rpc_controls.sql`.
+
+It adds:
+
+- Table-level lifecycle state-machine guards for recruiter approvals, applications, and job reviews.
+- Structured integrity audit log table for compliance and forensic debugging.
+- Admin RPC (`admin_set_recruiter_approval`) for controlled recruiter verification updates.
+- Recruiter RPC (`recruiter_update_application_status`) for controlled applicant lifecycle changes.
+- Backward-compatible app fallbacks while migration rollout is in progress.
+

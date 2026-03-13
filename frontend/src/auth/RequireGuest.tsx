@@ -16,7 +16,13 @@ export function RequireGuest() {
     if (user.isAdmin) {
       return <Navigate to="/admin" replace />;
     }
-    return <Navigate to={user.role === "JOB_SEEKER" ? "/job-seeker" : "/recruiter"} replace />;
+    if (user.role === "RECRUITER") {
+      if (user.recruiterApprovalStatus === "APPROVED") {
+        return <Navigate to="/recruiter/dashboard" replace />;
+      }
+      return <Navigate to="/recruiter/pending" replace />;
+    }
+    return <Navigate to="/job-seeker" replace />;
   }
 
   return <Outlet />;

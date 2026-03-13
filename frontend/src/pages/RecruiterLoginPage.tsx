@@ -28,7 +28,7 @@ export function RecruiterLoginPage() {
       if (data.user.recruiterApprovalStatus === "PENDING") {
         navigate("/recruiter/pending", { replace: true });
       } else if (data.user.recruiterApprovalStatus === "REJECTED") {
-        setError("Your recruiter application was rejected. Please contact support at support@hireflow.local.");
+        navigate("/recruiter/pending", { replace: true });
       } else {
         navigate("/recruiter/dashboard", { replace: true });
       }

@@ -32,12 +32,8 @@ export function RequireAuth({ role }: { role?: UserRole }) {
   if (user.role === "RECRUITER") {
     const status = user.recruiterApprovalStatus ?? "PENDING";
 
-    if (status === "PENDING" && location.pathname !== "/recruiter/pending") {
+    if ((status === "PENDING" || status === "REJECTED") && location.pathname !== "/recruiter/pending") {
       return <Navigate to="/recruiter/pending" replace />;
-    }
-
-    if (status === "REJECTED") {
-      return <Navigate to="/recruiter/login" replace />;
     }
 
     if (status === "APPROVED" && location.pathname === "/recruiter/pending") {

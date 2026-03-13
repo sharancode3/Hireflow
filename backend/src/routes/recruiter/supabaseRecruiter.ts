@@ -502,24 +502,40 @@ recruiterSupabaseRouter.patch("/recruiter/applications/:applicationId", async (r
     if (jobError) throw new HttpError(500, jobError.message);
     if (!job) throw new HttpError(403, "Forbidden");
 
-    const payload: Record<string, string | null> = { status: body.status };
-    payload.interview_at = body.status === "INTERVIEW_SCHEDULED" ? (body.interviewAt || null) : null;
-
-    const { data: updated, error: updateError } = await supabase
-      .from("applications")
-      .update(payload)
-      .eq("id", applicationId)
-      .select("id,status,interview_at")
-      .single();
-    if (updateError) throw new HttpError(500, updateError.message);
-
-    await supabase.from("notifications").insert({
-      user_id: app.job_seeker_id,
-      type: "STATUS",
-      message: `Your application status for ${job.title} is now ${body.status}.`,
-      metadata: { applicationId, status: body.status },
+    const rpc = await supabase.rpc("recruiter_update_application_status", {
+      p_application_id: applicationId,
+      p_recruiter_user_id: ctx.userId,
+      p_next_status: body.status,
+      p_interview_at: body.status === "INTERVIEW_SCHEDULED" ? (body.interviewAt || null) : null,
     });
 
+    // Backward-compatible fallback for environments where migration is not applied yet.
+    if (rpc.error && rpc.error.code === "PGRST202") {
+      const payload: Record<string, string | null> = { status: body.status };
+      payload.interview_at = body.status === "INTERVIEW_SCHEDULED" ? (body.interviewAt || null) : null;
+
+      const { data: updated, error: updateError } = await supabase
+        .from("applications")
+        .update(payload)
+        .eq("id", applicationId)
+        .select("id,status,interview_at")
+        .single();
+      if (updateError) throw new HttpError(500, updateError.message);
+
+      await supabase.from("notifications").insert({
+        user_id: app.job_seeker_id,
+        type: "STATUS",
+        message: `Your application status for ${job.title} is now ${body.status}.`,
+        metadata: { applicationId, status: body.status },
+      });
+
+      res.json({ application: updated });
+      return;
+    }
+
+    if (rpc.error) throw new HttpError(500, rpc.error.message);
+
+    const updated = Array.isArray(rpc.data) ? rpc.data[0] : rpc.data;
     res.json({ application: updated });
   } catch (err) {
     next(err);

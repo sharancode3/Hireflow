@@ -88,7 +88,7 @@ export function AuthCallbackPage() {
         clearPendingRegistration();
 
         if (existing.role === "RECRUITER") {
-          if (existing.recruiter_approval_status === "PENDING") {
+          if (existing.recruiter_approval_status === "PENDING" || existing.recruiter_approval_status === "REJECTED") {
             navigate("/recruiter/pending", { replace: true });
             return;
           }
