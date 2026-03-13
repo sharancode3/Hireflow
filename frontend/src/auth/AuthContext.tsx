@@ -19,6 +19,7 @@ const TOKEN_KEY = "hireflow_token";
 const LEGACY_TOKEN_KEY_2 = "talvion_token";
 const LEGACY_TOKEN_KEY = "hirehub_token";
 const AUTH_BOOTSTRAP_TIMEOUT_MS = 7000;
+const AUTH_LOADING_WATCHDOG_MS = 9000;
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
@@ -81,6 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const unsubscribe = onAuthStateChange((nextUser) => {
       setUser(nextUser);
+      setIsLoading(false);
       void getCurrentSession()
         .then((session) => {
           setToken(session.token);
@@ -97,6 +99,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       unsubscribe();
     };
   }, [refreshMe]);
+
+  useEffect(() => {
+    if (!isLoading) return;
+
+    const timer = window.setTimeout(() => {
+      // Final safety-net to avoid frozen loading UX on refresh.
+      setIsLoading(false);
+    }, AUTH_LOADING_WATCHDOG_MS);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [isLoading]);
 
   useEffect(() => {
     if (!isSupabaseConfigured || !user?.id) return;
