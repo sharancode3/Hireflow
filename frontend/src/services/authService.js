@@ -4,6 +4,7 @@ import { isSupabaseConfigured, supabase } from "../lib/supabaseClient";
 const TEMP_LOCAL_AUTH_MODE = true;
 const LOCAL_SESSION_KEY = "hireflow_local_auth_session";
 const LOCAL_ACCOUNTS_KEY = "hireflow_local_auth_accounts";
+const LOCAL_AUTH_EVENT = "hireflow-local-auth-changed";
 const ADMIN_EMAIL = "sharan18x@gmail.com";
 const ADMIN_PASSWORD = "Sharan1@bmsce";
 
@@ -50,10 +51,12 @@ function mapLocalSessionUser(sessionUser) {
 
 function setLocalSession(session) {
   localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(session));
+  window.dispatchEvent(new Event(LOCAL_AUTH_EVENT));
 }
 
 function clearLocalSession() {
   localStorage.removeItem(LOCAL_SESSION_KEY);
+  window.dispatchEvent(new Event(LOCAL_AUTH_EVENT));
 }
 
 function getLocalSession() {
@@ -526,10 +529,15 @@ export function onAuthStateChange(callback) {
     const listener = (event) => {
       if (event.key === LOCAL_SESSION_KEY) emit();
     };
+    const localAuthListener = () => {
+      emit();
+    };
 
     window.addEventListener("storage", listener);
+    window.addEventListener(LOCAL_AUTH_EVENT, localAuthListener);
     return () => {
       window.removeEventListener("storage", listener);
+      window.removeEventListener(LOCAL_AUTH_EVENT, localAuthListener);
     };
   }
 

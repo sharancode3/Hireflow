@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { AuthSplitLayout } from "../components/AuthLayout";
 import { Logo } from "../components/Logo";
+import { useAuth } from "../auth/AuthContext";
 import { resendVerificationEmail, signInWithEmail } from "../services/authService";
 
 function MailIcon() {
@@ -56,6 +57,7 @@ const featureCards = [
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [params] = useSearchParams();
   const next = params.get("next") ?? "";
   const verify = params.get("verify") === "1";
@@ -76,7 +78,8 @@ export function LoginPage() {
     setError(null);
 
     try {
-      await signInWithEmail(email, password);
+      const payload = await signInWithEmail(email, password);
+      login(payload);
       navigate(next || "/", { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to sign in right now.");

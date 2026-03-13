@@ -2,10 +2,12 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AuthSplitLayout } from "../components/AuthLayout";
+import { useAuth } from "../auth/AuthContext";
 import { signInWithEmail } from "../services/authService";
 
 export function RecruiterLoginPage() {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -19,6 +21,7 @@ export function RecruiterLoginPage() {
 
     try {
       const data = await signInWithEmail(email, password);
+      login(data);
 
       if (data.user.role !== "RECRUITER") {
         setError("This account is not registered as a recruiter.");
