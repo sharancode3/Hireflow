@@ -1,136 +1,16 @@
 import { config } from "../config";
 import { isSupabaseConfigured, supabase } from "../lib/supabaseClient";
 
-const TEMP_LOCAL_AUTH_MODE = !isSupabaseConfigured;
-const LOCAL_SESSION_KEY = "hireflow_local_auth_session";
-const LOCAL_ACCOUNTS_KEY = "hireflow_local_auth_accounts";
-const LOCAL_AUTH_EVENT = "hireflow-local-auth-changed";
-const ADMIN_EMAIL = "sharan18x@gmail.com";
-const ADMIN_PASSWORD = "Sharan1@bmsce";
+const LEGACY_LOCAL_SESSION_KEY = "hireflow_local_auth_session";
+const LEGACY_LOCAL_ACCOUNTS_KEY = "hireflow_local_auth_accounts";
 
-const AUTH_REQUEST_TIMEOUT_MS = 15000;
-const SIGN_IN_TIMEOUT_MS = 30000;
-
-function uid() {
-  if (window.crypto?.randomUUID) return window.crypto.randomUUID();
-  return `u_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function normalizeEmail(email) {
-  return String(email || "").trim().toLowerCase();
-}
-
-function getLocalAccounts() {
+function clearLegacyLocalAuthData() {
   try {
-    const raw = localStorage.getItem(LOCAL_ACCOUNTS_KEY);
-    const parsed = raw ? JSON.parse(raw) : {};
-    return parsed && typeof parsed === "object" ? parsed : {};
+    localStorage.removeItem(LEGACY_LOCAL_SESSION_KEY);
+    localStorage.removeItem(LEGACY_LOCAL_ACCOUNTS_KEY);
   } catch {
-    return {};
+    // ignore storage access errors
   }
-}
-
-function saveLocalAccounts(accounts) {
-  localStorage.setItem(LOCAL_ACCOUNTS_KEY, JSON.stringify(accounts));
-}
-
-function mapLocalSessionUser(sessionUser) {
-  if (!sessionUser) return null;
-  const email = normalizeEmail(sessionUser.email);
-  const isAdmin = email === ADMIN_EMAIL || isAdminEmail(email);
-  return {
-    id: sessionUser.id,
-    email,
-    role: sessionUser.role === "RECRUITER" ? "RECRUITER" : "JOB_SEEKER",
-    isAdmin,
-    recruiterApprovalStatus: sessionUser.role === "RECRUITER"
-      ? (sessionUser.recruiterApprovalStatus || "PENDING")
-      : undefined,
-  };
-}
-
-function setLocalSession(session) {
-  localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(session));
-  window.dispatchEvent(new Event(LOCAL_AUTH_EVENT));
-}
-
-function clearLocalSession() {
-  localStorage.removeItem(LOCAL_SESSION_KEY);
-  window.dispatchEvent(new Event(LOCAL_AUTH_EVENT));
-}
-
-function getLocalSession() {
-  try {
-    const raw = localStorage.getItem(LOCAL_SESSION_KEY);
-    if (!raw) return { token: null, user: null };
-    const parsed = JSON.parse(raw);
-    return {
-      token: parsed?.token || null,
-      user: mapLocalSessionUser(parsed?.user || null),
-    };
-  } catch {
-    return { token: null, user: null };
-  }
-}
-
-class AuthTimeoutError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = "AuthTimeoutError";
-  }
-}
-
-function withTimeout(promise, timeoutMs, timeoutMessage) {
-  let timer;
-  return new Promise((resolve, reject) => {
-    timer = window.setTimeout(() => {
-      reject(new AuthTimeoutError(timeoutMessage));
-    }, timeoutMs);
-
-    promise
-      .then((value) => {
-        window.clearTimeout(timer);
-        resolve(value);
-      })
-      .catch((error) => {
-        window.clearTimeout(timer);
-        reject(error);
-      });
-  });
-}
-
-async function trySignIn(email, password) {
-  return withTimeout(
-    supabase.auth.signInWithPassword({
-      email,
-      password,
-    }),
-    SIGN_IN_TIMEOUT_MS,
-    "Sign in is taking too long. Please try again.",
-  );
-}
-
-async function tryRecoverSessionUser(expectedEmail) {
-  let data;
-  try {
-    ({ data } = await withTimeout(
-      supabase.auth.getSession(),
-      AUTH_REQUEST_TIMEOUT_MS,
-      "Session lookup timed out.",
-    ));
-  } catch {
-    return null;
-  }
-
-  const authUser = data.session?.user;
-  const session = data.session;
-  if (!authUser || !session) return null;
-
-  const normalizedExpected = String(expectedEmail || "").trim().toLowerCase();
-  const normalizedActual = String(authUser.email || "").trim().toLowerCase();
-  if (normalizedExpected && normalizedExpected !== normalizedActual) return null;
-
-  return { authUser, session };
 }
 
 function toAuthMessage(error, fallback) {
@@ -141,7 +21,7 @@ function toAuthMessage(error, fallback) {
   }
   if (/invalid login credentials/i.test(message)) return "Incorrect email or password. Please try again.";
   if (/email not confirmed/i.test(message)) return "Please verify your email before signing in.";
-  if (/already registered/i.test(message)) return "Email already registered.";
+  if (/already registered|user already registered/i.test(message)) return "Email already registered.";
   return message;
 }
 
@@ -150,7 +30,6 @@ function isAdminEmail(email) {
 }
 
 function requireSupabaseConfig() {
-  if (TEMP_LOCAL_AUTH_MODE) return;
   if (isSupabaseConfigured) return;
   throw new Error("Authentication is temporarily unavailable. Deployment is missing Supabase configuration.");
 }
@@ -166,7 +45,6 @@ function getEmailRedirectUrl(path = "") {
     ? config.publicAppUrl
     : `${config.publicAppUrl}${prefix}`;
   if (!normalizedPath) return appBase;
-  // Use /?/path for static hosts (GitHub Pages) so SPA route restore works.
   return `${appBase}/?/${normalizedPath}`;
 }
 
@@ -221,6 +99,7 @@ async function recordLoginEvent(userId) {
 
 async function mapSessionUser(authUser) {
   if (!authUser) return null;
+
   let profile = null;
   try {
     const { data } = await supabase
@@ -248,80 +127,14 @@ async function mapSessionUser(authUser) {
 }
 
 export async function signInWithEmail(email, password) {
-  if (TEMP_LOCAL_AUTH_MODE) {
-    const normalizedEmail = normalizeEmail(email);
-    const plainPassword = String(password || "");
-
-    if (!normalizedEmail || !plainPassword) {
-      throw new Error("Enter email and password.");
-    }
-
-    if (normalizedEmail === ADMIN_EMAIL) {
-      if (plainPassword !== ADMIN_PASSWORD) {
-        throw new Error("Incorrect email or password. Please try again.");
-      }
-      const adminUser = {
-        id: "local-admin",
-        email: ADMIN_EMAIL,
-        role: "JOB_SEEKER",
-        isAdmin: true,
-      };
-      const token = `local-admin-${Date.now()}`;
-      setLocalSession({ token, user: adminUser });
-      return { token, user: adminUser };
-    }
-
-    const accounts = getLocalAccounts();
-    const existing = accounts[normalizedEmail];
-    if (!existing) {
-      throw new Error("Account not found. Please register first.");
-    }
-
-    if (existing.password !== plainPassword) {
-      throw new Error("Incorrect email or password. Please try again.");
-    }
-
-    const user = mapLocalSessionUser(existing);
-    const token = `local-${existing.id}-${Date.now()}`;
-    setLocalSession({ token, user });
-    return { token, user };
-  }
-
   requireSupabaseConfig();
+  clearLegacyLocalAuthData();
+
   const normalizedEmail = String(email || "").trim().toLowerCase();
-
-  let signInResult;
-  try {
-    signInResult = await trySignIn(normalizedEmail, password);
-  } catch (error) {
-    if (error instanceof AuthTimeoutError) {
-      // If the first auth request is slow, retry once before failing.
-      try {
-        signInResult = await trySignIn(normalizedEmail, password);
-      } catch (retryError) {
-        if (retryError instanceof AuthTimeoutError) {
-          const recovered = await tryRecoverSessionUser(normalizedEmail);
-          if (recovered) {
-            signInResult = {
-              data: {
-                user: recovered.authUser,
-                session: recovered.session,
-              },
-              error: null,
-            };
-          } else {
-            throw retryError;
-          }
-        } else {
-          throw retryError;
-        }
-      }
-    } else {
-      throw error;
-    }
-  }
-
-  const { data, error } = signInResult;
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: normalizedEmail,
+    password,
+  });
 
   if (error) {
     throw new Error(toAuthMessage(error, "Unable to sign in right now."));
@@ -333,75 +146,26 @@ export async function signInWithEmail(email, password) {
     throw new Error("Unable to establish session. Please try again.");
   }
 
-  // Profile sync and login events should not block successful authentication.
-  void withTimeout(
-    ensureProfile(authUser, {
-      role: authUser.user_metadata?.role,
-      fullName: authUser.user_metadata?.full_name,
-      phone: authUser.user_metadata?.phone,
-      companyName: authUser.user_metadata?.company_name,
-    }),
-    AUTH_REQUEST_TIMEOUT_MS,
-    "Profile sync timed out.",
-  ).catch(() => undefined);
+  // Do not block login if profile/event sync is temporarily slow.
+  void ensureProfile(authUser, {
+    role: authUser.user_metadata?.role,
+    fullName: authUser.user_metadata?.full_name,
+    phone: authUser.user_metadata?.phone,
+    companyName: authUser.user_metadata?.company_name,
+  }).catch(() => undefined);
 
-  void withTimeout(
-    recordLoginEvent(authUser.id),
-    AUTH_REQUEST_TIMEOUT_MS,
-    "Login tracking timed out.",
-  ).catch(() => undefined);
+  void recordLoginEvent(authUser.id).catch(() => undefined);
 
-  const user = await withTimeout(
-    mapSessionUser(authUser),
-    AUTH_REQUEST_TIMEOUT_MS,
-    "Unable to load your account details right now. Please try again.",
-  );
+  const user = await mapSessionUser(authUser);
   if (!user) throw new Error("Unable to load user profile.");
 
   return { token: session.access_token, user };
 }
 
 export async function signUpWithEmail(email, password, metadata = {}) {
-  if (TEMP_LOCAL_AUTH_MODE) {
-    const normalizedEmail = normalizeEmail(email);
-    const plainPassword = String(password || "");
-    const requestedRole = metadata.role === "RECRUITER" ? "RECRUITER" : "JOB_SEEKER";
-
-    if (!normalizedEmail || !plainPassword) {
-      throw new Error("Email and password are required.");
-    }
-
-    if (normalizedEmail === ADMIN_EMAIL) {
-      throw new Error("Email already registered.");
-    }
-
-    const accounts = getLocalAccounts();
-    if (accounts[normalizedEmail]) {
-      throw new Error("Email already registered.");
-    }
-
-    accounts[normalizedEmail] = {
-      id: uid(),
-      email: normalizedEmail,
-      password: plainPassword,
-      role: requestedRole,
-      recruiterApprovalStatus: requestedRole === "RECRUITER" ? "PENDING" : undefined,
-    };
-    saveLocalAccounts(accounts);
-
-    return {
-      token: "",
-      user: {
-        id: accounts[normalizedEmail].id,
-        email: normalizedEmail,
-        role: requestedRole,
-        isAdmin: false,
-        recruiterApprovalStatus: requestedRole === "RECRUITER" ? "PENDING" : undefined,
-      },
-    };
-  }
-
   requireSupabaseConfig();
+  clearLegacyLocalAuthData();
+
   const normalizedEmail = String(email || "").trim().toLowerCase();
   const requestedRole = metadata.role === "RECRUITER" ? "RECRUITER" : "JOB_SEEKER";
 
@@ -428,8 +192,6 @@ export async function signUpWithEmail(email, password, metadata = {}) {
     throw new Error("Signup succeeded but user is missing. Please try login.");
   }
 
-  // Professional flow: always require email confirmation before login/profile writes.
-  // Even if a session is returned (project setting differs), clear it to avoid partial onboarding states.
   if (data.session?.access_token) {
     await supabase.auth.signOut();
   }
@@ -447,12 +209,6 @@ export async function signUpWithEmail(email, password, metadata = {}) {
 }
 
 export async function resendVerificationEmail(email) {
-  if (TEMP_LOCAL_AUTH_MODE) {
-    const normalizedEmail = normalizeEmail(email);
-    if (!normalizedEmail) throw new Error("Please enter your email address.");
-    return;
-  }
-
   requireSupabaseConfig();
   const normalizedEmail = String(email || "").trim().toLowerCase();
   if (!normalizedEmail) throw new Error("Please enter your email address.");
@@ -471,70 +227,27 @@ export async function resendVerificationEmail(email) {
 }
 
 export async function signOut() {
-  if (TEMP_LOCAL_AUTH_MODE) {
-    clearLocalSession();
-    return;
-  }
-
   requireSupabaseConfig();
+  clearLegacyLocalAuthData();
+
   const { error } = await supabase.auth.signOut();
   if (error) throw new Error(toAuthMessage(error, "Unable to sign out right now."));
 }
 
 export async function getCurrentUser() {
-  if (TEMP_LOCAL_AUTH_MODE) {
-    const { user } = getLocalSession();
-    return user;
-  }
-
   requireSupabaseConfig();
-  let data;
-  let error;
+  clearLegacyLocalAuthData();
+
   try {
-    ({ data, error } = await withTimeout(
-      supabase.auth.getUser(),
-      AUTH_REQUEST_TIMEOUT_MS,
-      "Session check timed out.",
-    ));
-  } catch {
-    return null;
-  }
-  if (error) return null;
-  try {
-    return await withTimeout(
-      mapSessionUser(data.user),
-      AUTH_REQUEST_TIMEOUT_MS,
-      "Profile lookup timed out.",
-    );
+    const { data, error } = await supabase.auth.getUser();
+    if (error) return null;
+    return await mapSessionUser(data.user);
   } catch {
     return null;
   }
 }
 
 export function onAuthStateChange(callback) {
-  if (TEMP_LOCAL_AUTH_MODE) {
-    const emit = () => {
-      const { user } = getLocalSession();
-      callback(user);
-    };
-
-    emit();
-
-    const listener = (event) => {
-      if (event.key === LOCAL_SESSION_KEY) emit();
-    };
-    const localAuthListener = () => {
-      emit();
-    };
-
-    window.addEventListener("storage", listener);
-    window.addEventListener(LOCAL_AUTH_EVENT, localAuthListener);
-    return () => {
-      window.removeEventListener("storage", listener);
-      window.removeEventListener(LOCAL_AUTH_EVENT, localAuthListener);
-    };
-  }
-
   const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
     if (!session?.user) {
       callback(null);
@@ -542,12 +255,13 @@ export function onAuthStateChange(callback) {
     }
 
     try {
-      await ensureProfile(session.user, {
+      void ensureProfile(session.user, {
         role: session.user.user_metadata?.role,
         fullName: session.user.user_metadata?.full_name,
         phone: session.user.user_metadata?.phone,
         companyName: session.user.user_metadata?.company_name,
-      });
+      }).catch(() => undefined);
+
       const mapped = await mapSessionUser(session.user);
       callback(mapped);
     } catch {
@@ -563,37 +277,20 @@ export function onAuthStateChange(callback) {
 }
 
 export async function getCurrentSession() {
-  if (TEMP_LOCAL_AUTH_MODE) {
-    return getLocalSession();
-  }
-
   requireSupabaseConfig();
-  let data;
+  clearLegacyLocalAuthData();
+
   try {
-    ({ data } = await withTimeout(
-      supabase.auth.getSession(),
-      AUTH_REQUEST_TIMEOUT_MS,
-      "Session lookup timed out.",
-    ));
+    const { data } = await supabase.auth.getSession();
+    const user = data.session?.user ? await mapSessionUser(data.session.user) : null;
+    return {
+      token: data.session?.access_token || null,
+      user,
+    };
   } catch {
-    return { token: null, user: null };
+    return {
+      token: null,
+      user: null,
+    };
   }
-
-  let user = null;
-  if (data.session?.user) {
-    try {
-      user = await withTimeout(
-        mapSessionUser(data.session.user),
-        AUTH_REQUEST_TIMEOUT_MS,
-        "Profile lookup timed out.",
-      );
-    } catch {
-      user = null;
-    }
-  }
-
-  return {
-    token: data.session?.access_token || null,
-    user,
-  };
 }
