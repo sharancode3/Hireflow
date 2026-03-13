@@ -1,13 +1,21 @@
 import { config } from "../config";
 import { isSupabaseConfigured, supabase } from "../lib/supabaseClient";
 
-const AUTH_REQUEST_TIMEOUT_MS = 12000;
+const AUTH_REQUEST_TIMEOUT_MS = 15000;
+const SIGN_IN_TIMEOUT_MS = 30000;
+
+class AuthTimeoutError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "AuthTimeoutError";
+  }
+}
 
 function withTimeout(promise, timeoutMs, timeoutMessage) {
   let timer;
   return new Promise((resolve, reject) => {
     timer = window.setTimeout(() => {
-      reject(new Error(timeoutMessage));
+      reject(new AuthTimeoutError(timeoutMessage));
     }, timeoutMs);
 
     promise
@@ -20,6 +28,35 @@ function withTimeout(promise, timeoutMs, timeoutMessage) {
         reject(error);
       });
   });
+}
+
+async function trySignIn(email, password) {
+  return withTimeout(
+    supabase.auth.signInWithPassword({
+      email,
+      password,
+    }),
+    SIGN_IN_TIMEOUT_MS,
+    "Sign in is taking too long. Please try again.",
+  );
+}
+
+async function tryRecoverSessionUser(expectedEmail) {
+  const { data } = await withTimeout(
+    supabase.auth.getSession(),
+    AUTH_REQUEST_TIMEOUT_MS,
+    "Session lookup timed out.",
+  );
+
+  const authUser = data.session?.user;
+  const session = data.session;
+  if (!authUser || !session) return null;
+
+  const normalizedExpected = String(expectedEmail || "").trim().toLowerCase();
+  const normalizedActual = String(authUser.email || "").trim().toLowerCase();
+  if (normalizedExpected && normalizedExpected !== normalizedActual) return null;
+
+  return { authUser, session };
 }
 
 function toAuthMessage(error, fallback) {
@@ -133,14 +170,38 @@ export async function signInWithEmail(email, password) {
   requireSupabaseConfig();
   const normalizedEmail = String(email || "").trim().toLowerCase();
 
-  const { data, error } = await withTimeout(
-    supabase.auth.signInWithPassword({
-      email: normalizedEmail,
-      password,
-    }),
-    AUTH_REQUEST_TIMEOUT_MS,
-    "Sign in is taking too long. Please try again.",
-  );
+  let signInResult;
+  try {
+    signInResult = await trySignIn(normalizedEmail, password);
+  } catch (error) {
+    if (error instanceof AuthTimeoutError) {
+      // If the first auth request is slow, retry once before failing.
+      try {
+        signInResult = await trySignIn(normalizedEmail, password);
+      } catch (retryError) {
+        if (retryError instanceof AuthTimeoutError) {
+          const recovered = await tryRecoverSessionUser(normalizedEmail);
+          if (recovered) {
+            signInResult = {
+              data: {
+                user: recovered.authUser,
+                session: recovered.session,
+              },
+              error: null,
+            };
+          } else {
+            throw retryError;
+          }
+        } else {
+          throw retryError;
+        }
+      }
+    } else {
+      throw error;
+    }
+  }
+
+  const { data, error } = signInResult;
 
   if (error) {
     throw new Error(toAuthMessage(error, "Unable to sign in right now."));
