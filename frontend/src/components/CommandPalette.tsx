@@ -22,11 +22,9 @@ const RECRUITER_ROUTES = [
   { path: "/recruiter/listings", label: "Manage Listings", group: "Navigate", keywords: "jobs edit delete" },
   { path: "/recruiter/applicants", label: "Applicants", group: "Navigate", keywords: "candidates" },
   { path: "/recruiter/shortlisted", label: "Shortlisted", group: "Navigate", keywords: "favorites" },
-  { path: "/recruiter/interviews", label: "Interview Schedule", group: "Navigate", keywords: "calendar" },
+  { path: "/recruiter/interviews", label: "Interviews", group: "Navigate", keywords: "calendar schedule" },
   { path: "/recruiter/profile", label: "Company Profile", group: "Navigate", keywords: "edit" },
-  { path: "/recruiter/experience-feed", label: "Experience Feed", group: "Navigate", keywords: "community posts" },
-  { path: "/recruiter/complaints", label: "Complaints & Opinions", group: "Navigate", keywords: "feedback reports" },
-  { path: "/recruiter/community-moderation", label: "Community Moderation", group: "Navigate", keywords: "admin complaints review" },
+  { path: "/recruiter/notifications", label: "Notifications", group: "Navigate", keywords: "alerts updates" },
   { path: "/recruiter/settings", label: "Settings", group: "Navigate", keywords: "preferences theme" },
 ];
 

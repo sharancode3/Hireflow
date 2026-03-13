@@ -57,7 +57,7 @@ const recruiterNav: NavGroup[] = [
     group: "MAIN",
     items: [
       { to: "/recruiter/dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { to: "/recruiter/listings", label: "Jobs & Internships", icon: Briefcase },
+      { to: "/recruiter/listings", label: "Job Listings", icon: Briefcase },
       { to: "/recruiter/applicants", label: "Applications", icon: FileText },
     ],
   },
@@ -65,17 +65,9 @@ const recruiterNav: NavGroup[] = [
     group: "WORKSPACE",
     items: [
       { to: "/recruiter/post-job", label: "Post a Job", icon: UserCircle },
-      { to: "/recruiter/interviews", label: "Interview Prep", icon: MessageSquare },
-      { to: "/recruiter/shortlisted", label: "Saved", icon: Bookmark },
-      { to: "/recruiter/profile", label: "Profile Builder", icon: FileEdit },
-    ],
-  },
-  {
-    group: "COMMUNITY",
-    items: [
-      { to: "/recruiter/experience-feed", label: "Community Feed", icon: Rss },
-      { to: "/recruiter/complaints", label: "Feedback", icon: Flag },
-      { to: "/recruiter/community-moderation", label: "Moderation", icon: Flag },
+      { to: "/recruiter/interviews", label: "Interviews", icon: MessageSquare },
+      { to: "/recruiter/shortlisted", label: "Shortlisted", icon: Bookmark },
+      { to: "/recruiter/profile", label: "Company Profile", icon: FileEdit },
     ],
   },
   {
