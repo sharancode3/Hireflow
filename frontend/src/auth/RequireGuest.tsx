@@ -2,15 +2,7 @@ import { Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 
 export function RequireGuest() {
-  const { user, isLoading } = useAuth();
-
-  if (isLoading) {
-    return (
-      <div className="container">
-        <div className="card">Loading...</div>
-      </div>
-    );
-  }
+  const { user } = useAuth();
 
   if (user) {
     if (user.isAdmin) {

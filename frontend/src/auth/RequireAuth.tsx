@@ -4,16 +4,8 @@ import { useAuth } from "./AuthContext";
 import { hasCompletedOnboarding } from "./onboarding";
 
 export function RequireAuth({ role }: { role?: UserRole }) {
-  const { user, isLoading } = useAuth();
+  const { user } = useAuth();
   const location = useLocation();
-
-  if (isLoading) {
-    return (
-      <div className="container">
-        <div className="card">Loading...</div>
-      </div>
-    );
-  }
 
   if (!user) {
     return <Navigate to={`/login?next=${encodeURIComponent(location.pathname)}`} replace />;

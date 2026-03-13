@@ -1,6 +1,27 @@
 import { config } from "../config";
 import { isSupabaseConfigured, supabase } from "../lib/supabaseClient";
 
+const AUTH_REQUEST_TIMEOUT_MS = 12000;
+
+function withTimeout(promise, timeoutMs, timeoutMessage) {
+  let timer;
+  return new Promise((resolve, reject) => {
+    timer = window.setTimeout(() => {
+      reject(new Error(timeoutMessage));
+    }, timeoutMs);
+
+    promise
+      .then((value) => {
+        window.clearTimeout(timer);
+        resolve(value);
+      })
+      .catch((error) => {
+        window.clearTimeout(timer);
+        reject(error);
+      });
+  });
+}
+
 function toAuthMessage(error, fallback) {
   const message = String(error?.message || "").trim();
   if (!message) return fallback;
@@ -112,10 +133,14 @@ export async function signInWithEmail(email, password) {
   requireSupabaseConfig();
   const normalizedEmail = String(email || "").trim().toLowerCase();
 
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: normalizedEmail,
-    password,
-  });
+  const { data, error } = await withTimeout(
+    supabase.auth.signInWithPassword({
+      email: normalizedEmail,
+      password,
+    }),
+    AUTH_REQUEST_TIMEOUT_MS,
+    "Sign in is taking too long. Please try again.",
+  );
 
   if (error) {
     throw new Error(toAuthMessage(error, "Unable to sign in right now."));
@@ -127,15 +152,27 @@ export async function signInWithEmail(email, password) {
     throw new Error("Unable to establish session. Please try again.");
   }
 
-  await ensureProfile(authUser, {
-    role: authUser.user_metadata?.role,
-    fullName: authUser.user_metadata?.full_name,
-    phone: authUser.user_metadata?.phone,
-    companyName: authUser.user_metadata?.company_name,
-  });
-  await recordLoginEvent(authUser.id);
+  await withTimeout(
+    ensureProfile(authUser, {
+      role: authUser.user_metadata?.role,
+      fullName: authUser.user_metadata?.full_name,
+      phone: authUser.user_metadata?.phone,
+      companyName: authUser.user_metadata?.company_name,
+    }),
+    AUTH_REQUEST_TIMEOUT_MS,
+    "Sign in completed but profile sync timed out. Please try again.",
+  );
+  await withTimeout(
+    recordLoginEvent(authUser.id),
+    AUTH_REQUEST_TIMEOUT_MS,
+    "Sign in completed but login tracking timed out. Please try again.",
+  );
 
-  const user = await mapSessionUser(authUser);
+  const user = await withTimeout(
+    mapSessionUser(authUser),
+    AUTH_REQUEST_TIMEOUT_MS,
+    "Unable to load your account details right now. Please try again.",
+  );
   if (!user) throw new Error("Unable to load user profile.");
 
   return { token: session.access_token, user };
@@ -213,9 +250,17 @@ export async function signOut() {
 
 export async function getCurrentUser() {
   requireSupabaseConfig();
-  const { data, error } = await supabase.auth.getUser();
+  const { data, error } = await withTimeout(
+    supabase.auth.getUser(),
+    AUTH_REQUEST_TIMEOUT_MS,
+    "Session check timed out.",
+  );
   if (error) return null;
-  return mapSessionUser(data.user);
+  return withTimeout(
+    mapSessionUser(data.user),
+    AUTH_REQUEST_TIMEOUT_MS,
+    "Profile lookup timed out.",
+  );
 }
 
 export function onAuthStateChange(callback) {
@@ -248,8 +293,18 @@ export function onAuthStateChange(callback) {
 
 export async function getCurrentSession() {
   requireSupabaseConfig();
-  const { data } = await supabase.auth.getSession();
-  const user = data.session?.user ? await mapSessionUser(data.session.user) : null;
+  const { data } = await withTimeout(
+    supabase.auth.getSession(),
+    AUTH_REQUEST_TIMEOUT_MS,
+    "Session lookup timed out.",
+  );
+  const user = data.session?.user
+    ? await withTimeout(
+      mapSessionUser(data.session.user),
+      AUTH_REQUEST_TIMEOUT_MS,
+      "Profile lookup timed out.",
+    )
+    : null;
   return {
     token: data.session?.access_token || null,
     user,
