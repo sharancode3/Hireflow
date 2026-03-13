@@ -18,6 +18,7 @@ const AuthContext = createContext<AuthState | null>(null);
 const TOKEN_KEY = "hireflow_token";
 const LEGACY_TOKEN_KEY_2 = "talvion_token";
 const LEGACY_TOKEN_KEY = "hirehub_token";
+const AUTH_BOOTSTRAP_TIMEOUT_MS = 7000;
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
@@ -56,7 +57,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const bootstrap = async () => {
       setIsLoading(true);
-      await refreshMe();
+      let didTimeout = false;
+      await Promise.race([
+        refreshMe(),
+        new Promise<void>((resolve) => {
+          window.setTimeout(() => {
+            didTimeout = true;
+            resolve();
+          }, AUTH_BOOTSTRAP_TIMEOUT_MS);
+        }),
+      ]);
+
+      if (didTimeout) {
+        // Never leave app stuck on loading if auth/profile calls are stalled.
+        setToken(null);
+        setUser(null);
+      }
+
       setIsLoading(false);
     };
 
@@ -64,11 +81,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const unsubscribe = onAuthStateChange((nextUser) => {
       setUser(nextUser);
-      void getCurrentSession().then((session) => {
-        setToken(session.token);
-        if (session.token) localStorage.setItem(TOKEN_KEY, session.token);
-        else localStorage.removeItem(TOKEN_KEY);
-      });
+      void getCurrentSession()
+        .then((session) => {
+          setToken(session.token);
+          if (session.token) localStorage.setItem(TOKEN_KEY, session.token);
+          else localStorage.removeItem(TOKEN_KEY);
+        })
+        .catch(() => {
+          setToken(null);
+          localStorage.removeItem(TOKEN_KEY);
+        });
     });
 
     return () => {
