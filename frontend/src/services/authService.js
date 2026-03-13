@@ -42,11 +42,16 @@ async function trySignIn(email, password) {
 }
 
 async function tryRecoverSessionUser(expectedEmail) {
-  const { data } = await withTimeout(
-    supabase.auth.getSession(),
-    AUTH_REQUEST_TIMEOUT_MS,
-    "Session lookup timed out.",
-  );
+  let data;
+  try {
+    ({ data } = await withTimeout(
+      supabase.auth.getSession(),
+      AUTH_REQUEST_TIMEOUT_MS,
+      "Session lookup timed out.",
+    ));
+  } catch {
+    return null;
+  }
 
   const authUser = data.session?.user;
   const session = data.session;
@@ -146,11 +151,17 @@ async function recordLoginEvent(userId) {
 
 async function mapSessionUser(authUser) {
   if (!authUser) return null;
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role,recruiter_approval_status")
-    .eq("id", authUser.id)
-    .maybeSingle();
+  let profile = null;
+  try {
+    const { data } = await supabase
+      .from("profiles")
+      .select("role,recruiter_approval_status")
+      .eq("id", authUser.id)
+      .maybeSingle();
+    profile = data;
+  } catch {
+    profile = null;
+  }
 
   const role = profile?.role === "RECRUITER" ? "RECRUITER" : "JOB_SEEKER";
   const isAdmin = isAdminEmail(authUser.email);
@@ -213,7 +224,8 @@ export async function signInWithEmail(email, password) {
     throw new Error("Unable to establish session. Please try again.");
   }
 
-  await withTimeout(
+  // Profile sync and login events should not block successful authentication.
+  void withTimeout(
     ensureProfile(authUser, {
       role: authUser.user_metadata?.role,
       fullName: authUser.user_metadata?.full_name,
@@ -221,13 +233,14 @@ export async function signInWithEmail(email, password) {
       companyName: authUser.user_metadata?.company_name,
     }),
     AUTH_REQUEST_TIMEOUT_MS,
-    "Sign in completed but profile sync timed out. Please try again.",
-  );
-  await withTimeout(
+    "Profile sync timed out.",
+  ).catch(() => undefined);
+
+  void withTimeout(
     recordLoginEvent(authUser.id),
     AUTH_REQUEST_TIMEOUT_MS,
-    "Sign in completed but login tracking timed out. Please try again.",
-  );
+    "Login tracking timed out.",
+  ).catch(() => undefined);
 
   const user = await withTimeout(
     mapSessionUser(authUser),
@@ -311,17 +324,27 @@ export async function signOut() {
 
 export async function getCurrentUser() {
   requireSupabaseConfig();
-  const { data, error } = await withTimeout(
-    supabase.auth.getUser(),
-    AUTH_REQUEST_TIMEOUT_MS,
-    "Session check timed out.",
-  );
+  let data;
+  let error;
+  try {
+    ({ data, error } = await withTimeout(
+      supabase.auth.getUser(),
+      AUTH_REQUEST_TIMEOUT_MS,
+      "Session check timed out.",
+    ));
+  } catch {
+    return null;
+  }
   if (error) return null;
-  return withTimeout(
-    mapSessionUser(data.user),
-    AUTH_REQUEST_TIMEOUT_MS,
-    "Profile lookup timed out.",
-  );
+  try {
+    return await withTimeout(
+      mapSessionUser(data.user),
+      AUTH_REQUEST_TIMEOUT_MS,
+      "Profile lookup timed out.",
+    );
+  } catch {
+    return null;
+  }
 }
 
 export function onAuthStateChange(callback) {
@@ -354,18 +377,30 @@ export function onAuthStateChange(callback) {
 
 export async function getCurrentSession() {
   requireSupabaseConfig();
-  const { data } = await withTimeout(
-    supabase.auth.getSession(),
-    AUTH_REQUEST_TIMEOUT_MS,
-    "Session lookup timed out.",
-  );
-  const user = data.session?.user
-    ? await withTimeout(
-      mapSessionUser(data.session.user),
+  let data;
+  try {
+    ({ data } = await withTimeout(
+      supabase.auth.getSession(),
       AUTH_REQUEST_TIMEOUT_MS,
-      "Profile lookup timed out.",
-    )
-    : null;
+      "Session lookup timed out.",
+    ));
+  } catch {
+    return { token: null, user: null };
+  }
+
+  let user = null;
+  if (data.session?.user) {
+    try {
+      user = await withTimeout(
+        mapSessionUser(data.session.user),
+        AUTH_REQUEST_TIMEOUT_MS,
+        "Profile lookup timed out.",
+      );
+    } catch {
+      user = null;
+    }
+  }
+
   return {
     token: data.session?.access_token || null,
     user,
