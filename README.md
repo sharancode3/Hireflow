@@ -118,3 +118,14 @@ It adds:
 - Recruiter RPC (`recruiter_update_application_status`) for controlled applicant lifecycle changes.
 - Backward-compatible app fallbacks while migration rollout is in progress.
 
+### Integrity Verification Matrix
+
+After applying the two migrations, run:
+
+```bash
+cd backend
+npm run integrity:matrix
+```
+
+Expected result: `"ok": true` with all checks passing.
+
