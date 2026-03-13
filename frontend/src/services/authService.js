@@ -1,7 +1,7 @@
 import { config } from "../config";
 import { isSupabaseConfigured, supabase } from "../lib/supabaseClient";
 
-const TEMP_LOCAL_AUTH_MODE = true;
+const TEMP_LOCAL_AUTH_MODE = !isSupabaseConfigured;
 const LOCAL_SESSION_KEY = "hireflow_local_auth_session";
 const LOCAL_ACCOUNTS_KEY = "hireflow_local_auth_accounts";
 const LOCAL_AUTH_EVENT = "hireflow-local-auth-changed";
@@ -273,22 +273,16 @@ export async function signInWithEmail(email, password) {
 
     const accounts = getLocalAccounts();
     const existing = accounts[normalizedEmail];
-    if (existing && existing.password !== plainPassword) {
+    if (!existing) {
+      throw new Error("Account not found. Please register first.");
+    }
+
+    if (existing.password !== plainPassword) {
       throw new Error("Incorrect email or password. Please try again.");
     }
 
-    const nextAccount = existing || {
-      id: uid(),
-      email: normalizedEmail,
-      password: plainPassword,
-      role: "JOB_SEEKER",
-      recruiterApprovalStatus: undefined,
-    };
-    accounts[normalizedEmail] = nextAccount;
-    saveLocalAccounts(accounts);
-
-    const user = mapLocalSessionUser(nextAccount);
-    const token = `local-${nextAccount.id}-${Date.now()}`;
+    const user = mapLocalSessionUser(existing);
+    const token = `local-${existing.id}-${Date.now()}`;
     setLocalSession({ token, user });
     return { token, user };
   }
