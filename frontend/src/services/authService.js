@@ -1,8 +1,74 @@
 import { config } from "../config";
 import { isSupabaseConfigured, supabase } from "../lib/supabaseClient";
 
+const TEMP_LOCAL_AUTH_MODE = true;
+const LOCAL_SESSION_KEY = "hireflow_local_auth_session";
+const LOCAL_ACCOUNTS_KEY = "hireflow_local_auth_accounts";
+const ADMIN_EMAIL = "sharan18x@gmail.com";
+const ADMIN_PASSWORD = "Sharan1@bmsce";
+
 const AUTH_REQUEST_TIMEOUT_MS = 15000;
 const SIGN_IN_TIMEOUT_MS = 30000;
+
+function uid() {
+  if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+  return `u_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function normalizeEmail(email) {
+  return String(email || "").trim().toLowerCase();
+}
+
+function getLocalAccounts() {
+  try {
+    const raw = localStorage.getItem(LOCAL_ACCOUNTS_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveLocalAccounts(accounts) {
+  localStorage.setItem(LOCAL_ACCOUNTS_KEY, JSON.stringify(accounts));
+}
+
+function mapLocalSessionUser(sessionUser) {
+  if (!sessionUser) return null;
+  const email = normalizeEmail(sessionUser.email);
+  const isAdmin = email === ADMIN_EMAIL || isAdminEmail(email);
+  return {
+    id: sessionUser.id,
+    email,
+    role: sessionUser.role === "RECRUITER" ? "RECRUITER" : "JOB_SEEKER",
+    isAdmin,
+    recruiterApprovalStatus: sessionUser.role === "RECRUITER"
+      ? (sessionUser.recruiterApprovalStatus || "PENDING")
+      : undefined,
+  };
+}
+
+function setLocalSession(session) {
+  localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(session));
+}
+
+function clearLocalSession() {
+  localStorage.removeItem(LOCAL_SESSION_KEY);
+}
+
+function getLocalSession() {
+  try {
+    const raw = localStorage.getItem(LOCAL_SESSION_KEY);
+    if (!raw) return { token: null, user: null };
+    const parsed = JSON.parse(raw);
+    return {
+      token: parsed?.token || null,
+      user: mapLocalSessionUser(parsed?.user || null),
+    };
+  } catch {
+    return { token: null, user: null };
+  }
+}
 
 class AuthTimeoutError extends Error {
   constructor(message) {
@@ -81,6 +147,7 @@ function isAdminEmail(email) {
 }
 
 function requireSupabaseConfig() {
+  if (TEMP_LOCAL_AUTH_MODE) return;
   if (isSupabaseConfigured) return;
   throw new Error("Authentication is temporarily unavailable. Deployment is missing Supabase configuration.");
 }
@@ -178,6 +245,51 @@ async function mapSessionUser(authUser) {
 }
 
 export async function signInWithEmail(email, password) {
+  if (TEMP_LOCAL_AUTH_MODE) {
+    const normalizedEmail = normalizeEmail(email);
+    const plainPassword = String(password || "");
+
+    if (!normalizedEmail || !plainPassword) {
+      throw new Error("Enter email and password.");
+    }
+
+    if (normalizedEmail === ADMIN_EMAIL) {
+      if (plainPassword !== ADMIN_PASSWORD) {
+        throw new Error("Incorrect email or password. Please try again.");
+      }
+      const adminUser = {
+        id: "local-admin",
+        email: ADMIN_EMAIL,
+        role: "JOB_SEEKER",
+        isAdmin: true,
+      };
+      const token = `local-admin-${Date.now()}`;
+      setLocalSession({ token, user: adminUser });
+      return { token, user: adminUser };
+    }
+
+    const accounts = getLocalAccounts();
+    const existing = accounts[normalizedEmail];
+    if (existing && existing.password !== plainPassword) {
+      throw new Error("Incorrect email or password. Please try again.");
+    }
+
+    const nextAccount = existing || {
+      id: uid(),
+      email: normalizedEmail,
+      password: plainPassword,
+      role: "JOB_SEEKER",
+      recruiterApprovalStatus: undefined,
+    };
+    accounts[normalizedEmail] = nextAccount;
+    saveLocalAccounts(accounts);
+
+    const user = mapLocalSessionUser(nextAccount);
+    const token = `local-${nextAccount.id}-${Date.now()}`;
+    setLocalSession({ token, user });
+    return { token, user };
+  }
+
   requireSupabaseConfig();
   const normalizedEmail = String(email || "").trim().toLowerCase();
 
@@ -253,6 +365,45 @@ export async function signInWithEmail(email, password) {
 }
 
 export async function signUpWithEmail(email, password, metadata = {}) {
+  if (TEMP_LOCAL_AUTH_MODE) {
+    const normalizedEmail = normalizeEmail(email);
+    const plainPassword = String(password || "");
+    const requestedRole = metadata.role === "RECRUITER" ? "RECRUITER" : "JOB_SEEKER";
+
+    if (!normalizedEmail || !plainPassword) {
+      throw new Error("Email and password are required.");
+    }
+
+    if (normalizedEmail === ADMIN_EMAIL) {
+      throw new Error("Email already registered.");
+    }
+
+    const accounts = getLocalAccounts();
+    if (accounts[normalizedEmail]) {
+      throw new Error("Email already registered.");
+    }
+
+    accounts[normalizedEmail] = {
+      id: uid(),
+      email: normalizedEmail,
+      password: plainPassword,
+      role: requestedRole,
+      recruiterApprovalStatus: requestedRole === "RECRUITER" ? "PENDING" : undefined,
+    };
+    saveLocalAccounts(accounts);
+
+    return {
+      token: "",
+      user: {
+        id: accounts[normalizedEmail].id,
+        email: normalizedEmail,
+        role: requestedRole,
+        isAdmin: false,
+        recruiterApprovalStatus: requestedRole === "RECRUITER" ? "PENDING" : undefined,
+      },
+    };
+  }
+
   requireSupabaseConfig();
   const normalizedEmail = String(email || "").trim().toLowerCase();
   const requestedRole = metadata.role === "RECRUITER" ? "RECRUITER" : "JOB_SEEKER";
@@ -299,6 +450,12 @@ export async function signUpWithEmail(email, password, metadata = {}) {
 }
 
 export async function resendVerificationEmail(email) {
+  if (TEMP_LOCAL_AUTH_MODE) {
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) throw new Error("Please enter your email address.");
+    return;
+  }
+
   requireSupabaseConfig();
   const normalizedEmail = String(email || "").trim().toLowerCase();
   if (!normalizedEmail) throw new Error("Please enter your email address.");
@@ -317,12 +474,22 @@ export async function resendVerificationEmail(email) {
 }
 
 export async function signOut() {
+  if (TEMP_LOCAL_AUTH_MODE) {
+    clearLocalSession();
+    return;
+  }
+
   requireSupabaseConfig();
   const { error } = await supabase.auth.signOut();
   if (error) throw new Error(toAuthMessage(error, "Unable to sign out right now."));
 }
 
 export async function getCurrentUser() {
+  if (TEMP_LOCAL_AUTH_MODE) {
+    const { user } = getLocalSession();
+    return user;
+  }
+
   requireSupabaseConfig();
   let data;
   let error;
@@ -348,6 +515,24 @@ export async function getCurrentUser() {
 }
 
 export function onAuthStateChange(callback) {
+  if (TEMP_LOCAL_AUTH_MODE) {
+    const emit = () => {
+      const { user } = getLocalSession();
+      callback(user);
+    };
+
+    emit();
+
+    const listener = (event) => {
+      if (event.key === LOCAL_SESSION_KEY) emit();
+    };
+
+    window.addEventListener("storage", listener);
+    return () => {
+      window.removeEventListener("storage", listener);
+    };
+  }
+
   const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
     if (!session?.user) {
       callback(null);
@@ -376,6 +561,10 @@ export function onAuthStateChange(callback) {
 }
 
 export async function getCurrentSession() {
+  if (TEMP_LOCAL_AUTH_MODE) {
+    return getLocalSession();
+  }
+
   requireSupabaseConfig();
   let data;
   try {
