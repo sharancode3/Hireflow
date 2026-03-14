@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ApiError, apiJson } from "../../api/client";
 import { useAuth } from "../../auth/AuthContext";
+import { supabase } from "../../lib/supabaseClient";
 import type {
   ApplicationWithJob,
   GeneratedResume,
@@ -20,18 +20,29 @@ function clamp(n: number, min: number, max: number) {
 }
 
 function calcProfileCompletion(profile: JobSeekerProfile, hasResume: boolean) {
-  const checks: Array<{ ok: boolean; weight: number }> = [
-    { ok: Boolean(profile.fullName?.trim()), weight: 18 },
-    { ok: Boolean((profile.location ?? "").trim()), weight: 10 },
-    { ok: Boolean((profile.phone ?? "").trim()), weight: 10 },
-    { ok: Boolean((profile.desiredRole ?? "").trim()), weight: 14 },
-    { ok: profile.experienceYears >= 0, weight: 8 },
-    { ok: (profile.skills ?? []).length >= 3, weight: 30 },
-    { ok: hasResume, weight: 10 },
-  ];
+  const fullNameScore = profile.fullName.trim().length >= 2 ? 15 : 0;
+  const locationScore = (profile.location ?? "").trim().length >= 2 ? 10 : 0;
+  const phoneScore = (profile.phone ?? "").trim().length >= 8 ? 10 : 0;
+  const targetRoleScore = (profile.desiredRole ?? "").trim().length >= 2 ? 15 : 0;
+  const headlineScore = (profile.headline ?? "").trim().length >= 8 ? 10 : 0;
+  const summaryScore = (profile.about ?? "").trim().length >= 80 ? 10 : 0;
+  const experienceScore = profile.isFresher || profile.experienceYears > 0 ? 5 : 0;
+  const skillsScore = clamp((profile.skills ?? []).length * 5, 0, 15);
+  const resumeScore = hasResume ? 10 : 0;
 
-  const score = checks.reduce((sum, c) => sum + (c.ok ? c.weight : 0), 0);
-  return clamp(score, 0, 100);
+  return clamp(
+    fullNameScore +
+      locationScore +
+      phoneScore +
+      targetRoleScore +
+      headlineScore +
+      summaryScore +
+      experienceScore +
+      skillsScore +
+      resumeScore,
+    0,
+    100,
+  );
 }
 
 function greetingForTime() {
@@ -80,7 +91,7 @@ function sparklinePoints(values: number[]) {
 }
 
 export function JobSeekerDashboardPage() {
-  const { token, user } = useAuth();
+  const { user } = useAuth();
 
   const [profile, setProfile] = useState<JobSeekerProfile | null>(null);
   const [resumes, setResumes] = useState<Resume[]>([]);
@@ -88,36 +99,14 @@ export function JobSeekerDashboardPage() {
   const [applications, setApplications] = useState<ApplicationWithJob[]>([]);
   const [savedJobs, setSavedJobs] = useState<Array<{ job?: Job; jobId?: Job | string }>>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [applicationsCount, setApplicationsCount] = useState(0);
+  const [savedJobsCount, setSavedJobsCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  function fallbackProfile(): JobSeekerProfile {
-    return {
-      id: `local_${user?.id ?? "job_seeker"}`,
-      userId: user?.id ?? "job_seeker",
-      fullName: (user?.email?.split("@")[0] ?? "Job Seeker").trim(),
-      phone: null,
-      location: null,
-      experienceYears: 0,
-      desiredRole: null,
-      skills: [],
-      isFresher: true,
-      visibility: "PUBLIC",
-    };
-  }
-
-  async function optionalApi<T>(path: string, fallback: T): Promise<T> {
-    try {
-      return await apiJson<T>(path, { token: token ?? undefined });
-    } catch (e) {
-      if (e instanceof ApiError && (e.status === 404 || e.status === 405)) return fallback;
-      throw e;
-    }
-  }
-
   useEffect(() => {
     (async () => {
-      if (!token) {
+      if (!user?.id) {
         setIsLoading(false);
         setProfile(null);
         return;
@@ -125,32 +114,203 @@ export function JobSeekerDashboardPage() {
       try {
         setIsLoading(true);
         setError(null);
-        const [p, r, g, a, s, n] = await Promise.all([
-          optionalApi<{ profile: JobSeekerProfile }>("/job-seeker/profile", { profile: fallbackProfile() }),
-          optionalApi<{ resumes: Resume[] }>("/job-seeker/resume", { resumes: [] }),
-          optionalApi<{ generatedResumes: GeneratedResume[] }>("/job-seeker/generated-resumes", { generatedResumes: [] }),
-          optionalApi<{ applications: ApplicationWithJob[] }>("/job-seeker/applications", { applications: [] }),
-          optionalApi<{ savedJobs: Array<{ job?: Job; jobId?: Job | string }> }>("/job-seeker/saved-jobs", { savedJobs: [] }),
-          optionalApi<{ notifications: NotificationItem[] }>("/notifications", { notifications: [] }),
+        const userId = user.id;
+
+        const [
+          profileResult,
+          seekerResult,
+          resumesResult,
+          generatedResult,
+          applicationsResult,
+          applicationsCountResult,
+          savedResult,
+          savedCountResult,
+          notificationsResult,
+        ] = await Promise.all([
+          supabase
+            .from("profiles")
+            .select("id,full_name,phone,location,headline,about")
+            .eq("id", userId)
+            .maybeSingle(),
+          supabase
+            .from("job_seeker_profiles")
+            .select("user_id,experience_years,desired_role,skills,is_fresher,visibility,active_generated_resume_id")
+            .eq("user_id", userId)
+            .maybeSingle(),
+          supabase
+            .from("resumes")
+            .select("id,original_name,mime_type,size_bytes,created_at")
+            .eq("job_seeker_id", userId)
+            .order("created_at", { ascending: false })
+            .limit(10),
+          supabase
+            .from("generated_resumes")
+            .select("id,job_seeker_id,template,title,snapshot,settings,tags,created_at")
+            .eq("job_seeker_id", userId)
+            .order("created_at", { ascending: false })
+            .limit(20),
+          supabase
+            .from("applications")
+            .select("id,status,interview_at,created_at,job:jobs!applications_job_id_fkey(id,recruiter_id,title,company_name,location,role,required_skills,job_type,min_experience_years,description,open_to_freshers,review_status,admin_feedback,reviewed_at,application_deadline,created_at)")
+            .eq("job_seeker_id", userId)
+            .order("created_at", { ascending: false })
+            .limit(150),
+          supabase.from("applications").select("id", { count: "exact", head: true }).eq("job_seeker_id", userId),
+          supabase
+            .from("saved_jobs")
+            .select("id,job_id,created_at,job:jobs!saved_jobs_job_id_fkey(id,recruiter_id,title,company_name,location,role,required_skills,job_type,min_experience_years,description,open_to_freshers,review_status,admin_feedback,reviewed_at,application_deadline,created_at)")
+            .eq("job_seeker_id", userId)
+            .order("created_at", { ascending: false })
+            .limit(150),
+          supabase.from("saved_jobs").select("id", { count: "exact", head: true }).eq("job_seeker_id", userId),
+          supabase
+            .from("notifications")
+            .select("id,type,message,is_read,created_at")
+            .eq("user_id", userId)
+            .order("created_at", { ascending: false })
+            .limit(50),
         ]);
 
-        setProfile(p.profile);
-        setResumes(r.resumes);
-        setGeneratedResumes(g.generatedResumes);
-        setApplications(a.applications);
-        setSavedJobs(s.savedJobs);
-        setNotifications(n.notifications);
+        if (profileResult.error) throw profileResult.error;
+        if (seekerResult.error) throw seekerResult.error;
+        if (resumesResult.error) throw resumesResult.error;
+        if (generatedResult.error) throw generatedResult.error;
+        if (applicationsResult.error) throw applicationsResult.error;
+        if (applicationsCountResult.error) throw applicationsCountResult.error;
+        if (savedResult.error) throw savedResult.error;
+        if (savedCountResult.error) throw savedCountResult.error;
+        if (notificationsResult.error) throw notificationsResult.error;
+
+        const profileRow = profileResult.data;
+        const seekerRow = seekerResult.data;
+
+        if (!profileRow || !seekerRow) {
+          setProfile(null);
+          setResumes([]);
+          setGeneratedResumes([]);
+          setApplications([]);
+          setSavedJobs([]);
+          setNotifications([]);
+          setApplicationsCount(0);
+          setSavedJobsCount(0);
+          return;
+        }
+
+        const mappedProfile: JobSeekerProfile = {
+          id: profileRow.id,
+          userId: seekerRow.user_id,
+          fullName: profileRow.full_name,
+          phone: profileRow.phone,
+          location: profileRow.location,
+          headline: profileRow.headline,
+          about: profileRow.about,
+          experienceYears: seekerRow.experience_years,
+          desiredRole: seekerRow.desired_role,
+          skills: seekerRow.skills ?? [],
+          isFresher: seekerRow.is_fresher,
+          visibility: seekerRow.visibility,
+          activeGeneratedResumeId: seekerRow.active_generated_resume_id,
+        };
+
+        const mappedResumes: Resume[] = (resumesResult.data ?? []).map((row) => ({
+          id: row.id,
+          originalName: row.original_name,
+          mimeType: row.mime_type ?? "application/octet-stream",
+          sizeBytes: row.size_bytes ?? 0,
+          createdAt: row.created_at,
+        }));
+
+        const mappedGenerated: GeneratedResume[] = (generatedResult.data ?? []).map((row) => ({
+          id: row.id,
+          userId: row.job_seeker_id,
+          template: row.template,
+          title: row.title,
+          createdAt: row.created_at,
+          snapshot: (row.snapshot ?? {}) as GeneratedResume["snapshot"],
+          settings: (row.settings ?? {}) as GeneratedResume["settings"],
+          tags: row.tags ?? [],
+        }));
+
+        const mappedApplications: ApplicationWithJob[] = (applicationsResult.data ?? [])
+          .filter((row) => Boolean(row.job))
+          .map((row) => ({
+            id: row.id,
+            status: row.status,
+            interviewAt: row.interview_at,
+            createdAt: row.created_at,
+            job: {
+              id: row.job.id,
+              recruiterId: row.job.recruiter_id,
+              title: row.job.title,
+              companyName: row.job.company_name,
+              location: row.job.location,
+              role: row.job.role,
+              requiredSkills: row.job.required_skills ?? [],
+              jobType: row.job.job_type,
+              minExperienceYears: row.job.min_experience_years,
+              description: row.job.description,
+              openToFreshers: row.job.open_to_freshers,
+              reviewStatus: row.job.review_status,
+              adminFeedback: row.job.admin_feedback,
+              reviewedAt: row.job.reviewed_at,
+              applicationDeadline: row.job.application_deadline,
+              createdAt: row.job.created_at,
+            },
+          }));
+
+        const mappedSavedJobs: Array<{ job?: Job; jobId?: Job | string }> = (savedResult.data ?? [])
+          .map((row) => {
+            if (!row.job) {
+              return { jobId: row.job_id as string };
+            }
+
+            return {
+              job: {
+                id: row.job.id,
+                recruiterId: row.job.recruiter_id,
+                title: row.job.title,
+                companyName: row.job.company_name,
+                location: row.job.location,
+                role: row.job.role,
+                requiredSkills: row.job.required_skills ?? [],
+                jobType: row.job.job_type,
+                minExperienceYears: row.job.min_experience_years,
+                description: row.job.description,
+                openToFreshers: row.job.open_to_freshers,
+                reviewStatus: row.job.review_status,
+                adminFeedback: row.job.admin_feedback,
+                reviewedAt: row.job.reviewed_at,
+                applicationDeadline: row.job.application_deadline,
+                createdAt: row.job.created_at,
+              },
+            };
+          });
+
+        const mappedNotifications: NotificationItem[] = (notificationsResult.data ?? []).map((row) => ({
+          id: row.id,
+          type: row.type,
+          message: row.message,
+          isRead: row.is_read,
+          createdAt: row.created_at,
+        }));
+
+        setProfile(mappedProfile);
+        setResumes(mappedResumes);
+        setGeneratedResumes(mappedGenerated);
+        setApplications(mappedApplications);
+        setSavedJobs(mappedSavedJobs);
+        setNotifications(mappedNotifications);
+        setApplicationsCount(applicationsCountResult.count ?? mappedApplications.length);
+        setSavedJobsCount(savedCountResult.count ?? mappedSavedJobs.length);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load dashboard");
       } finally {
         setIsLoading(false);
       }
     })();
-  }, [token, user?.email, user?.id]);
+  }, [user?.id]);
 
   const unreadNotifications = useMemo(() => notifications.filter((x) => !x.isRead).length, [notifications]);
-  const interviewCalls = useMemo(() => applications.filter((x) => x.status === "INTERVIEW_SCHEDULED").length, [applications]);
-  const upcomingInterviews = useMemo(() => applications.filter((x) => x.status === "INTERVIEW_SCHEDULED").slice(0, 3), [applications]);
   const recentApplications = useMemo(() => applications.slice(0, 5), [applications]);
 
   const completion = useMemo(() => {
@@ -187,20 +347,8 @@ export function JobSeekerDashboardPage() {
     });
   }, [applications]);
 
-  const recommendedJobs = useMemo(() => {
-    const byId = new Map<string, Job>();
-    for (const s of savedJobs) {
-      const candidate = s.job ?? (typeof s.jobId === "object" ? s.jobId : null);
-      if (!candidate?.id) continue;
-      byId.set(candidate.id, candidate);
-    }
-    for (const a of applications) byId.set(a.job.id, a.job);
-    return Array.from(byId.values()).slice(0, 8);
-  }, [applications, savedJobs]);
-
-  const applicationsCount = useCountUp(applications.length, 800);
-  const savedCount = useCountUp(savedJobs.length, 800);
-  const interviewCount = useCountUp(interviewCalls, 800);
+  const applicationsCountAnimated = useCountUp(applicationsCount, 800);
+  const savedCountAnimated = useCountUp(savedJobsCount, 800);
   const completionCount = useCountUp(completion, 800);
   const firstName = useMemo(() => profile?.fullName?.trim().split(/\s+/)[0] ?? "there", [profile?.fullName]);
 
@@ -222,7 +370,7 @@ export function JobSeekerDashboardPage() {
 
       {error ? <Card className="border-danger/50 bg-danger/10 text-danger">{error}</Card> : null}
 
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <Card className="card-hover">
           <div className="flex items-center justify-between">
             <div>
@@ -249,7 +397,7 @@ export function JobSeekerDashboardPage() {
 
         <Card className="card-hover">
           <div className="text-sm text-text-secondary">Applications Sent</div>
-          <div className="mt-2 text-3xl font-semibold">{applicationsCount}</div>
+          <div className="mt-2 text-3xl font-semibold">{applicationsCountAnimated}</div>
           <div className="mt-4">
             <svg viewBox="0 0 100 40" className="h-10 w-full">
               <polyline fill="none" stroke="currentColor" strokeWidth="3" className="text-accent" points={sparklinePoints(sparklineData)} />
@@ -259,22 +407,17 @@ export function JobSeekerDashboardPage() {
 
         <Card className="card-hover">
           <div className="text-sm text-text-secondary">Saved Jobs</div>
-          <div className="mt-2 text-3xl font-semibold">{savedCount}</div>
+          <div className="mt-2 text-3xl font-semibold">{savedCountAnimated}</div>
           <div className="mt-3 text-xs text-text-muted">Bookmark opportunities you want to revisit.</div>
         </Card>
 
-        <Card className="card-hover">
-          <div className="text-sm text-text-secondary">Interview Calls</div>
-          <div className="mt-2 text-3xl font-semibold">{interviewCount}</div>
-          <div className="mt-3 text-xs text-text-muted">Stay prepared for upcoming rounds.</div>
-        </Card>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
         <Card className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold">Recent Applications</h3>
-            <Link to="/job-seeker/applied" className="text-sm text-text-secondary hover:text-text">View all</Link>
+            <Link to="/job-seeker/jobs" className="text-sm text-text-secondary hover:text-text">View all</Link>
           </div>
 
           {recentApplications.length === 0 ? (
@@ -323,50 +466,8 @@ export function JobSeekerDashboardPage() {
             </div>
           </Card>
 
-          <Card className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Upcoming Interviews</h3>
-              <Link to="/job-seeker/applied" className="text-sm text-text-secondary hover:text-text">View status</Link>
-            </div>
-            {upcomingInterviews.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-border p-4 text-sm text-text-muted">No upcoming interviews scheduled.</div>
-            ) : (
-              <div className="space-y-3">
-                {upcomingInterviews.map((a) => (
-                  <div key={a.id} className="rounded-xl border border-border bg-surface-raised p-3">
-                    <div className="text-sm font-semibold">{a.job.title}</div>
-                    <div className="text-xs text-text-secondary">{a.job.companyName} · {a.job.location}</div>
-                    <div className="mt-2 text-xs text-text-muted">Interview: {a.interviewAt ? new Date(a.interviewAt).toLocaleString() : "Scheduled"}</div>
-                    <Link to="/job-seeker/applied" className="mt-2 inline-block text-xs text-[#8AB4F8] hover:text-white">View Details</Link>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
         </div>
       </div>
-
-      <Card>
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold">Recommended for you</h3>
-          <Link to="/job-seeker/jobs" className="text-sm text-text-secondary hover:text-text">Browse more</Link>
-        </div>
-        {recommendedJobs.length === 0 ? (
-          <div className="text-sm text-text-muted">Recommendations will appear once you save jobs or apply.</div>
-        ) : (
-          <div className="flex gap-3 overflow-x-auto pb-2">
-            {recommendedJobs.map((job) => (
-              <div key={job.id} className="min-w-[220px] animate-slide-in-right rounded-xl border border-border bg-surface-raised p-3">
-                <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-[rgba(26,115,232,0.2)] text-xs font-semibold text-[#8AB4F8]">{initialsOfCompany(job.companyName)}</div>
-                <div className="text-sm font-semibold">{job.title}</div>
-                <div className="text-xs text-text-secondary">{job.companyName}</div>
-                <div className="mt-1 text-xs text-text-muted">{job.location}</div>
-                <Link to={`/job-seeker/jobs/${job.id}`} className="mt-3 inline-block text-xs font-semibold text-[#8AB4F8] hover:text-white">View</Link>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
 
       <Card className="flex items-center justify-between">
         <div>

@@ -1,7 +1,6 @@
 import { NavLink } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
 import {
-  ClipboardCheck,
   Bookmark,
   Briefcase,
   Building2,
@@ -27,7 +26,6 @@ const jobSeekerNav: NavGroup[] = [
     items: [
       { to: "/job-seeker/dashboard", label: "Dashboard", icon: LayoutDashboard },
       { to: "/job-seeker/jobs", label: "Jobs & Internships", icon: Briefcase },
-      { to: "/job-seeker/applied", label: "Applications", icon: FileText },
     ],
   },
   {
@@ -82,7 +80,7 @@ const adminNav: NavGroup[] = [
     items: [
       { to: "/admin", label: "Dashboard", icon: LayoutDashboard },
       { to: "/admin/recruiters", label: "Recruiter Verification", icon: ShieldCheck },
-      { to: "/admin/applicants", label: "Applicant Management", icon: ClipboardCheck },
+      { to: "/admin/applicants", label: "Applicant Management", icon: Briefcase },
       { to: "/admin/job-review", label: "Job Review", icon: Building2 },
     ],
   },

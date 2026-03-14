@@ -4,10 +4,13 @@ import {
   MapPin,
   Clock,
   Building2,
-  ExternalLink,
   Briefcase,
   Calendar,
   DollarSign,
+  GraduationCap,
+  Laptop,
+  Sparkles,
+  ExternalLink,
 } from "lucide-react";
 import { fetchJobDetail, type ExternalJob } from "../../hooks/useExternalJobs";
 import {
@@ -22,7 +25,7 @@ import {
 type QuickViewModalProps = {
   jobId: string;
   onClose: () => void;
-  onApply: (applyUrl: string) => void;
+  onApply: (job: ExternalJob) => void;
 };
 
 export function QuickViewModal({ jobId, onClose, onApply }: QuickViewModalProps) {
@@ -55,6 +58,12 @@ export function QuickViewModal({ jobId, onClose, onApply }: QuickViewModalProps)
   if (!job) return null;
 
   const badge = getJobTypeBadge(job.jobType);
+  const workMode = job.location.isRemote ? "Remote" : job.location.isHybrid ? "Hybrid" : "On-site";
+  const experienceText = job.experienceLevel === "fresher"
+    ? "Fresher"
+    : job.minExperienceYears > 0
+      ? `${job.minExperienceYears}+ years`
+      : "Any";
 
   return (
     <div
@@ -132,19 +141,38 @@ export function QuickViewModal({ jobId, onClose, onApply }: QuickViewModalProps)
             <div>
               <h3 className="mb-2 text-sm font-semibold text-[var(--color-text-primary)]">About this Role</h3>
               <p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--color-text-secondary)]">
-                {job.description.slice(0, 800)}
-                {job.description.length > 800 ? "..." : ""}
+                {job.description.slice(0, 2400)}
+                {job.description.length > 2400 ? "..." : ""}
               </p>
             </div>
           )}
 
-          {job.minExperienceYears > 0 && (
-            <div className="text-sm text-[var(--color-text-secondary)]">
-              <span className="font-medium text-[var(--color-text-primary)]">Experience: </span>
-              {job.minExperienceYears}+ years
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <div className="rounded-lg border border-[var(--color-border)] p-3 text-xs text-[var(--color-text-secondary)]">
+              <div className="mb-1 flex items-center gap-1 text-[var(--color-text-primary)]">
+                <GraduationCap size={14} /> Experience
+              </div>
+              {experienceText}
             </div>
-          )}
+            <div className="rounded-lg border border-[var(--color-border)] p-3 text-xs text-[var(--color-text-secondary)]">
+              <div className="mb-1 flex items-center gap-1 text-[var(--color-text-primary)]">
+                <Laptop size={14} /> Work Mode
+              </div>
+              {workMode}
+            </div>
+            <div className="rounded-lg border border-[var(--color-border)] p-3 text-xs text-[var(--color-text-secondary)]">
+              <div className="mb-1 flex items-center gap-1 text-[var(--color-text-primary)]">
+                <Sparkles size={14} /> Role
+              </div>
+              {job.title}
+            </div>
+          </div>
           {job.experienceLevel === "fresher" && <div className="text-sm font-medium text-green-400">Freshers welcome</div>}
+          {job.source === "adzuna" ? (
+            <div className="text-xs text-amber-300">
+              Source link may be restricted for some regions. Apply opens a safer fallback search page.
+            </div>
+          ) : null}
         </div>
 
         <div className="sticky bottom-0 flex gap-3 border-t border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
@@ -155,15 +183,13 @@ export function QuickViewModal({ jobId, onClose, onApply }: QuickViewModalProps)
           >
             Back to Jobs
           </button>
-          <a
-            href={job.applyUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => onApply(job.applyUrl)}
+          <button
+            type="button"
+            onClick={() => onApply(job)}
             className="flex flex-[2] items-center justify-center gap-2 rounded-xl bg-[var(--color-accent)] px-4 py-2.5 text-sm font-semibold text-[var(--color-sidebar-active-text)] transition-colors hover:bg-[var(--color-accent-hover)]"
           >
             Apply Now <ExternalLink size={14} />
-          </a>
+          </button>
         </div>
       </div>
     </div>

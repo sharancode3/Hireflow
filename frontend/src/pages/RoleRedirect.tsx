@@ -2,7 +2,11 @@ import { Navigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 
 export function RoleRedirect(props: { jobSeekerTo: string; recruiterTo: string }) {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <div className="card">Restoring your session...</div>;
+  }
 
   if (!user) {
     return <Navigate to="/login" replace />;

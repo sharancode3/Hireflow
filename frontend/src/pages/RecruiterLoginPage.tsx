@@ -3,7 +3,7 @@ import type { FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AuthSplitLayout } from "../components/AuthLayout";
 import { useAuth } from "../auth/AuthContext";
-import { signInWithEmail } from "../services/authService";
+import { signInWithEmail, signOut } from "../services/authService";
 
 export function RecruiterLoginPage() {
   const navigate = useNavigate();
@@ -21,12 +21,14 @@ export function RecruiterLoginPage() {
 
     try {
       const data = await signInWithEmail(email, password);
-      login(data);
 
       if (data.user.role !== "RECRUITER") {
+        await signOut().catch(() => undefined);
         setError("This account is not registered as a recruiter.");
         return;
       }
+
+      login(data);
 
       if (data.user.recruiterApprovalStatus === "PENDING") {
         navigate("/recruiter/pending", { replace: true });

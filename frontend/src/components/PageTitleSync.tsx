@@ -13,7 +13,6 @@ const titleMap: Array<{ test: RegExp; title: string }> = [
   { test: /^\/job-seeker\/profile$/, title: "Profile Builder | Hireflow" },
   { test: /^\/job-seeker\/resume-builder$/, title: "Resume Builder | Hireflow" },
   { test: /^\/job-seeker\/jobs$/, title: "Jobs & Internships | Hireflow" },
-  { test: /^\/job-seeker\/applied$/, title: "Applications | Hireflow" },
   { test: /^\/job-seeker\/saved$/, title: "Saved Jobs | Hireflow" },
   { test: /^\/job-seeker\/interview-prep$/, title: "Interview Prep | Hireflow" },
   { test: /^\/job-seeker\/experience-feed$/, title: "Community Feed | Hireflow" },

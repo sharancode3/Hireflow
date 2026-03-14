@@ -3,8 +3,12 @@ import { useAuth } from "./AuthContext";
 import { config } from "../config";
 
 export function RequireAdmin() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   const location = useLocation();
+
+  if (isLoading) {
+    return <div className="card">Restoring your session...</div>;
+  }
 
   if (!user) {
     return <Navigate to={`/login?next=${encodeURIComponent(location.pathname)}`} replace />;

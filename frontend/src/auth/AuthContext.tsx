@@ -58,24 +58,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const bootstrap = async () => {
       setIsLoading(true);
-      let didTimeout = false;
-      await Promise.race([
-        refreshMe(),
-        new Promise<void>((resolve) => {
-          window.setTimeout(() => {
-            didTimeout = true;
-            resolve();
-          }, AUTH_BOOTSTRAP_TIMEOUT_MS);
-        }),
-      ]);
+      let settled = false;
 
-      if (didTimeout) {
-        // Never leave app stuck on loading if auth/profile calls are stalled.
-        setToken(null);
-        setUser(null);
-      }
+      void refreshMe().finally(() => {
+        settled = true;
+        setIsLoading(false);
+      });
 
-      setIsLoading(false);
+      window.setTimeout(() => {
+        if (!settled) {
+          // Never leave app stuck on loading if auth/profile calls are stalled.
+          setIsLoading(false);
+        }
+      }, AUTH_BOOTSTRAP_TIMEOUT_MS);
     };
 
     void bootstrap();

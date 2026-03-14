@@ -20,12 +20,6 @@ frontend/.env
 frontend/.env.*
 !frontend/.env.example
 
-# Prisma / SQLite dev db
-backend/*.db
-backend/*.db-journal
-backend/prisma/*.db
-backend/prisma/*.db-journal
-
 # Uploads (user-generated)
 backend/uploads/resumes/*
 !backend/uploads/resumes/.gitkeep

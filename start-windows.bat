@@ -50,7 +50,6 @@ echo [1/4] Creating backend .env if missing...
 if not exist "backend\.env" (
   (
     echo PORT=4000
-    echo JWT_SECRET="change_this_to_a_long_random_secret_1234567890"
     echo CORS_ORIGIN="http://localhost:5173"
     echo SUPABASE_URL=""
     echo SUPABASE_SERVICE_ROLE_KEY=""

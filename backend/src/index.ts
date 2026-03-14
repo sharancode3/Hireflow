@@ -9,7 +9,9 @@ import { errorHandler } from "./middleware/errorHandler";
 import { requireAuth } from "./middleware/auth";
 
 import { healthRouter } from "./routes/health";
+import { externalJobsRouter } from "./routes/admin/externalJobsPublic";
 import { recruiterSupabaseRouter } from "./routes/recruiter/supabaseRecruiter";
+import { startExternalJobsScheduler } from "./services/externalJobsService";
 
 async function bootstrap() {
   const app = express();
@@ -37,7 +39,10 @@ async function bootstrap() {
   app.use(express.json({ limit: "1mb" }));
 
   app.use(healthRouter);
+  app.use(externalJobsRouter);
   app.use(requireAuth, recruiterSupabaseRouter);
+
+  startExternalJobsScheduler();
 
   app.use(notFound);
   app.use(errorHandler);

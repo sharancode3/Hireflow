@@ -62,7 +62,6 @@ import { JobSeekerDashboardPage } from "./pages/jobSeeker/DashboardPage";
 import { JobSeekerProfilePage } from "./pages/jobSeeker/ProfilePage";
 import { JobSeekerJobsPage } from "./pages/jobSeeker/JobsPage";
 import { JobDetailsPage } from "./pages/jobSeeker/JobDetailsPage";
-import { AppliedJobsPage } from "./pages/jobSeeker/AppliedJobsPage";
 import { SavedJobsPage } from "./pages/jobSeeker/SavedJobsPage";
 import { JobSeekerNotificationsPage } from "./pages/jobSeeker/NotificationsPage";
 
@@ -141,7 +140,6 @@ export default function App() {
               <Route path="jobs" element={<JobSeekerJobsPage />} />
               <Route path="jobs/:jobId" element={<JobDetailsPage />} />
               <Route path="freshers" element={<JobSeekerJobsPage freshersOnly />} />
-              <Route path="applied" element={<AppliedJobsPage />} />
               <Route path="saved" element={<SavedJobsPage />} />
               <Route path="notifications" element={<JobSeekerNotificationsPage />} />
               <Route

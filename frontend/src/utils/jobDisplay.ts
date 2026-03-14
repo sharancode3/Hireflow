@@ -4,6 +4,7 @@ export function formatDeadline(deadline?: string): string {
   if (!deadline) return "Open until filled";
 
   const date = new Date(deadline);
+  if (Number.isNaN(date.getTime())) return "Open until filled";
   const now = new Date();
   const diffMs = date.getTime() - now.getTime();
   const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));

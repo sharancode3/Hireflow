@@ -1,4 +1,5 @@
 import { Router } from "express";
+import crypto from "node:crypto";
 import { z } from "zod";
 import type { AuthenticatedRequest } from "../../middleware/auth";
 import { HttpError } from "../../utils/httpError";
@@ -33,6 +34,31 @@ type RecruiterContext = {
   email: string;
   approvalStatus: "PENDING" | "APPROVED" | "REJECTED";
   companyName: string;
+};
+
+type ExternalJobRow = {
+  id: string;
+  title: string;
+  company: string;
+  location_city: string | null;
+  location_state: string | null;
+  location_country: string;
+  is_remote: boolean;
+  is_hybrid: boolean;
+  is_onsite: boolean;
+  job_type: "full_time" | "part_time" | "internship" | "contract" | "freelance";
+  experience_level: string;
+  min_experience_years: number;
+  skills: string[];
+  salary_min: number | null;
+  salary_max: number | null;
+  salary_currency: string;
+  apply_url: string;
+  application_deadline: string | null;
+  posted_at: string;
+  active_until: string;
+  source: string;
+  description: string;
 };
 
 async function getRecruiterContext(userId: string): Promise<RecruiterContext> {
@@ -87,6 +113,411 @@ function mapJob(row: any) {
     createdAt: row.created_at,
   };
 }
+
+function mapNotification(row: any) {
+  return {
+    id: row.id,
+    type: row.type,
+    message: row.message,
+    isRead: Boolean(row.is_read),
+    createdAt: row.created_at,
+  };
+}
+
+function isSchemaMissingError(error: unknown): boolean {
+  const code = (error as { code?: string } | null)?.code;
+  return code === "42P01" || code === "PGRST205";
+}
+
+function mapExternalJob(row: ExternalJobRow) {
+  return {
+    _id: row.id,
+    title: row.title,
+    company: row.company,
+    location: {
+      city: row.location_city || undefined,
+      state: row.location_state || undefined,
+      country: row.location_country,
+      isRemote: row.is_remote,
+      isHybrid: row.is_hybrid,
+      isOnsite: row.is_onsite,
+    },
+    jobType: row.job_type,
+    experienceLevel: row.experience_level,
+    minExperienceYears: row.min_experience_years,
+    skills: row.skills || [],
+    salaryMin: row.salary_min ?? undefined,
+    salaryMax: row.salary_max ?? undefined,
+    salaryCurrency: row.salary_currency,
+    applyUrl: row.apply_url,
+    applyFallbackUrl: `https://www.google.com/search?q=${encodeURIComponent(`${row.title} ${row.company} jobs in India`)}`,
+    applyReliability: "high" as const,
+    applyIsDirect: true,
+    applicationDeadline: row.application_deadline || row.active_until || undefined,
+    activeUntil: row.active_until,
+    postedAt: row.posted_at,
+    source: row.source,
+    description: row.description,
+  };
+}
+
+const externalJobSnapshotSchema = z.object({
+  _id: z.string().uuid().optional(),
+  title: z.string().min(1),
+  company: z.string().min(1),
+  location: z.object({
+    city: z.string().optional(),
+    state: z.string().optional(),
+    country: z.string().optional(),
+    isRemote: z.boolean().optional(),
+    isHybrid: z.boolean().optional(),
+    isOnsite: z.boolean().optional(),
+  }),
+  jobType: z.enum(["full_time", "part_time", "internship", "contract", "freelance"]),
+  experienceLevel: z.string().optional(),
+  minExperienceYears: z.number().int().min(0).max(50).optional(),
+  skills: z.array(z.string()).optional(),
+  salaryMin: z.number().nullable().optional(),
+  salaryMax: z.number().nullable().optional(),
+  salaryCurrency: z.string().optional(),
+  applyUrl: z.string().min(1),
+  applicationDeadline: z.string().nullable().optional(),
+  activeUntil: z.string().optional(),
+  postedAt: z.string().optional(),
+  source: z.string().optional(),
+  description: z.string().optional(),
+});
+
+function stableHash(input: string): string {
+  return crypto.createHash("sha256").update(input).digest("hex");
+}
+
+function parseIsoOrNull(value?: string | null): string | null {
+  if (!value) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
+function parseIsoOrNow(value?: string): string {
+  const parsed = parseIsoOrNull(value);
+  return parsed || new Date().toISOString();
+}
+
+function plusDays(iso: string, days: number): string {
+  const d = new Date(iso);
+  d.setDate(d.getDate() + days);
+  return d.toISOString();
+}
+
+async function upsertExternalJobSnapshot(jobId: string, snapshot: z.infer<typeof externalJobSnapshotSchema>): Promise<void> {
+  const postedAt = parseIsoOrNow(snapshot.postedAt);
+  const activeUntil = parseIsoOrNull(snapshot.activeUntil)
+    || parseIsoOrNull(snapshot.applicationDeadline)
+    || plusDays(postedAt, 30);
+  const source = String(snapshot.source || "manual_save").trim().toLowerCase();
+  const externalId = jobId;
+  const dedupeKey = stableHash(`${source}|${externalId}`);
+  const description = String(snapshot.description || `${snapshot.title} at ${snapshot.company}`).slice(0, 12000);
+
+  const payload = {
+    id: jobId,
+    source,
+    external_id: externalId,
+    dedupe_key: dedupeKey,
+    title: snapshot.title,
+    company: snapshot.company,
+    location_city: snapshot.location.city || null,
+    location_state: snapshot.location.state || null,
+    location_country: snapshot.location.country || "Global",
+    is_remote: Boolean(snapshot.location.isRemote),
+    is_hybrid: Boolean(snapshot.location.isHybrid),
+    is_onsite: snapshot.location.isOnsite ?? !(snapshot.location.isRemote || snapshot.location.isHybrid),
+    job_type: snapshot.jobType,
+    experience_level: snapshot.experienceLevel || "any",
+    min_experience_years: snapshot.minExperienceYears || 0,
+    skills: snapshot.skills || [],
+    salary_min: snapshot.salaryMin ?? null,
+    salary_max: snapshot.salaryMax ?? null,
+    salary_currency: snapshot.salaryCurrency || "USD",
+    apply_url: snapshot.applyUrl,
+    description,
+    posted_at: postedAt,
+    application_deadline: parseIsoOrNull(snapshot.applicationDeadline),
+    active_until: activeUntil,
+    is_active: true,
+    metadata: { created_via: "save_snapshot" },
+    content_hash: stableHash(`${snapshot.title}|${snapshot.company}|${description}`),
+    last_seen_at: new Date().toISOString(),
+  };
+
+  const { error } = await getSupabaseAdmin()
+    .from("external_jobs")
+    .upsert(payload, { onConflict: "id" });
+
+  if (error) throw new HttpError(500, error.message);
+}
+
+async function ensureJobSeeker(userId: string): Promise<void> {
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error) throw new HttpError(500, error.message);
+
+  if (!data) {
+    const authUser = await supabase.auth.admin.getUserById(userId);
+    if (authUser.error || !authUser.data?.user) {
+      throw new HttpError(404, "Profile not found");
+    }
+
+    const email = String(authUser.data.user.email || "").toLowerCase();
+    const fullName = String(authUser.data.user.user_metadata?.full_name || email.split("@")[0] || "User");
+
+    const { error: upsertError } = await supabase
+      .from("profiles")
+      .upsert({
+        id: userId,
+        email,
+        role: "JOB_SEEKER",
+        full_name: fullName,
+      }, { onConflict: "id" });
+
+    if (upsertError) throw new HttpError(500, upsertError.message);
+  }
+}
+
+async function getSavedExternalJobIdsFromUserSettings(userId: string): Promise<string[]> {
+  const { data, error } = await getSupabaseAdmin()
+    .from("user_settings")
+    .select("settings")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error && !isSchemaMissingError(error)) throw new HttpError(500, error.message);
+  const settings = (data?.settings || {}) as { saved_external_job_ids?: unknown };
+  const ids = Array.isArray(settings.saved_external_job_ids) ? settings.saved_external_job_ids : [];
+  return ids.filter((x): x is string => typeof x === "string");
+}
+
+async function setSavedExternalJobIdsInUserSettings(userId: string, ids: string[]): Promise<void> {
+  const { data: existing, error: selectError } = await getSupabaseAdmin()
+    .from("user_settings")
+    .select("settings")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (selectError && !isSchemaMissingError(selectError)) throw new HttpError(500, selectError.message);
+
+  const currentSettings = (existing?.settings || {}) as Record<string, unknown>;
+  const nextSettings = {
+    ...currentSettings,
+    saved_external_job_ids: ids,
+  };
+
+  const { error: upsertError } = await getSupabaseAdmin()
+    .from("user_settings")
+    .upsert({ user_id: userId, settings: nextSettings }, { onConflict: "user_id" });
+
+  if (upsertError) throw new HttpError(500, upsertError.message);
+}
+
+recruiterSupabaseRouter.get("/job-seeker/external-saved-job-ids", async (req, res, next) => {
+  try {
+    const authed = req as unknown as AuthenticatedRequest;
+    await ensureJobSeeker(authed.auth.userId);
+
+    const { data, error } = await getSupabaseAdmin()
+      .from("saved_external_jobs")
+      .select("external_job_id")
+      .eq("user_id", authed.auth.userId);
+
+    if (error && isSchemaMissingError(error)) {
+      const fallbackIds = await getSavedExternalJobIdsFromUserSettings(authed.auth.userId);
+      return res.json({ jobIds: fallbackIds });
+    }
+    if (error) throw new HttpError(500, error.message);
+
+    res.json({ jobIds: (data || []).map((x: any) => x.external_job_id) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+recruiterSupabaseRouter.get("/job-seeker/external-saved-jobs", async (req, res, next) => {
+    try {
+      const authed = req as unknown as AuthenticatedRequest;
+      await ensureJobSeeker(authed.auth.userId);
+
+      const { data, error } = await getSupabaseAdmin()
+        .from("saved_external_jobs")
+        .select("created_at, job:external_jobs!saved_external_jobs_external_job_id_fkey(id,title,company,location_city,location_state,location_country,is_remote,is_hybrid,is_onsite,job_type,experience_level,min_experience_years,skills,salary_min,salary_max,salary_currency,apply_url,application_deadline,posted_at,active_until,source,description)")
+        .eq("user_id", authed.auth.userId)
+        .order("created_at", { ascending: false });
+
+      if (error && isSchemaMissingError(error)) {
+        const fallbackIds = await getSavedExternalJobIdsFromUserSettings(authed.auth.userId);
+        if (!fallbackIds.length) return res.json({ jobs: [] });
+
+        const { data: jobsData, error: jobsError } = await getSupabaseAdmin()
+          .from("external_jobs")
+          .select("id,title,company,location_city,location_state,location_country,is_remote,is_hybrid,is_onsite,job_type,experience_level,min_experience_years,skills,salary_min,salary_max,salary_currency,apply_url,application_deadline,posted_at,active_until,source,description")
+          .in("id", fallbackIds)
+          .eq("is_active", true)
+          .gte("active_until", new Date().toISOString());
+
+        if (jobsError && !isSchemaMissingError(jobsError)) throw new HttpError(500, jobsError.message);
+
+        const jobs = (jobsData || []).map((job: ExternalJobRow) => mapExternalJob(job));
+        return res.json({ jobs });
+      }
+      if (error) throw new HttpError(500, error.message);
+
+      const jobs = (data || [])
+        .map((row: any) => row.job)
+        .filter(Boolean)
+        .map((job: ExternalJobRow) => mapExternalJob(job));
+
+      res.json({ jobs });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+recruiterSupabaseRouter.post("/job-seeker/external-saved-jobs", async (req, res, next) => {
+    try {
+      const authed = req as unknown as AuthenticatedRequest;
+      await ensureJobSeeker(authed.auth.userId);
+
+      const body = z.object({
+        jobId: z.string().uuid(),
+        job: externalJobSnapshotSchema.optional(),
+      }).parse(req.body);
+      const supabase = getSupabaseAdmin();
+
+      const { data: existing, error: jobError } = await supabase
+        .from("external_jobs")
+        .select("id")
+        .eq("id", body.jobId)
+        .maybeSingle();
+
+      if (jobError && isSchemaMissingError(jobError)) {
+        return res.status(503).json({ message: "Saved jobs storage is not ready. Run latest migration." });
+      }
+      if (jobError) throw new HttpError(500, jobError.message);
+      if (!existing) {
+        if (!body.job) throw new HttpError(404, "Job not found");
+        await upsertExternalJobSnapshot(body.jobId, body.job);
+      }
+
+      const { error } = await supabase
+        .from("saved_external_jobs")
+        .upsert({ user_id: authed.auth.userId, external_job_id: body.jobId }, { onConflict: "user_id,external_job_id" });
+
+      if (error && isSchemaMissingError(error)) {
+        const fallbackIds = await getSavedExternalJobIdsFromUserSettings(authed.auth.userId);
+        const nextIds = Array.from(new Set([...fallbackIds, body.jobId]));
+        await setSavedExternalJobIdsInUserSettings(authed.auth.userId, nextIds);
+        return res.json({ ok: true });
+      }
+      if (error) throw new HttpError(500, error.message);
+
+      res.json({ ok: true });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+recruiterSupabaseRouter.delete("/job-seeker/external-saved-jobs/:jobId", async (req, res, next) => {
+    try {
+      const authed = req as unknown as AuthenticatedRequest;
+      await ensureJobSeeker(authed.auth.userId);
+
+      const { jobId } = z.object({ jobId: z.string().uuid() }).parse(req.params);
+      const { error } = await getSupabaseAdmin()
+        .from("saved_external_jobs")
+        .delete()
+        .eq("user_id", authed.auth.userId)
+        .eq("external_job_id", jobId);
+
+      if (error && isSchemaMissingError(error)) {
+        const fallbackIds = await getSavedExternalJobIdsFromUserSettings(authed.auth.userId);
+        const nextIds = fallbackIds.filter((id) => id !== jobId);
+        await setSavedExternalJobIdsInUserSettings(authed.auth.userId, nextIds);
+        return res.json({ ok: true });
+      }
+      if (error) throw new HttpError(500, error.message);
+
+      res.json({ ok: true });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+recruiterSupabaseRouter.get("/notifications", async (req, res, next) => {
+  try {
+    const authed = req as unknown as AuthenticatedRequest;
+    const userId = authed.auth.userId;
+    const supabase = getSupabaseAdmin();
+
+    const { data, error } = await supabase
+      .from("notifications")
+      .select("id,type,message,is_read,created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    if (error) throw new HttpError(500, error.message);
+
+    res.json({ notifications: (data || []).map(mapNotification) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+recruiterSupabaseRouter.post("/notifications/read-all", async (req, res, next) => {
+  try {
+    const authed = req as unknown as AuthenticatedRequest;
+    const userId = authed.auth.userId;
+    const supabase = getSupabaseAdmin();
+
+    const { error } = await supabase
+      .from("notifications")
+      .update({ is_read: true })
+      .eq("user_id", userId)
+      .eq("is_read", false);
+
+    if (error) throw new HttpError(500, error.message);
+
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+recruiterSupabaseRouter.post("/notifications/:id/read", async (req, res, next) => {
+  try {
+    const authed = req as unknown as AuthenticatedRequest;
+    const userId = authed.auth.userId;
+    const notificationId = z.string().uuid().parse(req.params.id);
+    const supabase = getSupabaseAdmin();
+
+    const { error } = await supabase
+      .from("notifications")
+      .update({ is_read: true })
+      .eq("id", notificationId)
+      .eq("user_id", userId);
+
+    if (error) throw new HttpError(500, error.message);
+
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
 
 recruiterSupabaseRouter.get("/recruiter/profile", async (req, res, next) => {
   try {

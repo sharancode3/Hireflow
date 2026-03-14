@@ -21,7 +21,11 @@ export type ExternalJob = {
   salaryMax?: number;
   salaryCurrency: string;
   applyUrl: string;
+  applyFallbackUrl?: string;
+  applyReliability?: "high" | "medium" | "low";
+  applyIsDirect?: boolean;
   applicationDeadline?: string;
+  activeUntil?: string;
   postedAt: string;
   source: string;
   description?: string;

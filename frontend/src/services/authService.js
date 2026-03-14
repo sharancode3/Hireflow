@@ -3,6 +3,52 @@ import { isSupabaseConfigured, supabase } from "../lib/supabaseClient";
 
 const LEGACY_LOCAL_SESSION_KEY = "hireflow_local_auth_session";
 const LEGACY_LOCAL_ACCOUNTS_KEY = "hireflow_local_auth_accounts";
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const SIGN_IN_TIMEOUT_MS = 12000;
+const PROFILE_LOOKUP_TIMEOUT_MS = 1800;
+
+function normalizeEmail(email) {
+  return String(email || "").trim().toLowerCase();
+}
+
+function getPasswordStrength(password) {
+  const value = String(password || "");
+  const length = value.length;
+  const charTypes = [/[A-Z]/.test(value), /[a-z]/.test(value), /\d/.test(value), /[^A-Za-z0-9]/.test(value)].filter(Boolean).length;
+
+  if (length >= 10 && charTypes >= 3) return "strong";
+  if (length >= 8 && charTypes >= 2) return "medium";
+  return "weak";
+}
+
+function validateEmailInput(email) {
+  const normalizedEmail = normalizeEmail(email);
+  if (!normalizedEmail) throw new Error("Please enter your email address.");
+  if (!EMAIL_REGEX.test(normalizedEmail)) throw new Error("Please enter a valid email address.");
+  return normalizedEmail;
+}
+
+function validateLoginInput(email, password) {
+  const normalizedEmail = validateEmailInput(email);
+  if (!String(password || "")) throw new Error("Please enter your password.");
+  return { normalizedEmail, normalizedPassword: String(password) };
+}
+
+function validateSignupInput(email, password, metadata = {}) {
+  const normalizedEmail = validateEmailInput(email);
+  const normalizedPassword = String(password || "");
+  if (getPasswordStrength(normalizedPassword) === "weak") {
+    throw new Error("Use a stronger password with at least 8 characters and a mix of letters, numbers, or symbols.");
+  }
+
+  if (metadata.role === "RECRUITER") {
+    if (!String(metadata.fullName || "").trim()) throw new Error("Please enter your full name.");
+    if (!String(metadata.phone || "").trim()) throw new Error("Please enter your phone number.");
+    if (!String(metadata.companyName || "").trim()) throw new Error("Please enter your company name.");
+  }
+
+  return { normalizedEmail, normalizedPassword };
+}
 
 function clearLegacyLocalAuthData() {
   try {
@@ -46,6 +92,19 @@ function getEmailRedirectUrl(path = "") {
     : `${config.publicAppUrl}${prefix}`;
   if (!normalizedPath) return appBase;
   return `${appBase}/?/${normalizedPath}`;
+}
+
+function withTimeout(promise, timeoutMs, timeoutMessage = "Request timed out. Please try again.") {
+  let timer = null;
+
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      timer = window.setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+    }),
+  ]).finally(() => {
+    if (timer) window.clearTimeout(timer);
+  });
 }
 
 async function ensureProfile(user, metadata = {}) {
@@ -102,11 +161,15 @@ async function mapSessionUser(authUser) {
 
   let profile = null;
   try {
-    const { data } = await supabase
-      .from("profiles")
-      .select("role,recruiter_approval_status")
-      .eq("id", authUser.id)
-      .maybeSingle();
+    const { data } = await withTimeout(
+      supabase
+        .from("profiles")
+        .select("role,recruiter_approval_status")
+        .eq("id", authUser.id)
+        .maybeSingle(),
+      PROFILE_LOOKUP_TIMEOUT_MS,
+      "Profile lookup timed out",
+    );
     profile = data;
   } catch {
     profile = null;
@@ -130,11 +193,22 @@ export async function signInWithEmail(email, password) {
   requireSupabaseConfig();
   clearLegacyLocalAuthData();
 
-  const normalizedEmail = String(email || "").trim().toLowerCase();
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: normalizedEmail,
-    password,
-  });
+  const { normalizedEmail, normalizedPassword } = validateLoginInput(email, password);
+  let data;
+  let error;
+
+  try {
+    ({ data, error } = await withTimeout(
+      supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password: normalizedPassword,
+      }),
+      SIGN_IN_TIMEOUT_MS,
+      "Sign in timed out. Please check your connection and try again.",
+    ));
+  } catch (err) {
+    throw new Error(toAuthMessage(err, "Unable to sign in right now."));
+  }
 
   if (error) {
     throw new Error(toAuthMessage(error, "Unable to sign in right now."));
@@ -166,12 +240,12 @@ export async function signUpWithEmail(email, password, metadata = {}) {
   requireSupabaseConfig();
   clearLegacyLocalAuthData();
 
-  const normalizedEmail = String(email || "").trim().toLowerCase();
+  const { normalizedEmail, normalizedPassword } = validateSignupInput(email, password, metadata);
   const requestedRole = metadata.role === "RECRUITER" ? "RECRUITER" : "JOB_SEEKER";
 
   const { data, error } = await supabase.auth.signUp({
     email: normalizedEmail,
-    password,
+    password: normalizedPassword,
     options: {
       emailRedirectTo: getEmailRedirectUrl("auth/callback"),
       data: {
@@ -210,8 +284,7 @@ export async function signUpWithEmail(email, password, metadata = {}) {
 
 export async function resendVerificationEmail(email) {
   requireSupabaseConfig();
-  const normalizedEmail = String(email || "").trim().toLowerCase();
-  if (!normalizedEmail) throw new Error("Please enter your email address.");
+  const normalizedEmail = validateEmailInput(email);
 
   const { error } = await supabase.auth.resend({
     type: "signup",

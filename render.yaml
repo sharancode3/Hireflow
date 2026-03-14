@@ -12,8 +12,6 @@ services:
         value: 20
       - key: PORT
         value: 4000
-      - key: JWT_SECRET
-        sync: false
       - key: CORS_ORIGIN
         sync: false
       - key: SUPABASE_URL
@@ -26,3 +24,13 @@ services:
         value: log
       - key: EMAIL_FROM
         value: no-reply@hireflow.local
+      - key: EXTERNAL_JOBS_SYNC_INTERVAL_MINUTES
+        value: 60
+      - key: EXTERNAL_JOBS_POSTED_WINDOW_DAYS
+        value: 14
+      - key: EXTERNAL_JOBS_SYNC_KEY
+        sync: false
+      - key: ADZUNA_APP_ID
+        sync: false
+      - key: ADZUNA_APP_KEY
+        sync: false

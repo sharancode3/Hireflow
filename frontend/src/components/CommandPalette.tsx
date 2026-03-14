@@ -6,7 +6,6 @@ import { useAuth } from "../auth/AuthContext";
 const SEEKER_ROUTES = [
   { path: "/job-seeker/dashboard", label: "Dashboard", group: "Navigate", keywords: "home" },
   { path: "/job-seeker/jobs", label: "Browse Jobs & Internships", group: "Navigate", keywords: "search find" },
-  { path: "/job-seeker/applied", label: "My Applications", group: "Navigate", keywords: "applications tracker" },
   { path: "/job-seeker/profile", label: "Profile Builder", group: "Navigate", keywords: "edit" },
   { path: "/job-seeker/resume-builder", label: "Resume Builder", group: "Navigate", keywords: "cv document pdf" },
   { path: "/job-seeker/interview-prep", label: "Interview Prep", group: "Navigate", keywords: "practice questions mock session" },

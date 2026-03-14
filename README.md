@@ -10,17 +10,11 @@ Hireflow is a role-based hiring platform for job seekers and recruiters with moc
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.2.1-06B6D4?logo=tailwindcss&logoColor=white)
 ![Node.js](https://img.shields.io/badge/Node.js-20.x-339933?logo=nodedotjs&logoColor=white)
 ![Express](https://img.shields.io/badge/Express-5.2.1-000000?logo=express&logoColor=white)
-![Prisma](https://img.shields.io/badge/Prisma-6.19.1-2D3748?logo=prisma&logoColor=white)
-![SQLite](https://img.shields.io/badge/SQLite-3-003B57?logo=sqlite&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-Auth%20%2B%20Postgres-3ECF8E?logo=supabase&logoColor=white)
 
 ## Live Deployment
 
 - Frontend (GitHub Pages): https://sharancode3.github.io/Hireflow/
-
-## Demo Credentials
-
-- Job seeker: `seeker1@hireflow.demo` / `Password123!`
-- Recruiter: `recruiter1@hireflow.demo` / `Password123!`
 
 ## Major Features
 
@@ -74,9 +68,9 @@ Use the included examples:
 
 Copy them to actual `.env` files and fill values for your environment.
 
-## Supabase Migration Readiness
+## Supabase Setup
 
-Backend is prepared for Supabase client wiring.
+Frontend auth and the active backend routes use Supabase directly.
 
 Required backend environment variables:
 
@@ -85,7 +79,7 @@ SUPABASE_URL=https://your-project-ref.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=...
 ```
 
-Current migration mode keeps core server middleware/health active while DB-backed APIs are being ported.
+Current backend runtime serves health checks plus the active Supabase-backed recruiter API surface.
 
 ## Recruiter Approval And Access Flow
 

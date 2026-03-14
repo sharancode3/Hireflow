@@ -43,8 +43,12 @@ export function AppTopBar({
   useEffect(() => {
     async function load() {
       if (!token) return;
-      const data = await apiJson<{ notifications: NotificationItem[] }>("/notifications", { token });
-      setItems(data.notifications);
+      try {
+        const data = await apiJson<{ notifications: NotificationItem[] }>("/notifications", { token });
+        setItems(data.notifications);
+      } catch {
+        setItems([]);
+      }
     }
     void load();
   }, [token]);
