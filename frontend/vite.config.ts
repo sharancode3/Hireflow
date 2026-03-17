@@ -2,9 +2,8 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
-export default defineConfig(({ command }) => ({
-  // Use root path in dev to avoid '/Hireflow/' URL warnings on localhost.
-  base: command === 'serve' ? '/' : '/Hireflow/',
+export default defineConfig({
+  base: './',
   plugins: [react()],
   server: {
     proxy: {
