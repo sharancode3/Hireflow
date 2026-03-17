@@ -218,17 +218,17 @@ function ResumeBuilderIntroCard({
   complete?: boolean;
 }) {
   return (
-    <div className="min-h-[250px] rounded-[22px] border border-black/10 bg-white px-6 py-4 shadow-[0_12px_34px_rgba(27,31,35,0.1)]">
-      <div className="mb-6 h-1.5 rounded-full bg-[#D6D6D6] overflow-hidden">
-        <div className={`h-full rounded-full ${complete ? "w-full bg-[#95E29C]" : "w-[12%] bg-[#95E29C]"}`} />
+    <div className="min-h-[250px] rounded-[22px] border border-[var(--border)] bg-[linear-gradient(160deg,_var(--surface)_0%,_var(--surface-raised)_100%)] px-6 py-4 shadow-[0_20px_44px_rgba(0,0,0,0.28)] backdrop-blur-sm">
+      <div className="mb-6 h-1.5 rounded-full bg-[var(--border)] overflow-hidden">
+        <div className={`h-full rounded-full ${complete ? "w-full bg-[linear-gradient(90deg,_rgba(var(--accent-rgb),0.86)_0%,_rgba(var(--accent-rgb),1)_55%,_rgba(var(--accent-rgb),0.78)_100%)]" : "w-[12%] bg-[linear-gradient(90deg,_rgba(var(--accent-rgb),0.86)_0%,_rgba(var(--accent-rgb),1)_55%,_rgba(var(--accent-rgb),0.78)_100%)]"}`} />
       </div>
-      <div className="mb-5 text-[#2D2A26]">{icon}</div>
-      <h3 className="max-w-[220px] text-[22px] font-black leading-[1.05] tracking-[-0.03em] text-black">{title}</h3>
+      <div className="mb-5 text-[var(--accent)]">{icon}</div>
+      <h3 className="max-w-[220px] text-[22px] font-black leading-[1.05] tracking-[-0.03em] text-[var(--text)]">{title}</h3>
       {items && items.length > 0 ? (
-        <ul className="mt-5 space-y-3 text-[15px] font-medium leading-7 text-[#232323]">
+        <ul className="mt-5 space-y-3 text-[15px] font-medium leading-7 text-[var(--text-secondary)]">
           {items.map((item) => (
             <li key={item} className="flex items-start gap-3">
-              <span className="mt-1 inline-flex h-5 w-5 items-center justify-center text-black">
+              <span className="mt-1 inline-flex h-5 w-5 items-center justify-center text-[var(--accent)]">
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.1">
                   <path d="M3.2 8.3 6.4 11.4 12.8 5" />
                 </svg>
@@ -254,9 +254,9 @@ function TemplateGalleryCard({
   onChoose: () => void;
 }) {
   return (
-    <div className="overflow-hidden rounded-[20px] border border-[#d8e4ef] bg-white p-3 shadow-[0_10px_28px_rgba(71,98,122,0.14)]">
-      <div className="rounded-[14px] border border-[#d6dde7] bg-[#f6fbff] p-2">
-        <div className="relative h-[240px] overflow-hidden rounded-[10px] bg-white shadow-[inset_0_0_0_1px_rgba(21,35,53,0.05)]">
+    <div className="overflow-hidden rounded-[20px] border border-[var(--border)] bg-[var(--surface)] p-3 shadow-[0_14px_34px_rgba(0,0,0,0.28)]">
+      <div className="rounded-[14px] border border-[var(--border)] bg-[var(--surface-raised)] p-2">
+        <div className="relative h-[240px] overflow-hidden rounded-[10px] bg-[var(--surface)] shadow-[inset_0_0_0_1px_var(--border)]">
           <div
             className="absolute left-1/2 top-0"
             style={{
@@ -281,11 +281,11 @@ function TemplateGalleryCard({
       </div>
       <div className="flex items-start justify-between gap-3 px-1 pb-1 pt-3">
         <div>
-          <h3 className="text-sm font-bold text-[#112138]">{meta.label}</h3>
-          <p className="mt-1 text-xs leading-5 text-[#5f7087]">{meta.description}</p>
+          <h3 className="text-sm font-bold text-[var(--text)]">{meta.label}</h3>
+          <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">{meta.description}</p>
         </div>
         {meta.badge ? (
-          <span className="shrink-0 rounded-full bg-[#dfeeff] px-2.5 py-1 text-[10px] font-semibold text-[#2f64eb]">
+          <span className="shrink-0 rounded-full bg-[rgba(var(--accent-rgb),0.2)] px-2.5 py-1 text-[10px] font-semibold text-[var(--accent)]">
             {meta.badge}
           </span>
         ) : null}
@@ -861,9 +861,9 @@ export function ResumeBuilderPage() {
 
   if (currentStep === "intro") {
     return (
-      <div className="min-h-full flex-1 bg-[radial-gradient(circle_at_top,_rgba(245,214,136,0.35),_transparent_24%),linear-gradient(180deg,_#fcfbf7_0%,_#f5f4f1_100%)] px-5 py-8 sm:px-8 lg:px-12">
+      <div className="min-h-full flex-1 bg-[var(--bg)] px-5 py-8 sm:px-8 lg:px-12">
         <div className="mx-auto max-w-[1080px]">
-          <div className="mb-10 flex items-center gap-3 text-[#2B2926]">
+          <div className="mb-10 flex items-center gap-3 text-[var(--text)]">
             <IntroLogoMark />
             <div className="text-[18px] font-black leading-[0.95] tracking-[-0.04em] sm:text-[20px]">
               <div>Resume</div>
@@ -872,11 +872,14 @@ export function ResumeBuilderPage() {
           </div>
 
           <div className="mx-auto max-w-[760px] text-center">
-            <h1 className="text-[46px] font-black leading-[0.98] tracking-[-0.06em] text-black sm:text-[64px]">
+            <h1 className="text-[46px] font-black leading-[0.98] tracking-[-0.06em] text-[var(--text)] sm:text-[64px]">
               Here’s how we get
               <br />
               you hired
             </h1>
+            <p className="mt-4 text-sm font-medium text-[var(--text-secondary)] sm:text-base">
+              Fast, ATS-ready, and fully aligned with your Hireflow profile.
+            </p>
           </div>
 
           <div className="mt-10 grid gap-7 lg:grid-cols-[1fr_1fr_1fr] lg:items-start">
@@ -901,7 +904,7 @@ export function ResumeBuilderPage() {
           <div className="mt-10 flex justify-center">
             <Button
               variant="primary"
-              className="h-16 min-w-[310px] rounded-full px-10 text-[30px] font-black tracking-[-0.03em] shadow-[0_18px_36px_rgba(59,93,238,0.28)]"
+              className="h-16 min-w-[310px] rounded-full bg-[linear-gradient(135deg,_rgba(var(--accent-rgb),0.85)_0%,_rgba(var(--accent-rgb),1)_48%,_rgba(var(--accent-rgb),0.72)_100%)] px-10 text-[30px] font-black tracking-[-0.03em] text-white shadow-[0_20px_42px_rgba(var(--accent-rgb),0.36)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_24px_52px_rgba(var(--accent-rgb),0.46)]"
               onClick={handleContinueFromIntro}
             >
               Continue
@@ -914,11 +917,11 @@ export function ResumeBuilderPage() {
 
   if (currentStep === "templates") {
     return (
-      <div className="min-h-full flex-1 bg-[linear-gradient(180deg,_#f5fbff_0%,_#e7f5ff_100%)] px-4 py-6 sm:px-6 lg:px-8">
+      <div className="min-h-full flex-1 bg-[var(--bg)] px-4 py-6 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-[1360px]">
           <div className="mb-6 text-center">
-            <h1 className="text-[30px] font-black tracking-[-0.04em] text-[#112138] sm:text-[38px]">Templates we recommend for you</h1>
-            <p className="mt-2 text-sm text-[#607289]">Choose one of the {templateCatalog.length} templates below and continue to the next step.</p>
+            <h1 className="text-[30px] font-black tracking-[-0.04em] text-[var(--text)] sm:text-[38px]">Templates we recommend for you</h1>
+            <p className="mt-2 text-sm text-[var(--text-secondary)]">Choose one of the {templateCatalog.length} templates below and continue to the next step.</p>
           </div>
 
           <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
@@ -939,22 +942,22 @@ export function ResumeBuilderPage() {
 
   if (currentStep === "review") {
     return (
-      <div className="min-h-full flex-1 bg-[linear-gradient(180deg,_#fcfcfd_0%,_#f4f7fb_100%)] px-4 py-6 sm:px-6 lg:px-8">
+      <div className="min-h-full flex-1 bg-[var(--bg)] px-4 py-6 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-[1180px]">
           <div className="mb-5 flex items-center justify-between gap-3">
             <button
               type="button"
               onClick={() => setCurrentStep("templates")}
-              className="text-sm font-medium text-[#365df4] hover:text-[#1f43ce]"
+              className="text-sm font-medium text-[var(--accent)] hover:opacity-90"
             >
               &lt; Back to templates
             </button>
-            <div className="text-sm text-[#64748b]">Selected template: {selectedTemplateMeta.label}</div>
+            <div className="text-sm text-[var(--text-secondary)]">Selected template: {selectedTemplateMeta.label}</div>
           </div>
 
           <div className="text-center">
-            <h1 className="text-[34px] font-black tracking-[-0.04em] text-[#111827] sm:text-[44px]">Your resume is ready</h1>
-            <p className="mt-2 text-sm text-[#64748b]">
+            <h1 className="text-[34px] font-black tracking-[-0.04em] text-[var(--text)] sm:text-[44px]">Your resume is ready</h1>
+            <p className="mt-2 text-sm text-[var(--text-secondary)]">
               We refreshed your profile from Supabase and filled this template with your basic details, education, experience, projects, achievements, certifications, and skills.
             </p>
           </div>
@@ -965,8 +968,8 @@ export function ResumeBuilderPage() {
             </div>
           ) : null}
 
-          <div className="mt-8 rounded-[28px] border border-[#d7e0ee] bg-white p-4 shadow-[0_18px_50px_rgba(31,41,55,0.08)] sm:p-6">
-            <div className="overflow-auto rounded-[20px] bg-[#edf3fb] p-3 sm:p-5">
+          <div className="mt-8 rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[0_18px_50px_rgba(0,0,0,0.3)] sm:p-6">
+            <div className="overflow-auto rounded-[20px] bg-[var(--surface-raised)] p-3 sm:p-5">
               <div className="mx-auto min-w-[794px] max-w-[794px] shadow-[0_20px_48px_rgba(15,23,42,0.14)]">
                 <div
                   id="resume-review-render"
@@ -1003,49 +1006,49 @@ export function ResumeBuilderPage() {
     const hasCustomSection = settings.sectionOrder.includes("CUSTOM");
 
     return (
-      <div className="min-h-full flex-1 bg-white px-5 py-6 sm:px-8 lg:px-10">
+      <div className="min-h-full flex-1 bg-[var(--bg)] px-5 py-6 sm:px-8 lg:px-10">
         <div className="mx-auto max-w-[1320px]">
           <div className="mb-6 grid gap-6 lg:grid-cols-[1.15fr_0.55fr] lg:items-start">
             <div>
               <div className="flex items-start justify-between gap-4">
-                <h1 className="max-w-[560px] text-[32px] font-black leading-[1.05] tracking-[-0.05em] text-black sm:text-[42px]">
+                <h1 className="max-w-[560px] text-[32px] font-black leading-[1.05] tracking-[-0.05em] text-[var(--text)] sm:text-[42px]">
                   Add details that show you're a well-rounded candidate
                 </h1>
                 <button
                   type="button"
                   onClick={ensureCustomSection}
-                  className="shrink-0 rounded-full bg-[#ffca73] px-6 py-3 text-sm font-bold text-black shadow-[0_10px_20px_rgba(255,202,115,0.28)] transition-transform hover:-translate-y-0.5"
+                  className="shrink-0 rounded-full bg-[rgba(var(--accent-rgb),0.2)] px-6 py-3 text-sm font-bold text-[var(--text)] shadow-[0_10px_24px_rgba(0,0,0,0.25)] transition-transform hover:-translate-y-0.5 hover:bg-[rgba(var(--accent-rgb),0.3)]"
                 >
                   + Add section
                 </button>
               </div>
 
-              <div className="mt-6 rounded-xl bg-[#f6f7ff] p-4 shadow-[inset_0_0_0_1px_rgba(99,102,241,0.04)]">
+              <div className="mt-6 rounded-xl bg-[var(--surface)] p-4 shadow-[inset_0_0_0_1px_var(--border)]">
                 {!hasCustomSection ? (
-                  <div className="rounded-xl border-2 border-dashed border-[#c5c8d6] bg-white px-6 py-12 text-center">
-                    <button type="button" onClick={ensureCustomSection} className="text-sm font-semibold text-[#365df4]">
+                  <div className="rounded-xl border-2 border-dashed border-white/25 bg-white/5 px-6 py-12 text-center">
+                    <button type="button" onClick={ensureCustomSection} className="text-sm font-semibold text-[var(--accent)]">
                       + Add section
                     </button>
                   </div>
                 ) : (
-                  <div className="rounded-xl border border-[#d2d7e4] bg-white p-5">
+                  <div className="rounded-xl border border-[rgba(var(--accent-rgb),0.24)] bg-white/5 p-5">
                     <div className="grid gap-4">
                       <div>
-                        <label className="text-sm font-semibold text-[#111827]">Section title</label>
+                        <label className="text-sm font-semibold text-[var(--text)]">Section title</label>
                         <input
                           value={settings.customSectionTitle ?? ""}
                           onChange={(e) => updateSetting("customSectionTitle", e.target.value)}
-                          className="mt-2 h-11 w-full rounded-xl border border-[#d1d5db] bg-white px-4 text-sm text-[#111827] outline-none focus:border-[#365df4]"
+                          className="mt-2 h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 text-sm text-[var(--text)] outline-none focus:border-[var(--accent)]"
                           placeholder="Volunteer Work"
                         />
                       </div>
                       <div>
-                        <label className="text-sm font-semibold text-[#111827]">What should this section say?</label>
+                        <label className="text-sm font-semibold text-[var(--text)]">What should this section say?</label>
                         <textarea
                           value={settings.customSectionContent ?? ""}
                           onChange={(e) => updateSetting("customSectionContent", e.target.value)}
                           rows={8}
-                          className="mt-2 w-full rounded-xl border border-[#d1d5db] bg-white px-4 py-3 text-sm leading-6 text-[#111827] outline-none focus:border-[#365df4]"
+                          className="mt-2 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm leading-6 text-[var(--text)] outline-none focus:border-[var(--accent)]"
                           placeholder="Add volunteering, awards, leadership, publications, or hobbies that strengthen your profile."
                         />
                       </div>
@@ -1064,7 +1067,7 @@ export function ResumeBuilderPage() {
                               updateSetting("customSectionTitle", preset.title);
                               updateSetting("customSectionContent", preset.content);
                             }}
-                            className="rounded-full border border-[#cbd5e1] px-3 py-1.5 font-medium text-[#365df4] hover:border-[#365df4] hover:bg-[#eef2ff]"
+                            className="rounded-full border border-white/25 px-3 py-1.5 font-medium text-[var(--accent)] hover:border-[var(--accent)] hover:bg-white/10"
                           >
                             {preset.title}
                           </button>
@@ -1077,8 +1080,8 @@ export function ResumeBuilderPage() {
             </div>
 
             <div className="lg:pl-2">
-              <div className="rounded-[20px] border-2 border-black bg-white p-3 shadow-[0_12px_28px_rgba(15,23,42,0.12)]">
-                <div className="mx-auto overflow-hidden border border-[#d5dbe5] bg-[#f4f7fb] p-2">
+              <div className="rounded-[20px] border border-[var(--border)] bg-[var(--surface)] p-3 shadow-[0_16px_36px_rgba(0,0,0,0.28)]">
+                <div className="mx-auto overflow-hidden border border-[var(--border)] bg-[var(--surface-raised)] p-2">
                   <div className="mx-auto origin-top overflow-hidden bg-white shadow-[0_18px_36px_rgba(15,23,42,0.1)]" style={{ width: 246, height: 338 }}>
                     <div style={{ transform: "scale(0.31)", transformOrigin: "top left", width: 794, minHeight: 1123 }}>
                       <div
@@ -1097,7 +1100,7 @@ export function ResumeBuilderPage() {
                   </div>
                 </div>
                 <div className="mt-3 text-center">
-                  <button type="button" onClick={() => setCurrentStep("templates")} className="text-sm font-semibold text-[#365df4] hover:text-[#1f43ce]">
+                  <button type="button" onClick={() => setCurrentStep("templates")} className="text-sm font-semibold text-[var(--accent)] hover:opacity-90">
                     Change template
                   </button>
                 </div>
@@ -1106,7 +1109,7 @@ export function ResumeBuilderPage() {
           </div>
 
           <div className="mt-8 flex items-center justify-between gap-4">
-            <button type="button" onClick={() => setCurrentStep("review")} className="text-base font-semibold text-[#365df4] hover:text-[#1f43ce]">
+            <button type="button" onClick={() => setCurrentStep("review")} className="text-base font-semibold text-[var(--accent)] hover:opacity-90">
               &lt; Back
             </button>
             <Button
@@ -1135,12 +1138,12 @@ export function ResumeBuilderPage() {
     const isHidden = (section: ResumeSectionKey) => Boolean(settings.hiddenSections?.[section]);
 
     return createPortal(
-      <div className="fixed inset-0 z-[9999] flex flex-col overflow-hidden bg-[#1b2a4a]">
+      <div className="fixed inset-0 z-[9999] flex flex-col overflow-hidden bg-[var(--bg)]">
         {/* ── Email modal ── */}
         {showEmailModal && (
           <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50">
-            <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-              <h3 className="mb-4 text-lg font-bold text-[#111827]">Send resume to email</h3>
+            <div className="w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-2xl">
+              <h3 className="mb-4 text-lg font-bold text-[var(--text)]">Send resume to email</h3>
               {emailSent ? (
                 <p className="mb-4 rounded-xl bg-[#dcfce7] px-4 py-3 text-sm font-semibold text-[#15803d]">
                   ✓ Email sent successfully!
@@ -1152,9 +1155,9 @@ export function ResumeBuilderPage() {
                     value={emailInput}
                     onChange={(e) => setEmailInput(e.target.value)}
                     placeholder="recipient@email.com"
-                    className="h-11 w-full rounded-xl border border-[#d1d5db] px-4 text-sm outline-none focus:border-[#365df4]"
+                    className="h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 text-sm text-[var(--text)] outline-none focus:border-[var(--accent)]"
                   />
-                  <p className="mt-2 text-xs text-[#6b7280]">
+                  <p className="mt-2 text-xs text-[var(--text-secondary)]">
                     Your resume will be sent as a PDF attachment.
                   </p>
                 </>
@@ -1163,7 +1166,7 @@ export function ResumeBuilderPage() {
                 <button
                   type="button"
                   onClick={() => { setShowEmailModal(false); setEmailSent(false); setEmailInput(""); }}
-                  className="rounded-xl border border-[#d1d5db] px-5 py-2 text-sm font-semibold text-[#374151] hover:bg-[#f9fafb]"
+                  className="rounded-xl border border-[var(--border)] px-5 py-2 text-sm font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-raised)]"
                 >
                   Close
                 </button>
@@ -1183,15 +1186,15 @@ export function ResumeBuilderPage() {
         )}
 
         {/* ── Top bar ── */}
-        <div className="flex h-12 shrink-0 items-center justify-between border-b border-white/10 px-4">
+        <div className="flex h-12 shrink-0 items-center justify-between border-b border-[var(--border)] px-4">
           <button
             type="button"
             onClick={() => setCurrentStep("enhance")}
-            className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white"
+            className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-raised)] hover:text-[var(--text)]"
           >
             ← Back
           </button>
-          <span className="text-sm font-semibold text-white/80">Resume Designer</span>
+          <span className="text-sm font-semibold text-[var(--text)]">Resume Designer</span>
           <div className="w-24" />
         </div>
 
@@ -1199,19 +1202,19 @@ export function ResumeBuilderPage() {
         <div className="flex min-h-0 flex-1 overflow-hidden" style={{ display: "grid", gridTemplateColumns: "220px 1fr 280px" }}>
 
           {/* ══ LEFT SIDEBAR ══ */}
-          <div className="flex flex-col overflow-y-auto border-r border-white/10 bg-[#1b2a4a]">
+          <div className="flex flex-col overflow-y-auto border-r border-[var(--border)] bg-[var(--surface)]">
             {/* Tab toggle */}
             <div className="shrink-0 px-3 pt-4 pb-3">
-              <div className="flex rounded-xl bg-white/10 p-1">
+              <div className="flex rounded-full border border-[var(--border)] bg-[var(--surface-raised)] p-1.5 shadow-[0_12px_28px_rgba(0,0,0,0.25)] backdrop-blur-sm">
                 {(["design", "formatting"] as const).map((t) => (
                   <button
                     key={t}
                     type="button"
                     onClick={() => setDesignerTab(t)}
-                    className={`flex-1 rounded-lg py-1.5 text-xs font-semibold capitalize transition-all ${
+                    className={`flex-1 rounded-full py-1.5 text-xs font-semibold capitalize transition-all duration-300 ${
                       designerTab === t
-                        ? "bg-white text-[#1b2a4a] shadow"
-                        : "text-white/60 hover:text-white"
+                        ? "-translate-y-0.5 bg-[linear-gradient(135deg,_rgba(var(--accent-rgb),0.86)_0%,_rgba(var(--accent-rgb),1)_100%)] text-white shadow-[0_10px_24px_rgba(var(--accent-rgb),0.35)]"
+                        : "text-[var(--text-secondary)] hover:-translate-y-0.5 hover:bg-[rgba(var(--accent-rgb),0.14)] hover:text-[var(--text)]"
                     }`}
                   >
                     {t.charAt(0).toUpperCase() + t.slice(1)}
@@ -1224,7 +1227,7 @@ export function ResumeBuilderPage() {
               <>
                 {/* Colors */}
                 <div className="px-4 pb-4">
-                  <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/40">Colors</p>
+                  <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Colors</p>
                   <div className="flex flex-wrap gap-2">
                     {accentPresets.map((color) => (
                       <button
@@ -1242,7 +1245,7 @@ export function ResumeBuilderPage() {
                     ))}
                   </div>
                   <div className="mt-3 flex items-center gap-2">
-                    <label className="text-[11px] font-semibold text-white/50">Custom</label>
+                    <label className="text-[11px] font-semibold text-[var(--text-muted)]">Custom</label>
                     <input
                       type="color"
                       value={settings.accentColor ?? "#1d4ed8"}
@@ -1254,7 +1257,7 @@ export function ResumeBuilderPage() {
 
                 {/* Templates */}
                 <div className="border-t border-white/10 px-4 py-4">
-                  <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">Templates</p>
+                  <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Templates</p>
                   <div className="grid grid-cols-2 gap-2">
                     {templateCatalog.map((tpl) => (
                       <button
@@ -1342,7 +1345,7 @@ export function ResumeBuilderPage() {
                   },
                 ].map(({ label, key, options, current }) => (
                   <div key={key}>
-                    <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-white/40">
+                    <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-[var(--text-muted)]">
                       {label}
                     </label>
                     <select
@@ -1369,7 +1372,7 @@ export function ResumeBuilderPage() {
                           updateSetting("density", raw as ResumeDensity);
                         }
                       }}
-                      className="h-9 w-full rounded-lg border border-white/15 bg-white/10 px-3 text-sm text-white outline-none focus:border-white/40"
+                      className="h-9 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 text-sm text-[var(--text)] outline-none focus:border-[var(--accent)]"
                     >
                       {options.map((o) => (
                         <option key={String(o.value)} value={o.value} className="text-black">
@@ -1384,10 +1387,10 @@ export function ResumeBuilderPage() {
           </div>
 
           {/* ══ CENTER: live preview ══ */}
-          <div className="flex flex-col overflow-hidden bg-[#0f1a30]">
+          <div className="flex flex-col overflow-hidden bg-[var(--surface)]">
             {/* Title bar */}
-            <div className="flex h-11 shrink-0 items-center justify-between border-b border-white/10 px-4">
-              <span className="truncate text-sm font-semibold text-white/80">{title || "Untitled Resume"}</span>
+            <div className="flex h-11 shrink-0 items-center justify-between border-b border-[var(--border)] px-4">
+              <span className="truncate text-sm font-semibold text-[var(--text)]">{title || "Untitled Resume"}</span>
             </div>
 
             {/* Scrollable preview area */}
@@ -1413,9 +1416,9 @@ export function ResumeBuilderPage() {
           </div>
 
           {/* ══ RIGHT SIDEBAR ══ */}
-          <div className="flex flex-col overflow-y-auto border-l border-white/10 bg-[#f8fafc]">
+          <div className="flex flex-col overflow-y-auto border-l border-[var(--border)] bg-[var(--surface)]">
             {/* Action icon buttons */}
-            <div className="border-b border-[#e2e8f0] px-4 py-4">
+            <div className="border-b border-white/10 px-4 py-4">
               <div className="flex justify-around">
                 {[
                   {
@@ -1450,7 +1453,7 @@ export function ResumeBuilderPage() {
                     key={label}
                     type="button"
                     onClick={onClick}
-                    className="flex flex-col items-center gap-1.5 rounded-xl px-3 py-2 text-[#374151] transition-colors hover:bg-[#eff6ff] hover:text-[#1d4ed8]"
+                    className="flex flex-col items-center gap-1.5 rounded-xl px-3 py-2 text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-raised)] hover:text-[var(--text)]"
                   >
                     {icon}
                     <span className="text-[11px] font-semibold">{label}</span>
@@ -1469,8 +1472,8 @@ export function ResumeBuilderPage() {
             </div>
 
             {/* Spell check row */}
-            <div className="border-b border-dashed border-[#e2e8f0] px-4 py-3">
-              <button type="button" className="flex items-center gap-2 text-sm font-semibold text-[#1d4ed8] hover:text-[#1e40af]">
+            <div className="border-b border-dashed border-white/10 px-4 py-3">
+              <button type="button" className="flex items-center gap-2 text-sm font-semibold text-[var(--accent)] hover:opacity-90">
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -1480,21 +1483,21 @@ export function ResumeBuilderPage() {
 
             {/* Resume sections */}
             <div className="flex-1 px-4 py-4">
-              <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-[#94a3b8]">Resume Sections</p>
+              <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Resume Sections</p>
               <ol className="space-y-1">
                 {allSections.map((sec, idx) => (
-                  <li key={sec} className="rounded-lg px-2 py-2 text-sm hover:bg-[#eff6ff]">
-                    <div className="flex items-center gap-2 text-[#374151]">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#dbeafe] text-[10px] font-bold text-[#1d4ed8]">
+                  <li key={sec} className="rounded-lg px-2 py-2 text-sm hover:bg-[var(--surface-raised)]">
+                    <div className="flex items-center gap-2 text-[var(--text)]">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[rgba(var(--accent-rgb),0.18)] text-[10px] font-bold text-[var(--accent)]">
                         {idx + 1}
                       </span>
-                      <span className={`flex-1 font-medium ${isHidden(sec) ? "text-[#94a3b8] line-through" : ""}`}>
+                      <span className={`flex-1 font-medium ${isHidden(sec) ? "text-[var(--text-muted)] line-through" : ""}`}>
                         {SECTION_LABELS[sec] ?? sec}
                       </span>
                       <button
                         type="button"
                         onClick={() => toggleSection(sec)}
-                        className="rounded-md border border-[#d1d5db] px-1.5 py-0.5 text-[10px] font-semibold text-[#334155] hover:bg-white"
+                        className="rounded-md border border-[var(--border)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-raised)]"
                         title={isHidden(sec) ? "Show section" : "Hide section"}
                       >
                         {isHidden(sec) ? "Show" : "Hide"}
@@ -1503,7 +1506,7 @@ export function ResumeBuilderPage() {
                         type="button"
                         onClick={() => idx > 0 && reorderSections(idx, idx - 1)}
                         disabled={idx === 0}
-                        className="rounded-md border border-[#d1d5db] px-1.5 py-0.5 text-[10px] font-semibold text-[#334155] disabled:opacity-40"
+                        className="rounded-md border border-[var(--border)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--text-secondary)] disabled:opacity-40"
                         title="Move up"
                       >
                         ↑
@@ -1512,7 +1515,7 @@ export function ResumeBuilderPage() {
                         type="button"
                         onClick={() => idx < allSections.length - 1 && reorderSections(idx, idx + 1)}
                         disabled={idx === allSections.length - 1}
-                        className="rounded-md border border-[#d1d5db] px-1.5 py-0.5 text-[10px] font-semibold text-[#334155] disabled:opacity-40"
+                        className="rounded-md border border-[var(--border)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--text-secondary)] disabled:opacity-40"
                         title="Move down"
                       >
                         ↓
@@ -1520,19 +1523,19 @@ export function ResumeBuilderPage() {
                     </div>
 
                     {sec === "CUSTOM" && !isHidden("CUSTOM") ? (
-                      <div className="mt-2 grid gap-2 rounded-lg border border-[#e2e8f0] bg-white p-2">
+                      <div className="mt-2 grid gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-2">
                         <input
                           value={settings.customSectionTitle ?? ""}
                           onChange={(e) => updateSetting("customSectionTitle", e.target.value)}
                           placeholder="Custom section title"
-                          className="h-8 rounded-md border border-[#d1d5db] px-2 text-xs outline-none focus:border-[#365df4]"
+                          className="h-8 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 text-xs text-[var(--text)] outline-none focus:border-[var(--accent)]"
                         />
                         <textarea
                           value={settings.customSectionContent ?? ""}
                           onChange={(e) => updateSetting("customSectionContent", e.target.value)}
                           placeholder="Custom section content"
                           rows={3}
-                          className="rounded-md border border-[#d1d5db] px-2 py-1.5 text-xs outline-none focus:border-[#365df4]"
+                          className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-xs text-[var(--text)] outline-none focus:border-[var(--accent)]"
                         />
                       </div>
                     ) : null}
@@ -1540,7 +1543,7 @@ export function ResumeBuilderPage() {
                 ))}
               </ol>
 
-              <div className="mt-2 text-[11px] text-[#64748b]">
+              <div className="mt-2 text-[11px] text-[var(--text-secondary)]">
                 Visible: {visibleSections.length} / {allSections.length}
               </div>
 
@@ -1550,20 +1553,20 @@ export function ResumeBuilderPage() {
                   ensureCustomSection();
                   setActionSuccess("Custom section added. Edit it from Resume Sections.");
                 }}
-                className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-[#fbbf24] bg-[#fffbeb] px-4 py-2.5 text-sm font-semibold text-[#92400e] hover:bg-[#fef3c7]"
+                className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-[var(--accent)]/40 bg-[rgba(var(--accent-rgb),0.1)] px-4 py-2.5 text-sm font-semibold text-[var(--accent)] hover:bg-[rgba(var(--accent-rgb),0.16)]"
               >
                 + Add a section
               </button>
             </div>
 
             {/* Footer links */}
-            <div className="border-t border-[#e2e8f0] px-4 py-3">
-              <div className="flex flex-wrap justify-center gap-3 text-[11px] text-[#94a3b8]">
-                <a href="#" className="hover:text-[#374151]">Terms</a>
+            <div className="border-t border-white/10 px-4 py-3">
+              <div className="flex flex-wrap justify-center gap-3 text-[11px] text-[var(--text-muted)]">
+                <a href="#" className="hover:text-[var(--text)]">Terms</a>
                 <span>·</span>
-                <a href="#" className="hover:text-[#374151]">Privacy Policy</a>
+                <a href="#" className="hover:text-[var(--text)]">Privacy Policy</a>
                 <span>·</span>
-                <a href="#" className="hover:text-[#374151]">Contact Us</a>
+                <a href="#" className="hover:text-[var(--text)]">Contact Us</a>
               </div>
             </div>
           </div>
@@ -1577,14 +1580,14 @@ export function ResumeBuilderPage() {
   /* ═══  RENDER  ═════════════════════════════════════ */
   /* ═══════════════════════════════════════════════════ */
   return (
-    <div className="flex-1 px-8 py-6">
+    <div className="flex-1 bg-[var(--bg)] px-8 py-6">
       <div className="mx-auto max-w-[1400px]">
 
         {/* ── Header ────────────────────────────────── */}
         <div className="mb-6 flex items-center justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-[var(--text)]">Resume Builder</h1>
-            <p className="mt-1 text-sm text-[var(--muted)]">Craft the perfect resume — choose template, reorder sections, tune settings, download PDF.</p>
+            <p className="mt-1 text-sm text-[var(--text-secondary)]">Craft the perfect resume - choose template, reorder sections, tune settings, download PDF.</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <AtsScoreBadge score={atsResult.score} breakdown={atsResult.breakdown} />
@@ -1680,17 +1683,19 @@ export function ResumeBuilderPage() {
           {/* ═══ CENTER PANEL — Controls ═════════════ */}
           <Card className="overflow-hidden p-0 lg:max-h-[calc(100vh-180px)]">
             {/* Tab bar */}
-            <div className="border-b border-[var(--border)] px-4 py-2 flex items-center gap-1">
+            <div className="border-b border-[var(--border)] px-4 py-3">
+              <div className="inline-flex rounded-full border border-[var(--border)] bg-[var(--surface)]/70 p-1.5 shadow-[0_12px_24px_rgba(8,15,31,0.28)] backdrop-blur-sm">
               {(["templates", "sections", "settings"] as const).map(t => (
                 <button
                   key={t}
                   type="button"
                   onClick={() => setTab(t)}
-                  className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors capitalize ${tab === t ? "bg-[var(--accent)]/10 text-[var(--accent)]" : "text-[var(--muted)] hover:text-[var(--text)]"}`}
+                  className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-all duration-300 capitalize ${tab === t ? "-translate-y-0.5 bg-[linear-gradient(135deg,_rgba(var(--accent-rgb),0.86)_0%,_rgba(var(--accent-rgb),1)_100%)] text-white shadow-[0_10px_22px_rgba(var(--accent-rgb),0.36)]" : "text-[var(--muted)] hover:-translate-y-0.5 hover:bg-[rgba(var(--accent-rgb),0.14)] hover:text-[var(--text)]"}`}
                 >
                   {t}
                 </button>
               ))}
+              </div>
             </div>
 
             <div className="overflow-y-auto p-4 lg:max-h-[calc(100vh-240px)]">
