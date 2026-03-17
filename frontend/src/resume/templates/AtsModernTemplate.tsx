@@ -12,10 +12,20 @@ function densityVars(density: ResumeSettings["density"]) {
   return { gap: 10, font: 12.5, h1: 24 };
 }
 
+function customLines(text: string | undefined) {
+  if (!text) return [] as string[];
+  return text
+    .split(/\n|•|●|·/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
 export function AtsModernTemplate(props: { profile: JobSeekerProfile; settings: ResumeSettings }) {
   const p = props.profile;
   const s = props.settings;
   const d = densityVars(s.density);
+  const baseFont = s.fontSize ?? d.font;
+  const headingFont = Math.round(baseFont * 2);
 
   const sections = s.sectionOrder.filter((k) => !s.hiddenSections?.[k]);
 
@@ -26,8 +36,8 @@ export function AtsModernTemplate(props: { profile: JobSeekerProfile; settings: 
         {
           "--resume-accent": accentVar(s.accent),
           "--resume-gap": `${d.gap}px`,
-          "--resume-font": `${d.font}px`,
-          "--resume-h1": `${d.h1}px`,
+          "--resume-font": `${baseFont}px`,
+          "--resume-h1": `${headingFont}px`,
         } as any
       }
       data-template="ATS_MODERN"
@@ -171,6 +181,17 @@ export function AtsModernTemplate(props: { profile: JobSeekerProfile; settings: 
                 </span>
               ))}
             </div>
+          </section>
+        ) : null}
+
+        {sections.includes("CUSTOM") && (s.customSectionTitle?.trim() || s.customSectionContent?.trim()) ? (
+          <section className="resumeSection">
+            <h3 className="resumeH3">{s.customSectionTitle?.trim() || "Additional Information"}</h3>
+            <ul className="resumeList">
+              {customLines(s.customSectionContent).map((line, idx) => (
+                <li key={`${line.slice(0, 30)}-${idx}`}>{line}</li>
+              ))}
+            </ul>
           </section>
         ) : null}
       </main>

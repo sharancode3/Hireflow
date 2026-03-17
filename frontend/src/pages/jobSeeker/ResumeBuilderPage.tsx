@@ -535,6 +535,7 @@ export function ResumeBuilderPage() {
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [emailInput, setEmailInput] = useState("");
   const [emailSent, setEmailSent] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
   const [currentStep, setCurrentStep] = useState<"intro" | "templates" | "review" | "enhance" | "finalized" | "builder">(() => {
 
     if (typeof window === "undefined") return "intro";
@@ -758,6 +759,62 @@ export function ResumeBuilderPage() {
     await handleDownload();
   }
 
+  function blobToBase64(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = String(reader.result || "");
+        const parts = result.split(",");
+        if (parts.length < 2 || !parts[1]) {
+          reject(new Error("Failed to encode PDF"));
+          return;
+        }
+        resolve(parts[1]);
+      };
+      reader.onerror = () => reject(new Error("Failed to read PDF blob"));
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  async function handleSendEmail() {
+    if (!token || !profile || sendingEmail) return;
+    const to = emailInput.trim();
+    if (!to || !to.includes("@")) {
+      setActionError("Enter a valid email address.");
+      return;
+    }
+
+    const el = (document.getElementById("resume-render-full") || document.getElementById("resume-render")) as HTMLElement | null;
+    if (!el) {
+      setActionError("Resume preview is not ready yet.");
+      return;
+    }
+
+    setSendingEmail(true);
+    setActionError(null);
+    try {
+      const { generateResumePdfBlobFromElement } = await import("../../utils/resumePdf");
+      const blob = await generateResumePdfBlobFromElement(el);
+      const pdfBase64 = await blobToBase64(blob);
+      await apiJson<{ ok: boolean }>("/job-seeker/resume/email", {
+        method: "POST",
+        token,
+        body: {
+          to,
+          title: title || "Resume",
+          pdfBase64,
+        },
+      });
+      setEmailSent(true);
+      setActionSuccess(`Resume sent to ${to}.`);
+    } catch (err) {
+      if (err instanceof ApiError) setActionError(err.message || "Failed to send email.");
+      else setActionError("Failed to send email.");
+    } finally {
+      setSendingEmail(false);
+    }
+  }
+
   /* ─── Computed ─────────────────────────────────────── */
   const atsResult = useMemo(() => {
     if (!profile) return { score: 0, breakdown: [] };
@@ -794,7 +851,7 @@ export function ResumeBuilderPage() {
       <div className="flex-1 px-8 py-6">
         <div className="mx-auto max-w-[1100px] text-center py-20">
           <div className="text-6xl mb-4">📄</div>
-          <h2 className="text-xl font-semibold text-[var(--text)]">Complete your profile first</h2>
+          <h2 className="text-xl font-semibold text-[var(--text)]">Profile details are required</h2>
           <p className="mt-2 text-sm text-[var(--muted)]">Add your skills, experience, and education before building a resume.</p>
           <Button variant="primary" className="mt-6" onClick={() => navigate("/job-seeker/profile")}>Go to Profile</Button>
         </div>
@@ -1114,10 +1171,8 @@ export function ResumeBuilderPage() {
                   <Button
                     variant="primary"
                     className="rounded-xl px-5 py-2 text-sm font-semibold"
-                    onClick={() => {
-                      if (!emailInput.includes("@")) return;
-                      setEmailSent(true);
-                    }}
+                    loading={sendingEmail}
+                    onClick={() => { void handleSendEmail(); }}
                   >
                     Send
                   </Button>
@@ -1735,7 +1790,10 @@ export function ResumeBuilderPage() {
                   {!settings.sectionOrder.includes("CUSTOM") && (
                     <button
                       type="button"
-                      onClick={() => updateSetting("sectionOrder", [...settings.sectionOrder, "CUSTOM"])}
+                      onClick={() => {
+                        ensureCustomSection();
+                        setActionSuccess("Custom section added. It will appear in preview and PDF.");
+                      }}
                       className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-[var(--border)] py-2.5 text-xs text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors"
                     >
                       <IconPlus /> Add Custom Section

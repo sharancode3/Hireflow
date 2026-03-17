@@ -11,6 +11,14 @@ function levelPct(level: SkillProficiency | undefined) {
   return Math.max(1, Math.min(5, v)) * 20;
 }
 
+function customLines(text: string | undefined) {
+  if (!text) return [] as string[];
+  return text
+    .split(/\n|•|●|·/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
 export function ProfessionalTemplate(props: { profile: JobSeekerProfile; settings: ResumeSettings }) {
   const p = props.profile;
   const s = props.settings;
@@ -163,6 +171,17 @@ export function ProfessionalTemplate(props: { profile: JobSeekerProfile; setting
                   <span className="resumeStrong">{a.title}</span>
                   {a.description ? <span className="resumeMuted"> — {a.description}</span> : null}
                 </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        {sections.includes("CUSTOM") && (s.customSectionTitle?.trim() || s.customSectionContent?.trim()) ? (
+          <section className="resumeSection">
+            <h3 className="resumeH3">{s.customSectionTitle?.trim() || "Additional Information"}</h3>
+            <ul className="resumeList">
+              {customLines(s.customSectionContent).map((line, idx) => (
+                <li key={`${line.slice(0, 30)}-${idx}`}>{line}</li>
               ))}
             </ul>
           </section>

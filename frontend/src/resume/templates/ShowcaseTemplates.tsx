@@ -13,6 +13,10 @@ function bulletLines(text: string | null | undefined) {
   return lines.length > 1 ? lines : [text.trim()];
 }
 
+function hasCustomSection(settings: ResumeSettings) {
+  return Boolean((settings.customSectionTitle ?? "").trim() || (settings.customSectionContent ?? "").trim());
+}
+
 function shortDate(value: string | null | undefined) {
   return value ? value.slice(0, 10) : "Present";
 }
@@ -116,6 +120,17 @@ export function EditorialSidebarTemplate(props: { profile: JobSeekerProfile; set
             </div>
           </section>
         ) : null}
+
+        {sections.includes("CUSTOM") && hasCustomSection(props.settings) ? (
+          <section style={{ marginTop: 16 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 500, color: "#374151", marginBottom: 6 }}>
+              {props.settings.customSectionTitle?.trim() || "Additional Information"}
+            </h3>
+            <ul style={{ paddingLeft: 14, margin: "6px 0 0", fontSize: 9.5, lineHeight: 1.55, color: "#334155" }}>
+              {bulletLines(props.settings.customSectionContent).map((line, idx) => <li key={`custom-${idx}`}>{line}</li>)}
+            </ul>
+          </section>
+        ) : null}
       </main>
     </div>
   );
@@ -202,6 +217,18 @@ export function FormalCenteredTemplate(props: { profile: JobSeekerProfile; setti
             </section>
           ) : null}
         </div>
+
+        {sections.includes("CUSTOM") && hasCustomSection(props.settings) ? (
+          <section>
+            <div style={{ textAlign: "center", fontSize: 10, fontWeight: 700, letterSpacing: 1.2, color: "#111" }}>
+              {(props.settings.customSectionTitle?.trim() || "Additional Information").toUpperCase()}
+            </div>
+            <div style={{ height: 1, background: "#d2d6db", margin: "4px 0 6px" }} />
+            <ul style={{ paddingLeft: 14, margin: 0, fontSize: 8.5, lineHeight: 1.45, color: "#374151" }}>
+              {bulletLines(props.settings.customSectionContent).map((line, idx) => <li key={`custom-${idx}`}>{line}</li>)}
+            </ul>
+          </section>
+        ) : null}
       </main>
     </div>
   );
@@ -258,6 +285,17 @@ export function PastelProfileTemplate(props: { profile: JobSeekerProfile; settin
                   </ul>
                 </div>
               ))}
+            </section>
+          ) : null}
+
+          {sections.includes("CUSTOM") && hasCustomSection(props.settings) ? (
+            <section>
+              <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 2, color: "#313131", marginBottom: 6 }}>
+                {(props.settings.customSectionTitle?.trim() || "Additional Information").toUpperCase()}
+              </div>
+              <ul style={{ paddingLeft: 14, margin: 0, fontSize: 8.4, lineHeight: 1.45, color: "#374151" }}>
+                {bulletLines(props.settings.customSectionContent).map((line, idx) => <li key={`custom-${idx}`}>{line}</li>)}
+              </ul>
             </section>
           ) : null}
         </div>

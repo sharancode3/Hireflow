@@ -1,11 +1,13 @@
 import { env } from "../env";
+import nodemailer from "nodemailer";
 
 type EmailCategory =
   | "APPLICATION_SUBMITTED"
   | "APPLICATION_STATUS_UPDATED"
   | "JOB_POSTED"
   | "APPLICATION_CONFIRMATION"
-  | "DEADLINE_REMINDER";
+  | "DEADLINE_REMINDER"
+  | "RESUME_SHARED";
 
 type EmailPayload = {
   to: string;
@@ -13,10 +15,36 @@ type EmailPayload = {
   text: string;
   category: EmailCategory;
   html?: string;
+  attachments?: Array<{
+    filename: string;
+    content: Buffer;
+    contentType: string;
+  }>;
 };
 
 function sanitize(value: string) {
   return value.replace(/[\r\n]/g, " ").trim();
+}
+
+let smtpTransporter: nodemailer.Transporter | null = null;
+
+function getSmtpTransporter() {
+  if (smtpTransporter) return smtpTransporter;
+  if (!env.SMTP_HOST || !env.SMTP_PORT || !env.SMTP_USER || !env.SMTP_PASS) {
+    throw new Error("SMTP configuration is incomplete. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS.");
+  }
+
+  smtpTransporter = nodemailer.createTransport({
+    host: env.SMTP_HOST,
+    port: env.SMTP_PORT,
+    secure: env.SMTP_SECURE === "true",
+    auth: {
+      user: env.SMTP_USER,
+      pass: env.SMTP_PASS,
+    },
+  });
+
+  return smtpTransporter;
 }
 
 export async function sendTransactionalEmail(payload: EmailPayload) {
@@ -31,8 +59,19 @@ export async function sendTransactionalEmail(payload: EmailPayload) {
     `subject=${sanitize(payload.subject)}`,
   ].join(" ");
 
-  // Current implementation keeps email automation provider-agnostic.
-  // When SMTP/API credentials are added, wire provider send logic here.
+  if (env.EMAIL_MODE === "smtp") {
+    const transporter = getSmtpTransporter();
+    await transporter.sendMail({
+      from: env.EMAIL_FROM,
+      to: payload.to,
+      subject: payload.subject,
+      text: payload.text,
+      html: payload.html,
+      attachments: payload.attachments,
+    });
+    return;
+  }
+
   console.log(line);
   console.log(payload.text);
   if (payload.html) {
@@ -102,5 +141,34 @@ export async function sendDeadlineReminderEmail(params: {
       ctaLabel: "View Job",
       ctaHref: params.jobsUrl,
     }),
+  });
+}
+
+export async function sendResumeShareEmail(params: {
+  to: string;
+  senderName: string;
+  resumeTitle: string;
+  pdfBuffer: Buffer;
+}) {
+  const subject = `${params.senderName} shared a resume from Hireflow`;
+  const body = `Hi,\n\n${params.senderName} shared a resume titled \"${params.resumeTitle}\" with you.\nPlease find the PDF attached.\n\nSent via Hireflow.`;
+  await sendTransactionalEmail({
+    to: params.to,
+    category: "RESUME_SHARED",
+    subject,
+    text: body,
+    html: renderHireflowEmailTemplate({
+      title: "Resume Shared",
+      body: `${params.senderName} shared a resume titled "${params.resumeTitle}" with you. The PDF is attached to this email.`,
+      ctaLabel: "Open Hireflow",
+      ctaHref: "https://hireflow.local",
+    }),
+    attachments: [
+      {
+        filename: `${params.resumeTitle || "Resume"}.pdf`,
+        content: params.pdfBuffer,
+        contentType: "application/pdf",
+      },
+    ],
   });
 }

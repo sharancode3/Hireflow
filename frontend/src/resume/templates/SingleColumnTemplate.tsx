@@ -13,6 +13,14 @@ function densityVars(density: ResumeSettings["density"]) {
   return { gap: 10, font: 12, h1: 26 };
 }
 
+function customLines(text: string | undefined) {
+  if (!text) return [] as string[];
+  return text
+    .split(/\n|•|●|·/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
 function splitBullets(text: string) {
   if (!text) return [] as string[];
   const parts = text
@@ -44,6 +52,8 @@ export function SingleColumnTemplate(props: {
   const p = props.profile;
   const s = props.settings;
   const d = densityVars(s.density);
+  const baseFont = s.fontSize ?? d.font;
+  const headingFont = Math.round(baseFont * 2.2);
   const sections = buildSectionOrder(props.variant, s.sectionOrder).filter((k) => !s.hiddenSections?.[k]);
 
   return (
@@ -53,8 +63,8 @@ export function SingleColumnTemplate(props: {
         {
           "--resume-accent": accentVar(s.accent),
           "--resume-gap": `${d.gap}px`,
-          "--resume-font": `${d.font}px`,
-          "--resume-h1": `${d.h1}px`,
+          "--resume-font": `${baseFont}px`,
+          "--resume-h1": `${headingFont}px`,
         } as any
       }
       data-template={props.variant}
@@ -184,6 +194,17 @@ export function SingleColumnTemplate(props: {
                 .map((l) => `${l.name} (${l.proficiency})`)
                 .join(", ")}
             </p>
+          </section>
+        ) : null}
+
+        {sections.includes("CUSTOM") && (s.customSectionTitle?.trim() || s.customSectionContent?.trim()) ? (
+          <section className="resumeSection">
+            <h2 className="resumeH2">{s.customSectionTitle?.trim() || "Additional Information"}</h2>
+            <ul className="resumeList">
+              {customLines(s.customSectionContent).map((line, idx) => (
+                <li key={`${line.slice(0, 30)}-${idx}`}>{line}</li>
+              ))}
+            </ul>
           </section>
         ) : null}
       </main>

@@ -8,6 +8,7 @@ import { z } from "zod";
 import type { AuthenticatedRequest } from "../../middleware/auth";
 import { HttpError } from "../../utils/httpError";
 import { getSupabaseAdmin, isSupabaseConfigured } from "../../supabase";
+import { sendResumeShareEmail } from "../../utils/emailAutomation";
 
 export const recruiterSupabaseRouter = Router();
 
@@ -254,6 +255,12 @@ const recruiterJobListingPreferencesPatchSchema = z.object({
   listingStages: z.record(z.string(), listingStageSchema).optional(),
 });
 
+const resumeEmailSchema = z.object({
+  to: z.string().trim().email(),
+  title: z.string().trim().min(1).max(120),
+  pdfBase64: z.string().trim().min(20),
+});
+
 type RecruiterContext = {
   userId: string;
   email: string;
@@ -394,6 +401,11 @@ function mapNotification(row: any) {
 function isSchemaMissingError(error: unknown): boolean {
   const code = (error as { code?: string } | null)?.code;
   return code === "42P01" || code === "PGRST205";
+}
+
+function isColumnMissingError(error: unknown): boolean {
+  const code = (error as { code?: string } | null)?.code;
+  return code === "42703" || code === "PGRST204";
 }
 
 const PROFILE_BUILDER_SETTINGS_KEY = "profileBuilder";
@@ -874,30 +886,56 @@ async function syncEducationRecords(userId: string, items: unknown[]): Promise<v
 }
 
 async function getCertificationsRecords(userId: string): Promise<CertificationItem[] | null> {
-  const { data, error } = await getSupabaseAdmin()
+  const supabase = getSupabaseAdmin();
+
+  const { data, error } = await supabase
     .from("certifications")
     .select("id,name,issuer,issued_on,expires_on,verification_method,credential_url,proof_file_url")
     .eq("user_id", userId);
 
-  if (error && isSchemaMissingError(error)) return null;
-  if (error) throw new HttpError(500, error.message);
-  if (!data) return null;
+  if (!error && data) {
+    return data.map((row: any) => {
+      const issued = typeof row.issued_on === "string" ? row.issued_on : new Date().toISOString().slice(0, 10);
+      const expires = typeof row.expires_on === "string" && row.expires_on.trim() ? row.expires_on : null;
+      const isUpload = row.verification_method === "UPLOAD";
+      const credentialUrl = isUpload
+        ? (typeof row.proof_file_url === "string" && row.proof_file_url.trim() ? `uploaded:${row.proof_file_url}` : null)
+        : (typeof row.credential_url === "string" && row.credential_url.trim() ? row.credential_url : null);
 
-  return data.map((row: any) => {
-    const issued = typeof row.issued_on === "string" ? row.issued_on : new Date().toISOString().slice(0, 10);
-    const expires = typeof row.expires_on === "string" && row.expires_on.trim() ? row.expires_on : null;
-    const isUpload = row.verification_method === "UPLOAD";
-    const credentialUrl = isUpload
-      ? (typeof row.proof_file_url === "string" && row.proof_file_url.trim() ? `uploaded:${row.proof_file_url}` : null)
-      : (typeof row.credential_url === "string" && row.credential_url.trim() ? row.credential_url : null);
+      return {
+        id: row.id,
+        name: typeof row.name === "string" ? row.name : "",
+        issuer: typeof row.issuer === "string" ? row.issuer : "",
+        issuedOn: issued,
+        expiresOn: expires,
+        credentialUrl,
+      };
+    });
+  }
+
+  if (error && isSchemaMissingError(error)) return null;
+  if (error && !isColumnMissingError(error)) throw new HttpError(500, error.message);
+
+  const { data: legacyData, error: legacyError } = await supabase
+    .from("certifications")
+    .select("id,name,organization,issue_date,valid_until")
+    .eq("user_id", userId);
+
+  if (legacyError && isSchemaMissingError(legacyError)) return null;
+  if (legacyError) throw new HttpError(500, legacyError.message);
+  if (!legacyData) return null;
+
+  return legacyData.map((row: any) => {
+    const issued = typeof row.issue_date === "string" ? row.issue_date : new Date().toISOString().slice(0, 10);
+    const expires = typeof row.valid_until === "string" && row.valid_until.trim() ? row.valid_until : null;
 
     return {
       id: row.id,
       name: typeof row.name === "string" ? row.name : "",
-      issuer: typeof row.issuer === "string" ? row.issuer : "",
+      issuer: typeof row.organization === "string" ? row.organization : "",
       issuedOn: issued,
       expiresOn: expires,
-      credentialUrl,
+      credentialUrl: null,
     };
   });
 }
@@ -930,7 +968,7 @@ async function syncCertificationsRecords(userId: string, items: unknown[]): Prom
   for (const item of validatedItems) {
     const isUpload = Boolean(item.credentialUrl && item.credentialUrl.startsWith("uploaded:"));
     const proofFileUrl = isUpload ? item.credentialUrl!.replace("uploaded:", "") : null;
-    const payload = {
+    const modernPayload = {
       id: item.id,
       user_id: userId,
       name: item.name,
@@ -942,11 +980,30 @@ async function syncCertificationsRecords(userId: string, items: unknown[]): Prom
       proof_file_url: proofFileUrl,
     };
 
-    const { error: upsertError } = await supabase
+    const { error: modernUpsertError } = await supabase
       .from("certifications")
-      .upsert(payload, { onConflict: "id" });
+      .upsert(modernPayload, { onConflict: "id" });
 
-    if (upsertError && !isSchemaMissingError(upsertError)) throw new HttpError(500, upsertError.message);
+    if (!modernUpsertError) continue;
+    if (isSchemaMissingError(modernUpsertError)) continue;
+    if (!isColumnMissingError(modernUpsertError)) throw new HttpError(500, modernUpsertError.message);
+
+    const legacyPayload = {
+      id: item.id,
+      user_id: userId,
+      name: item.name,
+      organization: item.issuer,
+      issue_date: item.issuedOn ? item.issuedOn.slice(0, 10) : new Date().toISOString().slice(0, 10),
+      valid_until: item.expiresOn ? item.expiresOn.slice(0, 10) : null,
+    };
+
+    const { error: legacyUpsertError } = await supabase
+      .from("certifications")
+      .upsert(legacyPayload, { onConflict: "id" });
+
+    if (legacyUpsertError && !isSchemaMissingError(legacyUpsertError)) {
+      throw new HttpError(500, legacyUpsertError.message);
+    }
   }
 }
 
@@ -1362,6 +1419,45 @@ recruiterSupabaseRouter.get("/job-seeker/resume", async (req, res, next) => {
         createdAt: row.created_at,
       })),
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+recruiterSupabaseRouter.post("/job-seeker/resume/email", async (req, res, next) => {
+  try {
+    const authed = req as unknown as AuthenticatedRequest;
+    const userId = authed.auth.userId;
+    await ensureJobSeeker(userId);
+
+    const body = resumeEmailSchema.parse(req.body || {});
+    let pdfBuffer: Buffer;
+    try {
+      pdfBuffer = Buffer.from(body.pdfBase64, "base64");
+    } catch {
+      throw new HttpError(400, "Invalid PDF payload");
+    }
+
+    if (!pdfBuffer.length) throw new HttpError(400, "Invalid PDF payload");
+    if (pdfBuffer.length > 8 * 1024 * 1024) throw new HttpError(413, "PDF is too large to email");
+
+    const { data: profile, error: profileError } = await getSupabaseAdmin()
+      .from("profiles")
+      .select("full_name,email")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (profileError) throw new HttpError(500, profileError.message);
+    const senderName = (profile?.full_name || profile?.email || "Hireflow user").trim();
+
+    await sendResumeShareEmail({
+      to: body.to,
+      senderName,
+      resumeTitle: body.title,
+      pdfBuffer,
+    });
+
+    res.json({ ok: true });
   } catch (err) {
     next(err);
   }

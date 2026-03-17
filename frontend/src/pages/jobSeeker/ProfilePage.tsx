@@ -611,21 +611,6 @@ export function JobSeekerProfilePage() {
   const languages = profile.languages ?? [];
   const interests = profile.interests ?? [];
 
-  const stepDone: Record<ProfileStep, boolean> = {
-    BASICS:
-      profile.fullName.trim().length >= 2 &&
-      Boolean(profile.headline?.trim()) &&
-      Boolean(profile.location?.trim()) &&
-      Boolean(profile.desiredRole?.trim()) &&
-      Boolean(profile.about?.trim() && profile.about.trim().length >= 50),
-    SKILLS: profile.skills.length >= 3,
-    EXPERIENCE: experience.length >= 1 || profile.isFresher,
-    PROJECTS: projects.length >= 1,
-    EDUCATION: education.length >= 1,
-    CERTIFICATIONS: certifications.length >= 1 || achievements.length >= 1,
-    RESUME: hasResume,
-  };
-
   const saveLabel = saveState === "saving" ? "Saving..." : saveState === "saved" ? "Saved" : saveState === "error" ? "Save failed" : "";
 
   const stepIndex = steps.findIndex((s) => s.key === step);
@@ -638,15 +623,11 @@ export function JobSeekerProfilePage() {
   }
 
   async function next() {
-    if (!stepDone[step]) {
-      setError(`Complete the ${steps[stepIndex]?.label.toLowerCase()} step before moving forward.`);
-      return;
-    }
     if (!canNext) return;
 
     if (step === "BASICS" && profile) {
       try {
-        await saveNow(profile);
+        await saveNow(profile, ++latestSaveRequestId.current);
         await persistBasicsToSupabase();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to save basics before moving.");
@@ -672,27 +653,6 @@ export function JobSeekerProfilePage() {
             {saveState === "saved" ? <span className="h-1.5 w-1.5 rounded-full bg-[#22C55E] animate-[pulse-check_1.5s_ease-in-out_infinite]" /> : null}
             {saveLabel}
           </div>
-        ) : null}
-        {isProfileBuilderEnabled() && profile ? (
-          <button
-            type="button"
-            className="btn btn-xs"
-            onClick={async () => {
-              if (!user?.id) {
-                alert("No user id.");
-                return;
-              }
-              try {
-                await syncProfileToSupabase(user.id, profile);
-                alert("Supabase debug sync successful. Check tables basics/skills/etc.");
-              } catch (err) {
-                alert(`Supabase debug sync failed: ${err instanceof Error ? err.message : String(err)}`);
-                console.error(err);
-              }
-            }}
-          >
-            Debug sync to Supabase
-          </button>
         ) : null}
       </Card>
 
@@ -731,11 +691,6 @@ export function JobSeekerProfilePage() {
               ))}
             </div>
             <ProgressBar value={completion} />
-            {!stepDone[step] ? (
-              <span className="inline-flex w-fit items-center rounded-full border border-[rgba(26,115,232,0.25)] bg-[rgba(26,115,232,0.1)] px-3 py-1 text-xs text-[#8AB4F8]">
-                Optional: complete this section to improve profile completion
-              </span>
-            ) : null}
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="flex gap-2">
                 <Button variant="secondary" onClick={back} disabled={!canBack}>

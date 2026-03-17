@@ -2,8 +2,7 @@ type JsPdfCtor = typeof import("jspdf");
 
 type Html2CanvasCtor = typeof import("html2canvas");
 
-export async function downloadResumePdfFromElement(el: HTMLElement, filename: string) {
-  // Render A4 preview to a multi-page PDF by slicing the canvas.
+export async function generateResumePdfBlobFromElement(el: HTMLElement): Promise<Blob> {
   const html2canvasMod: Html2CanvasCtor = await import("html2canvas");
   const html2canvas = html2canvasMod.default;
 
@@ -23,14 +22,12 @@ export async function downloadResumePdfFromElement(el: HTMLElement, filename: st
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
 
-  // Fit to width, preserve aspect ratio.
   const imgWidth = pageWidth;
   const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
   let y = 0;
   let remaining = imgHeight;
 
-  // jsPDF uses a page coordinate system; we place the same image with negative y to simulate cropping.
   while (remaining > 0) {
     pdf.addImage(imgData, "PNG", 0, -y, imgWidth, imgHeight, undefined, "FAST");
     remaining -= pageHeight;
@@ -38,5 +35,17 @@ export async function downloadResumePdfFromElement(el: HTMLElement, filename: st
     if (remaining > 0) pdf.addPage();
   }
 
-  pdf.save(filename);
+  return pdf.output("blob");
+}
+
+export async function downloadResumePdfFromElement(el: HTMLElement, filename: string) {
+  const blob = await generateResumePdfBlobFromElement(el);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }

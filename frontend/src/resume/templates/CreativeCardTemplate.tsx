@@ -4,6 +4,14 @@ function accentColor(settings: ResumeSettings) {
   return settings.accentColor || "#1A73E8";
 }
 
+function customLines(text: string | undefined) {
+  if (!text) return [] as string[];
+  return text
+    .split(/\n|•|●|·/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
 export function CreativeCardTemplate(props: { profile: JobSeekerProfile; settings: ResumeSettings }) {
   const p = props.profile;
   const c = accentColor(props.settings);
@@ -71,6 +79,17 @@ export function CreativeCardTemplate(props: { profile: JobSeekerProfile; setting
                 </div>
               ))}
             </div>
+          </section>
+        ) : null}
+
+        {sections.includes("CUSTOM") && ((props.settings.customSectionTitle ?? "").trim() || (props.settings.customSectionContent ?? "").trim()) ? (
+          <section className="resumeCardSection">
+            <h3 className="resumeCardTitle">{props.settings.customSectionTitle?.trim() || "Additional Information"}</h3>
+            <ul className="resumeList">
+              {customLines(props.settings.customSectionContent).map((line, idx) => (
+                <li key={`${line.slice(0, 30)}-${idx}`}>{line}</li>
+              ))}
+            </ul>
           </section>
         ) : null}
       </main>

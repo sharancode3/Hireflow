@@ -29,6 +29,11 @@ function toDateString(value: string | null | undefined): string | null {
   return date.toISOString().slice(0, 10);
 }
 
+function isColumnMissingError(error: unknown): boolean {
+  const code = (error as { code?: string } | null)?.code;
+  return code === "42703" || code === "PGRST204";
+}
+
 export async function fetchProfileFromSupabase(userId: string): Promise<JobSeekerProfile | null> {
   if (!isSupabaseConfigured || !userId) return null;
 
@@ -40,13 +45,33 @@ export async function fetchProfileFromSupabase(userId: string): Promise<JobSeeke
   if (basicsError) throw basicsError;
   if (experienceError) throw experienceError;
 
-  const [{ data: projects, error: projectsError }, { data: certifications, error: certificationsError }] = await Promise.all([
+  const [{ data: projects, error: projectsError }] = await Promise.all([
     supabase.from("projects").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
-    supabase.from("certifications").select("*").eq("user_id", userId).order("issue_date", { ascending: false }),
   ]);
 
   if (projectsError) throw projectsError;
-  if (certificationsError) throw certificationsError;
+
+  let certifications: any[] | null = null;
+  const { data: modernCertifications, error: modernCertificationsError } = await supabase
+    .from("certifications")
+    .select("*")
+    .eq("user_id", userId)
+    .order("issued_on", { ascending: false });
+
+  if (!modernCertificationsError) {
+    certifications = modernCertifications;
+  } else if (isColumnMissingError(modernCertificationsError)) {
+    const { data: legacyCertifications, error: legacyCertificationsError } = await supabase
+      .from("certifications")
+      .select("*")
+      .eq("user_id", userId)
+      .order("issue_date", { ascending: false });
+
+    if (legacyCertificationsError) throw legacyCertificationsError;
+    certifications = legacyCertifications;
+  } else {
+    throw modernCertificationsError;
+  }
 
   const [{ data: achievements, error: achievementsError }, { data: skillsRow, error: skillsError }] = await Promise.all([
     supabase.from("achievements").select("*").eq("user_id", userId).order("date", { ascending: false }),
@@ -103,10 +128,10 @@ export async function fetchProfileFromSupabase(userId: string): Promise<JobSeeke
       certifications?.map((row) => ({
         id: row.id,
         name: row.name ?? "",
-        issuer: row.organization ?? "",
-        issuedOn: toDateString(row.issue_date) ?? "",
-        expiresOn: toDateString(row.valid_until),
-        credentialUrl: null,
+        issuer: row.issuer ?? row.organization ?? "",
+        issuedOn: toDateString(row.issued_on ?? row.issue_date) ?? "",
+        expiresOn: toDateString(row.expires_on ?? row.valid_until),
+        credentialUrl: row.credential_url ?? null,
       })) ?? [],
     achievements:
       achievements?.map((row) => ({
@@ -182,19 +207,39 @@ export async function syncProfileToSupabase(userId: string, profile: JobSeekerPr
     );
   }
 
-  await supabase.from("certifications").delete().eq("user_id", userId);
+  const { error: certificationsDeleteError } = await supabase.from("certifications").delete().eq("user_id", userId);
+  if (certificationsDeleteError) throw certificationsDeleteError;
   const certificationItems = profile.certifications ?? [];
   if (certificationItems.length) {
-    await supabase.from("certifications").insert(
-      certificationItems.map((item) => ({
+    const today = new Date().toISOString().slice(0, 10);
+    const modernRows = certificationItems.map((item) => ({
+      id: item.id,
+      user_id: userId,
+      name: item.name,
+      issuer: item.issuer,
+      issued_on: (item.issuedOn || "").slice(0, 10) || today,
+      expires_on: item.expiresOn ? item.expiresOn.slice(0, 10) : null,
+      verification_method: item.credentialUrl?.startsWith("uploaded:") ? "UPLOAD" : "URL",
+      credential_url: item.credentialUrl?.startsWith("uploaded:") ? null : item.credentialUrl,
+      proof_file_url: item.credentialUrl?.startsWith("uploaded:") ? item.credentialUrl.replace("uploaded:", "") : null,
+    }));
+
+    const { error: modernInsertError } = await supabase.from("certifications").insert(modernRows);
+
+    if (modernInsertError && isColumnMissingError(modernInsertError)) {
+      const legacyRows = certificationItems.map((item) => ({
         id: item.id,
         user_id: userId,
         name: item.name,
         organization: item.issuer,
-        issue_date: item.issuedOn || null,
-        valid_until: item.expiresOn || null,
-      })),
-    );
+        issue_date: (item.issuedOn || "").slice(0, 10) || today,
+        valid_until: item.expiresOn ? item.expiresOn.slice(0, 10) : null,
+      }));
+      const { error: legacyInsertError } = await supabase.from("certifications").insert(legacyRows);
+      if (legacyInsertError) throw legacyInsertError;
+    } else if (modernInsertError) {
+      throw modernInsertError;
+    }
   }
 
   await supabase.from("achievements").delete().eq("user_id", userId);
