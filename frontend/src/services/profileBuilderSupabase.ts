@@ -1,0 +1,334 @@
+import { supabase, isSupabaseConfigured } from "../lib/supabaseClient";
+import type {
+  JobSeekerProfile,
+  LanguageItem,
+  Resume,
+  SkillProficiency,
+} from "../types";
+
+const SKILL_SUGGESTIONS: Record<string, string[]> = {
+  "Frontend Developer": ["React", "JavaScript", "HTML", "CSS", "TypeScript", "Redux"],
+  "Backend Developer": ["Node.js", "Express", "PostgreSQL", "REST API", "Docker"],
+  "Data Scientist": ["Python", "Pandas", "NumPy", "Machine Learning", "TensorFlow"],
+};
+
+export function getSkillSuggestions(role: string): string[] {
+  const normalized = role?.trim();
+  if (!normalized) return [];
+  return SKILL_SUGGESTIONS[normalized] ?? [];
+}
+
+export function isProfileBuilderEnabled(): boolean {
+  return isSupabaseConfigured;
+}
+
+function toDateString(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString().slice(0, 10);
+}
+
+function isColumnMissingError(error: unknown): boolean {
+  const code = (error as { code?: string } | null)?.code;
+  return code === "42703" || code === "PGRST204";
+}
+
+export async function fetchProfileFromSupabase(userId: string): Promise<JobSeekerProfile | null> {
+  if (!isSupabaseConfigured || !userId) return null;
+
+  const [{ data: basics, error: basicsError }, { data: experience, error: experienceError }] = await Promise.all([
+    supabase.from("basics").select("*").eq("user_id", userId).maybeSingle(),
+    supabase.from("experience").select("*").eq("user_id", userId).order("start_date", { ascending: false }),
+  ]);
+
+  if (basicsError) throw basicsError;
+  if (experienceError) throw experienceError;
+
+  const [{ data: projects, error: projectsError }] = await Promise.all([
+    supabase.from("projects").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
+  ]);
+
+  if (projectsError) throw projectsError;
+
+  let certifications: any[] | null = null;
+  const { data: modernCertifications, error: modernCertificationsError } = await supabase
+    .from("certifications")
+    .select("*")
+    .eq("user_id", userId)
+    .order("issued_on", { ascending: false });
+
+  if (!modernCertificationsError) {
+    certifications = modernCertifications;
+  } else if (isColumnMissingError(modernCertificationsError)) {
+    const { data: legacyCertifications, error: legacyCertificationsError } = await supabase
+      .from("certifications")
+      .select("*")
+      .eq("user_id", userId)
+      .order("issue_date", { ascending: false });
+
+    if (legacyCertificationsError) throw legacyCertificationsError;
+    certifications = legacyCertifications;
+  } else {
+    throw modernCertificationsError;
+  }
+
+  const [{ data: achievements, error: achievementsError }, { data: skillsRow, error: skillsError }] = await Promise.all([
+    supabase.from("achievements").select("*").eq("user_id", userId).order("date", { ascending: false }),
+    supabase.from("skills").select("*").eq("user_id", userId).maybeSingle(),
+  ]);
+
+  if (achievementsError) throw achievementsError;
+  if (skillsError) throw skillsError;
+
+  const [{ data: languagesRow, error: languagesError }, { data: interestsRow, error: interestsError }, { error: resumesError }] = await Promise.all([
+    supabase.from("languages").select("*").eq("user_id", userId).maybeSingle(),
+    supabase.from("interests").select("*").eq("user_id", userId).maybeSingle(),
+    supabase.from("resumes").select("*").eq("user_id", userId).order("uploaded_at", { ascending: false }),
+  ]);
+
+  if (languagesError) throw languagesError;
+  if (interestsError) throw interestsError;
+  if (resumesError) throw resumesError;
+
+  const profile: JobSeekerProfile = {
+    id: `supabase_${userId}`,
+    userId,
+    fullName: `${basics?.first_name ?? ""} ${basics?.last_name ?? ""}`.trim() || "",
+    photoDataUrl: null,
+    phone: basics?.phone_number ?? null,
+    location: basics?.location ?? null,
+    headline: basics?.headline ?? null,
+    about: basics?.about ?? null,
+    experienceYears: basics?.experience_years ?? 0,
+    desiredRole: basics?.desired_role ?? null,
+    visibility: (basics?.visibility as "PUBLIC" | "PRIVATE") ?? "PUBLIC",
+    skills: skillsRow?.skills ?? [],
+    skillLevels: (skillsRow?.skill_levels as Record<string, SkillProficiency>) ?? {},
+    education: [],
+    experience:
+      experience?.map((row) => ({
+        id: row.id,
+        company: row.company ?? "",
+        title: row.title ?? "",
+        location: row.location ?? null,
+        startDate: toDateString(row.start_date) ?? "",
+        endDate: toDateString(row.end_date),
+        summary: row.description ?? "",
+      })) ?? [],
+    projects:
+      projects?.map((row) => ({
+        id: row.id,
+        name: row.name ?? "",
+        link: row.github_link ?? row.linkedin_link ?? null,
+        summary: row.description ?? "",
+        skills: row.technologies ?? [],
+      })) ?? [],
+    certifications:
+      certifications?.map((row) => ({
+        id: row.id,
+        name: row.name ?? "",
+        issuer: row.issuer ?? row.organization ?? "",
+        issuedOn: toDateString(row.issued_on ?? row.issue_date) ?? "",
+        expiresOn: toDateString(row.expires_on ?? row.valid_until),
+        credentialUrl: row.credential_url ?? null,
+      })) ?? [],
+    achievements:
+      achievements?.map((row) => ({
+        id: row.id,
+        title: row.title ?? "",
+        description: row.description ?? "",
+        date: toDateString(row.date),
+      })) ?? [],
+    languages: (languagesRow?.languages as LanguageItem[]) ?? [],
+    interests: interestsRow?.interests ?? [],
+    isFresher: false,
+    activeGeneratedResumeId: null,
+  };
+
+  return profile;
+}
+
+export async function syncProfileToSupabase(userId: string, profile: JobSeekerProfile): Promise<void> {
+  if (!isSupabaseConfigured || !userId) return;
+
+  const countSkills = profile.skills.length;
+  const countLanguages = profile.languages?.length ?? 0;
+  if (countSkills < 5 || countSkills > 20) {
+    console.warn(`Profile has ${countSkills} skills (recommend 5-20); still syncing to Supabase`);
+  }
+  if (countLanguages < 3) {
+    console.warn(`Profile has ${countLanguages} languages (recommend >=3); still syncing to Supabase`);
+  }
+
+  await supabase.from("basics").upsert({
+    user_id: userId,
+    first_name: profile.fullName.split(" ")[0] ?? "",
+    last_name: profile.fullName.split(" ").slice(1).join(" ") ?? "",
+    headline: profile.headline ?? null,
+    phone_number: profile.phone,
+    location: profile.location,
+    desired_role: profile.desiredRole,
+    experience_years: profile.experienceYears,
+    visibility: profile.visibility,
+    about: profile.about ?? null,
+  }, { onConflict: "user_id" });
+
+  await supabase.from("experience").delete().eq("user_id", userId);
+  const experienceItems = profile.experience ?? [];
+  if (experienceItems.length) {
+    await supabase.from("experience").insert(
+      experienceItems.map((item) => ({
+        id: item.id,
+        user_id: userId,
+        company: item.company,
+        title: item.title,
+        location: item.location,
+        start_date: item.startDate || null,
+        end_date: item.endDate || null,
+        description: item.summary,
+      })),
+    );
+  }
+
+  await supabase.from("projects").delete().eq("user_id", userId);
+  const projectItems = profile.projects ?? [];
+  if (projectItems.length) {
+    await supabase.from("projects").insert(
+      projectItems.map((item) => ({
+        id: item.id,
+        user_id: userId,
+        name: item.name,
+        technologies: item.skills,
+        description: item.summary,
+        github_link: item.link,
+        linkedin_link: item.link,
+      })),
+    );
+  }
+
+  const { error: certificationsDeleteError } = await supabase.from("certifications").delete().eq("user_id", userId);
+  if (certificationsDeleteError) throw certificationsDeleteError;
+  const certificationItems = profile.certifications ?? [];
+  if (certificationItems.length) {
+    const today = new Date().toISOString().slice(0, 10);
+    const modernRows = certificationItems.map((item) => ({
+      id: item.id,
+      user_id: userId,
+      name: item.name,
+      issuer: item.issuer,
+      issued_on: (item.issuedOn || "").slice(0, 10) || today,
+      expires_on: item.expiresOn ? item.expiresOn.slice(0, 10) : null,
+      verification_method: item.credentialUrl?.startsWith("uploaded:") ? "UPLOAD" : "URL",
+      credential_url: item.credentialUrl?.startsWith("uploaded:") ? null : item.credentialUrl,
+      proof_file_url: item.credentialUrl?.startsWith("uploaded:") ? item.credentialUrl.replace("uploaded:", "") : null,
+    }));
+
+    const { error: modernInsertError } = await supabase.from("certifications").insert(modernRows);
+
+    if (modernInsertError && isColumnMissingError(modernInsertError)) {
+      const legacyRows = certificationItems.map((item) => ({
+        id: item.id,
+        user_id: userId,
+        name: item.name,
+        organization: item.issuer,
+        issue_date: (item.issuedOn || "").slice(0, 10) || today,
+        valid_until: item.expiresOn ? item.expiresOn.slice(0, 10) : null,
+      }));
+      const { error: legacyInsertError } = await supabase.from("certifications").insert(legacyRows);
+      if (legacyInsertError) throw legacyInsertError;
+    } else if (modernInsertError) {
+      throw modernInsertError;
+    }
+  }
+
+  await supabase.from("achievements").delete().eq("user_id", userId);
+  const achievementItems = profile.achievements ?? [];
+  if (achievementItems.length) {
+    await supabase.from("achievements").insert(
+      achievementItems.map((item) => ({
+        id: item.id,
+        user_id: userId,
+        title: item.title,
+        description: item.description,
+        date: item.date || null,
+      })),
+    );
+  }
+
+  await supabase.from("skills").upsert(
+    {
+      user_id: userId,
+      skills: profile.skills ?? [],
+      skill_levels: profile.skillLevels ?? {},
+    },
+    { onConflict: "user_id" }
+  );
+
+  await supabase.from("languages").upsert(
+    {
+      user_id: userId,
+      languages: (profile.languages ?? []).map((x) => ({ id: x.id, name: x.name, proficiency: x.proficiency })),
+    },
+    { onConflict: "user_id" }
+  );
+
+  await supabase.from("interests").upsert(
+    {
+      user_id: userId,
+      interests: profile.interests ?? [],
+    },
+    { onConflict: "user_id" }
+  );
+
+  if (profile?.id) {
+    await supabase.from("resumes").delete().eq("user_id", userId); // keep in sync; overwrite via dedicated resume API
+  }
+}
+
+export async function addResumeUrl(userId: string, resumeUrl: string): Promise<void> {
+  if (!isSupabaseConfigured || !userId || !resumeUrl) return;
+  await supabase.from("resumes").insert({ user_id: userId, resume_url: resumeUrl });
+}
+
+export async function listResumes(userId: string): Promise<Resume[]> {
+  if (!isSupabaseConfigured || !userId) return [];
+
+  // Core schema: resumes(job_seeker_id, original_name, mime_type, size_bytes, created_at)
+  const core = await supabase
+    .from("resumes")
+    .select("id,original_name,mime_type,size_bytes,created_at")
+    .eq("job_seeker_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (!core.error) {
+    return (core.data ?? []).map((row: any) => ({
+      id: String(row.id),
+      originalName: String(row.original_name ?? "Resume"),
+      mimeType: String(row.mime_type ?? "application/octet-stream"),
+      sizeBytes: typeof row.size_bytes === "number" ? row.size_bytes : 0,
+      createdAt: String(row.created_at ?? new Date().toISOString()),
+    }));
+  }
+
+  // Profile builder schema: resumes(user_id, resume_url, uploaded_at)
+  if (!isColumnMissingError(core.error)) {
+    throw core.error;
+  }
+
+  const legacy = await supabase
+    .from("resumes")
+    .select("id,resume_url,uploaded_at")
+    .eq("user_id", userId)
+    .order("uploaded_at", { ascending: false });
+
+  if (legacy.error) throw legacy.error;
+
+  return (legacy.data ?? []).map((row: any) => ({
+    id: String(row.id),
+    originalName: "Resume",
+    mimeType: "application/pdf",
+    sizeBytes: 0,
+    createdAt: String(row.uploaded_at ?? new Date().toISOString()),
+  }));
+}
