@@ -35,8 +35,8 @@ export function RecruiterShortlistedPage() {
 
   async function loadRows() {
     if (!token) return;
-    const data = await apiJson<{ applications: Row[] }>("/recruiter/applications?status=SHORTLISTED", { token });
-    setRows(data.applications);
+    const data = await apiJson<{ applications: Row[] }>("/recruiter/applications", { token });
+    setRows((data.applications || []).filter(r => r.status === "SHORTLISTED"));
   }
 
   useEffect(() => {
