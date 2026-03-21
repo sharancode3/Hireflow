@@ -36,7 +36,7 @@ export function RecruiterShortlistedPage() {
   async function loadRows() {
     if (!token) return;
     const data = await apiJson<{ applications: Row[] }>("/recruiter/applications", { token });
-    setRows((data.applications || []).filter(r => r.status === "SHORTLISTED"));
+    setRows((data.applications || []).filter(r => r.status === "SHORTLISTED" || r.status === "INTERVIEW_SCHEDULED"));
   }
 
   useEffect(() => {
@@ -105,7 +105,9 @@ export function RecruiterShortlistedPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge variant="teal">Shortlisted</Badge>
+                  <Badge variant={r.status === "INTERVIEW_SCHEDULED" ? "purple" : "teal"}>
+                    {r.status === "INTERVIEW_SCHEDULED" ? "Interview" : "Shortlisted"}
+                  </Badge>
                   <span className="text-xs text-[var(--muted)]">{r.job.title}</span>
                   {r.candidate.latestResume ? (
                     <Button variant="ghost" className="text-xs" onClick={() => void openResumePreview(r.candidate.latestResume!.id, token!)}>Resume</Button>
