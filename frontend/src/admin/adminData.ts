@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabaseClient";
+import { apiJson } from "../api/client";
 
 export type RecruiterApprovalStatus = "PENDING" | "APPROVED" | "REJECTED";
 export type ApplicationStatus = "APPLIED" | "SHORTLISTED" | "INTERVIEW_SCHEDULED" | "OFFERED" | "REJECTED" | "HIRED";
@@ -149,6 +150,8 @@ export type ReviewJobItem = {
   };
 };
 
+export type JobReviewStatusFilter = "ALL" | "PENDING_REVIEW" | "APPROVED" | "REJECTED" | "NEEDS_REVISION";
+
 export async function fetchAdminOverview() {
   const [pendingRecruitersResult, applicationsResult, jobsPendingResult] = await Promise.all([
     supabase
@@ -284,11 +287,11 @@ export async function updateRecruiterStatus(userId: string, status: RecruiterApp
       .eq("id", userId)
       .eq("role", "RECRUITER");
 
-    if (error) throw error;
+    if (error) throw new Error("Unable to update recruiter status right now.");
     return;
   }
 
-  throw rpcResult.error;
+  throw new Error("Unable to update recruiter status right now.");
 }
 
 export async function fetchApplicants(status: "ALL" | ApplicationStatus, search: string): Promise<ApplicantItem[]> {
@@ -352,19 +355,23 @@ export async function fetchApplicants(status: "ALL" | ApplicationStatus, search:
 }
 
 export async function updateApplicantStatus(applicationId: string, status: ApplicationStatus, interviewAt: string | null) {
-  const payload: Record<string, string | null> = { status };
-  if (status === "INTERVIEW_SCHEDULED") {
-    payload.interview_at = interviewAt;
-  } else {
-    payload.interview_at = null;
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError || !sessionData.session?.access_token) {
+    throw new Error("Please sign in again to continue.");
   }
 
-  const { error } = await supabase
-    .from("applications")
-    .update(payload)
-    .eq("id", applicationId);
-
-  if (error) throw error;
+  try {
+    await apiJson<{ application: { id: string; status: ApplicationStatus; interview_at: string | null } }>(
+      `/admin/applications/${applicationId}`,
+      {
+        method: "PATCH",
+        token: sessionData.session.access_token,
+        body: { status, interviewAt },
+      }
+    );
+  } catch {
+    throw new Error("Unable to update applicant status right now.");
+  }
 }
 
 export async function fetchReviewJobs(): Promise<ReviewJobItem[]> {
@@ -420,22 +427,21 @@ export async function fetchReviewJobs(): Promise<ReviewJobItem[]> {
 }
 
 export async function reviewJob(jobId: string, action: "APPROVE" | "REJECT" | "REQUEST_REVISION", feedback?: string) {
-  const statusByAction = {
-    APPROVE: "APPROVED",
-    REJECT: "REJECTED",
-    REQUEST_REVISION: "NEEDS_REVISION",
-  } as const;
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError || !sessionData.session?.access_token) {
+    throw new Error("You need to be signed in as admin to review jobs.");
+  }
 
-  const payload = {
-    review_status: statusByAction[action],
-    admin_feedback: feedback?.trim() || null,
-    reviewed_at: new Date().toISOString(),
-  };
-
-  const { error } = await supabase
-    .from("jobs")
-    .update(payload)
-    .eq("id", jobId);
-
-  if (error) throw error;
+  try {
+    await apiJson<{ job: ReviewJobItem }>(`/admin/jobs/${jobId}/review`, {
+      method: "PATCH",
+      token: sessionData.session.access_token,
+      body: {
+        action,
+        feedback: feedback?.trim() || null,
+      },
+    });
+  } catch {
+    throw new Error("Unable to submit review action right now.");
+  }
 }

@@ -391,10 +391,14 @@ function isUniqueViolation(error: unknown): boolean {
 }
 
 function mapNotification(row: any) {
+  const title = typeof row?.metadata?.title === "string" ? row.metadata.title : null;
+  const link = typeof row?.metadata?.link === "string" ? row.metadata.link : null;
   return {
     id: row.id,
     type: row.type,
+    title,
     message: row.message,
+    link,
     isRead: Boolean(row.is_read),
     createdAt: row.created_at,
   };
@@ -1780,7 +1784,7 @@ recruiterSupabaseRouter.get("/notifications", async (req, res, next) => {
 
     const { data, error } = await supabase
       .from("notifications")
-      .select("id,type,message,is_read,created_at")
+      .select("id,type,message,is_read,created_at,metadata")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(100);

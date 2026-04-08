@@ -182,7 +182,9 @@ export type ApplicationWithJob = {
 export type NotificationItem = {
   id: string;
   type: string;
+  title?: string | null;
   message: string;
+  link?: string | null;
   isRead: boolean;
   createdAt: string;
 };

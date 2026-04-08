@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Badge } from "../../components/ui/Badge";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
@@ -8,6 +8,8 @@ import {
   type ApplicationStatus,
   updateApplicantStatus,
 } from "../../admin/adminData";
+import { useToast } from "../../components/ui/Toast";
+import { applicationBadgeVariant } from "../../admin/statusBadges";
 
 const statusOptions: Array<"ALL" | ApplicationStatus> = [
   "ALL",
@@ -20,19 +22,37 @@ const statusOptions: Array<"ALL" | ApplicationStatus> = [
 ];
 
 function badgeForStatus(status: ApplicationStatus) {
-  if (status === "HIRED" || status === "SHORTLISTED") return "green" as const;
-  if (status === "OFFERED" || status === "INTERVIEW_SCHEDULED") return "amber" as const;
-  if (status === "REJECTED") return "red" as const;
-  return "blue" as const;
+  return applicationBadgeVariant(status);
 }
 
 export function ApplicantManagementPage() {
+  const { toast } = useToast();
   const [rows, setRows] = useState<ApplicantItem[]>([]);
   const [status, setStatus] = useState<"ALL" | ApplicationStatus>("ALL");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const errorTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (errorTimerRef.current) {
+        window.clearTimeout(errorTimerRef.current);
+      }
+    };
+  }, []);
+
+  function showTransientError(message: string) {
+    setError(message);
+    if (errorTimerRef.current) {
+      window.clearTimeout(errorTimerRef.current);
+    }
+    errorTimerRef.current = window.setTimeout(() => {
+      setError(null);
+      errorTimerRef.current = null;
+    }, 3000);
+  }
 
   async function load() {
     setLoading(true);
@@ -54,12 +74,36 @@ export function ApplicantManagementPage() {
   async function saveStatus(row: ApplicantItem, nextStatus: ApplicationStatus) {
     setBusyId(row.id);
     setError(null);
+    if (errorTimerRef.current) {
+      window.clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = null;
+    }
     try {
       const interviewAt = nextStatus === "INTERVIEW_SCHEDULED" ? new Date(Date.now() + 86400000).toISOString() : null;
       await updateApplicantStatus(row.id, nextStatus, interviewAt);
-      await load();
+      setRows((prev) => {
+        const mapped = prev.map((item) =>
+          item.id === row.id
+            ? {
+                ...item,
+                status: nextStatus,
+                interviewAt,
+              }
+            : item
+        );
+        return status === "ALL" || status === nextStatus ? mapped : mapped.filter((item) => item.id !== row.id);
+      });
+      const successMessage =
+        nextStatus === "SHORTLISTED"
+          ? "Applicant shortlisted successfully"
+          : nextStatus === "INTERVIEW_SCHEDULED"
+          ? "Interview scheduled successfully"
+          : "Applicant status updated";
+      toast("success", successMessage);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to update applicant");
+      const message = e instanceof Error ? e.message : "Failed to update applicant";
+      showTransientError(message);
+      toast("error", "Could not update applicant status. Please try again.");
     } finally {
       setBusyId(null);
     }
@@ -136,15 +180,17 @@ export function ApplicantManagementPage() {
                     <td className="px-3 py-3">
                       <div className="flex flex-wrap gap-2">
                         <Button
-                          variant="secondary"
-                          disabled={busyId === row.id}
+                          variant={row.status === "SHORTLISTED" ? "primary" : "secondary"}
+                          loading={busyId === row.id}
+                          disabled={busyId === row.id || row.status === "SHORTLISTED"}
                           className="text-xs"
                           onClick={() => void saveStatus(row, "SHORTLISTED")}
                         >
-                          Shortlist
+                          {row.status === "SHORTLISTED" ? "✓ Shortlisted" : "Shortlist"}
                         </Button>
                         <Button
                           variant="secondary"
+                          loading={busyId === row.id}
                           disabled={busyId === row.id}
                           className="text-xs"
                           onClick={() => void saveStatus(row, "INTERVIEW_SCHEDULED")}
@@ -153,6 +199,7 @@ export function ApplicantManagementPage() {
                         </Button>
                         <Button
                           variant="danger"
+                          loading={busyId === row.id}
                           disabled={busyId === row.id}
                           className="text-xs"
                           onClick={() => void saveStatus(row, "REJECTED")}

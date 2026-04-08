@@ -8,11 +8,15 @@ import {
   type RecruiterItem,
   updateRecruiterStatus,
 } from "../../admin/adminData";
+import { useToast } from "../../components/ui/Toast";
+import { recruiterBadgeVariant } from "../../admin/statusBadges";
 
 const statuses: Array<"ALL" | RecruiterApprovalStatus> = ["ALL", "PENDING", "APPROVED", "REJECTED"];
 
 export function RecruiterVerificationPage() {
+  const { toast } = useToast();
   const [rows, setRows] = useState<RecruiterItem[]>([]);
+  const [allRows, setAllRows] = useState<RecruiterItem[]>([]);
   const [status, setStatus] = useState<"ALL" | RecruiterApprovalStatus>("PENDING");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
@@ -23,7 +27,12 @@ export function RecruiterVerificationPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchRecruiters(status, search);
+      const [filteredData, allData] = await Promise.all([
+        fetchRecruiters(status, search),
+        fetchRecruiters("ALL", search),
+      ]);
+      setAllRows(allData);
+      const data = status === "ALL" ? allData : filteredData;
       setRows(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load recruiters");
@@ -41,9 +50,29 @@ export function RecruiterVerificationPage() {
     setError(null);
     try {
       await updateRecruiterStatus(userId, nextStatus);
-      await load();
+      setAllRows((prev) =>
+        prev.map((row) =>
+          row.userId === userId
+            ? { ...row, status: nextStatus, updatedAt: new Date().toISOString() }
+            : row
+        )
+      );
+      setRows((prev) => {
+        const updated = prev
+          .map((row) =>
+            row.userId === userId
+              ? { ...row, status: nextStatus, updatedAt: new Date().toISOString() }
+              : row
+          );
+        return status === "ALL" ? updated : updated.filter((row) => row.status === status);
+      });
+      if (nextStatus === "APPROVED") toast("success", "Recruiter approved successfully");
+      if (nextStatus === "REJECTED") toast("success", "Recruiter rejected");
+      if (nextStatus === "PENDING") toast("success", "Recruiter marked as pending");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to update recruiter status");
+      const message = e instanceof Error ? e.message : "Failed to update recruiter status";
+      setError(message);
+      toast("error", "Could not update recruiter status. Please try again.");
     } finally {
       setBusyUserId(null);
     }
@@ -51,12 +80,12 @@ export function RecruiterVerificationPage() {
 
   const statusCounts = useMemo(() => {
     return {
-      ALL: rows.length,
-      PENDING: rows.filter((r) => r.status === "PENDING").length,
-      APPROVED: rows.filter((r) => r.status === "APPROVED").length,
-      REJECTED: rows.filter((r) => r.status === "REJECTED").length,
+      ALL: allRows.length,
+      PENDING: allRows.filter((r) => r.status === "PENDING").length,
+      APPROVED: allRows.filter((r) => r.status === "APPROVED").length,
+      REJECTED: allRows.filter((r) => r.status === "REJECTED").length,
     };
-  }, [rows]);
+  }, [allRows]);
 
   return (
     <div className="space-y-6">
@@ -112,7 +141,7 @@ export function RecruiterVerificationPage() {
                     </div>
                     <div className="text-xs text-text-muted">{row.website}</div>
                   </div>
-                  <Badge variant={row.status === "APPROVED" ? "green" : row.status === "REJECTED" ? "red" : "amber"}>
+                  <Badge variant={recruiterBadgeVariant(row.status)}>
                     {row.status}
                   </Badge>
                 </div>
@@ -120,6 +149,7 @@ export function RecruiterVerificationPage() {
                   <Button
                     variant="primary"
                     disabled={busyUserId === row.userId}
+                    loading={busyUserId === row.userId}
                     onClick={() => void updateStatus(row.userId, "APPROVED")}
                   >
                     Approve
@@ -127,6 +157,7 @@ export function RecruiterVerificationPage() {
                   <Button
                     variant="danger"
                     disabled={busyUserId === row.userId}
+                    loading={busyUserId === row.userId}
                     onClick={() => void updateStatus(row.userId, "REJECTED")}
                   >
                     Reject
@@ -134,6 +165,7 @@ export function RecruiterVerificationPage() {
                   <Button
                     variant="secondary"
                     disabled={busyUserId === row.userId}
+                    loading={busyUserId === row.userId}
                     onClick={() => void updateStatus(row.userId, "PENDING")}
                   >
                     Mark Pending

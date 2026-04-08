@@ -55,7 +55,8 @@ export function SharedNotificationsPage() {
                   {new Date(n.createdAt).toLocaleString()}
                 </span>
               </div>
-              <div style={{ fontWeight: 700 }}>{n.message}</div>
+              {n.title ? <div style={{ fontWeight: 700 }}>{n.title}</div> : null}
+              <div style={{ fontWeight: n.title ? 500 : 700 }}>{n.message}</div>
               {!n.isRead ? (
                 <button type="button" className="btn" onClick={() => void markRead(n.id)}>
                   Mark as read

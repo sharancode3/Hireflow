@@ -9,6 +9,8 @@ import { errorHandler } from "./middleware/errorHandler";
 
 import { healthRouter } from "./routes/health";
 import { externalJobsRouter } from "./routes/admin/externalJobsPublic";
+import { applicantsAdminRouter } from "./routes/admin/applicantsAdmin";
+import { jobsReviewAdminRouter } from "./routes/admin/jobsReviewAdmin";
 import { recruiterSupabaseRouter } from "./routes/recruiter/supabaseRecruiter";
 import { assistantRouter } from "./routes/assistant";
 import { startExternalJobsScheduler } from "./services/externalJobsService";
@@ -41,10 +43,12 @@ async function bootstrap() {
   app.use(helmet());
   app.use(express.json({ limit: "12mb" }));
 
-  app.use(healthRouter);
-  app.use(externalJobsRouter);
-  app.use(recruiterSupabaseRouter);
-  app.use(assistantRouter);
+app.use(healthRouter);
+app.use(externalJobsRouter);
+app.use(applicantsAdminRouter);
+app.use(jobsReviewAdminRouter);
+app.use(recruiterSupabaseRouter);
+app.use(assistantRouter);
 
   startExternalJobsScheduler();
 

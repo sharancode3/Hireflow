@@ -1,4 +1,5 @@
 import { NavLink } from "react-router-dom";
+import { useEffect, useRef } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   Bookmark,
@@ -100,12 +101,21 @@ export function AppSidebar({
   collapsed?: boolean;
 } = {}) {
   const { user } = useAuth();
+  const navRef = useRef<HTMLDivElement | null>(null);
   const isAdmin = Boolean(user?.email && config.adminEmails.includes(user.email.trim().toLowerCase()));
   const groups = isAdmin ? adminNav : (user?.role === "RECRUITER" ? recruiterNav : jobSeekerNav);
 
   const baseClass = mobile
     ? "flex flex-col gap-6"
     : `hidden lg:flex lg:max-h-[calc(100vh-64px)] lg:flex-col lg:gap-6 lg:overflow-y-auto lg:border-r lg:border-[var(--color-border)] lg:bg-[var(--color-sidebar-bg)] lg:px-3 lg:py-6 lg:transition-all lg:duration-300 ${collapsed ? "lg:w-[60px]" : "lg:w-[256px]"}`;
+
+  useEffect(() => {
+    if (!navRef.current) return;
+    const activeItem = navRef.current.querySelector("a[aria-current='page']");
+    if (activeItem && typeof (activeItem as HTMLElement).scrollIntoView === "function") {
+      (activeItem as HTMLElement).scrollIntoView({ block: "nearest" });
+    }
+  });
 
   return (
     <aside className={baseClass}>
@@ -114,7 +124,7 @@ export function AppSidebar({
           {!collapsed || mobile ? (
             <div className={(groupIndex === 0 ? "mb-1 px-2" : "mt-4 mb-1 px-2") + " text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-placeholder)]"}>{group.group}</div>
           ) : null}
-          <nav className="flex flex-col gap-1">
+          <nav ref={groupIndex === 0 ? navRef : undefined} className="flex flex-col gap-1">
             {group.items.map((item) => (
               <NavLink
                 key={item.to}

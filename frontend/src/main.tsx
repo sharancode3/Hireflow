@@ -6,6 +6,7 @@ import { BrowserRouter } from 'react-router-dom'
 import { AuthProvider } from './auth/AuthContext'
 import { ThemeProvider } from './theme/ThemeContext'
 import { applyTheme, loadTheme } from './theme/theme'
+import { ToastProvider } from './components/ui/Toast'
 
 applyTheme(loadTheme())
 
@@ -17,11 +18,13 @@ const routerBase = (() => {
 
 const appTree = (
   <ThemeProvider>
-    <AuthProvider>
-      <BrowserRouter basename={routerBase}>
-        <App />
-      </BrowserRouter>
-    </AuthProvider>
+    <ToastProvider>
+      <AuthProvider>
+        <BrowserRouter basename={routerBase}>
+          <App />
+        </BrowserRouter>
+      </AuthProvider>
+    </ToastProvider>
   </ThemeProvider>
 )
 

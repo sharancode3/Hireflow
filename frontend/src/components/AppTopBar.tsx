@@ -68,6 +68,10 @@ export function AppTopBar({
       setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, isRead: true } : x)));
     }
     setOpen(false);
+    if (n.link) {
+      navigate(n.link);
+      return;
+    }
     navigate(fullNotificationsPath);
   }
 
@@ -187,6 +191,7 @@ export function AppTopBar({
                     <span className="text-xs font-semibold" style={{ color: typeColor(n.type) }}>{n.type}</span>
                     <span className="text-[11px] text-text-muted">{formatAgo(n.createdAt)}</span>
                   </div>
+                  {n.title ? <div className="text-sm font-semibold text-text">{n.title}</div> : null}
                   <div className="text-sm text-text">{n.message}</div>
                 </button>
               ))}
