@@ -10,7 +10,7 @@ Demo login:
 
 - Recruiter: `t.m.s10099@gmail.com` / `Password123!`
 - Job seeker: `sharans.cs24@bmsce.ac.in` / `Password123!`
-- Admin: `Sharan18x@gmail.com` / `Password123!`
+- Admin access is confidential because it can affect both the job seeker and recruiter interfaces.
 
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
