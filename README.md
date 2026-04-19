@@ -1,8 +1,16 @@
 # Hireflow
 
-> Hiring workflows that feel polished for job seekers, recruiters, and admins.
+> Hiring workflows for job seekers, recruiters, and admins.
 
-Hireflow is a modern role-based hiring platform with structured application flows, recruiter approvals, analytics dashboards, and a resume builder designed for ATS-friendly presentation.
+Hireflow is a role-based hiring platform with recruiter approvals, application tracking, analytics, and an ATS-focused resume builder.
+
+Live demo: https://hireflow-frontend-wvf2.vercel.app/login
+
+Demo login:
+
+- Recruiter: `t.m.s10099@gmail.com` / `Password123!`
+- Job seeker: `sharans.cs24@bmsce.ac.in` / `Password123!`
+- Admin: `Sharan18x@gmail.com` / `Password123!`
 
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -11,53 +19,29 @@ Hireflow is a modern role-based hiring platform with structured application flow
 [![Supabase](https://img.shields.io/badge/Supabase-Auth_%2B_Postgres-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com/)
 [![Node.js](https://img.shields.io/badge/Node.js-20.x-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 
-## Live Demo
+## What It Does
 
-Try it now: https://hireflow-frontend-wvf2.vercel.app/login
-
-Demo login details:
-
-- Recruiter: `t.m.s10099@gmail.com`
-- Job seeker: `sharans.cs24@bmsce.ac.in`
-- Admin: `Sharan18x@gmail.com`
-- Passwords are environment-seeded in Supabase and may vary by deployment.
-
-## Preview
-
-Add screenshots or a short GIF here for the strongest first impression:
-
-| Landing page | Job seeker dashboard | Recruiter workspace |
-| --- | --- | --- |
-| `docs/screenshots/landing.png` | `docs/screenshots/job-seeker-dashboard.png` | `docs/screenshots/recruiter-dashboard.png` |
-
-Recommended captures: landing page, job search/application flow, recruiter pipeline view, resume builder, and admin moderation screens.
-
-## Features
-
-- Role-aware experiences for job seekers, recruiters, and admins.
-- Job browsing, saving, applying, and application status tracking.
-- Recruiter workflows for posting jobs, reviewing applicants, and scheduling interviews.
-- ATS-focused resume builder with export-friendly output and scoring guidance.
-- Analytics and trend views that make hiring progress easy to understand at a glance.
-- Guardrails for recruiter approval, admin access, and lifecycle integrity.
-- Clean UI patterns built for fast scanning, not clutter.
+- Helps job seekers search roles, apply quickly, and track progress.
+- Gives recruiters a clean workflow for posting jobs, reviewing applicants, and moving candidates forward.
+- Gives admins a control layer for approvals, access, and operational oversight.
+- Includes a resume builder and analytics views so the hiring process stays organized end to end.
 
 ## Tech Stack
 
 - Frontend: React 19, TypeScript, Vite, Tailwind CSS, React Router.
 - Backend: Node.js, Express, TypeScript.
 - Database and auth: Supabase Auth and Postgres.
-- Data visualization: Chart.js and react-chartjs-2.
-- Document generation: jsPDF and html2canvas.
-- Deployment: Vercel for the frontend, Render for the backend.
+- Visualization: Chart.js and react-chartjs-2.
+- Documents: jsPDF and html2canvas.
+- Deployment: Vercel frontend, Render backend.
 
 ## How It Works
 
-1. Users authenticate through Supabase and are routed by role.
-2. Job seekers interact with role-specific job discovery, applications, and profile tools.
-3. Recruiters manage jobs, shortlist candidates, and progress applicants through the pipeline.
-4. Admins review recruiter access, monitor integrity, and support operational governance.
-5. The backend handles protected operations, notifications, uploads, and third-party integrations.
+1. Users sign in through Supabase and are routed by role.
+2. Job seekers browse roles, save jobs, and submit applications.
+3. Recruiters post jobs, review candidates, and manage interview flow.
+4. Admins oversee approvals and platform integrity.
+5. The backend handles protected operations, uploads, notifications, and external job sync.
 
 ## Getting Started
 
@@ -130,24 +114,21 @@ Keep service-role and API keys secret. Only the public Supabase anon key belongs
 
 ## Roadmap
 
-- Richer recruiter analytics with deeper funnel insights.
-- Smarter matching and recommendation surfaces for jobs and candidates.
-- Better notification UX for approvals, interviews, and status changes.
-- More export and document options for resumes and candidate summaries.
-- Continued hardening of role, approval, and audit flows.
+- Deeper recruiter analytics and funnel reporting.
+- Stronger matching and recommendation signals.
+- Better notification and interview flow visibility.
+- More export options for resumes and candidate summaries.
 
 ## Contributing
 
 Contributions are welcome.
 
 1. Fork the repository and create a focused branch.
-2. Make your changes with clear, scoped commits.
+2. Make your change with a narrow scope.
 3. Run `npm run check` before opening a pull request.
-4. Add screenshots or notes when the change affects the UI or workflow.
+4. Include notes when the update affects UI or workflow.
 
 ## License
 
 No license has been declared in this repository yet.
-
-If you plan to publish Hireflow as open source, add a LICENSE file before distributing it.
 
